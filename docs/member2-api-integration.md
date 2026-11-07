@@ -5,6 +5,7 @@ fields, and errors use the stable envelope:
 
 ```json
 {
+  "schema_version": "1.0",
   "error": {"code": "validation_error", "message": "Request validation failed.", "details": []},
   "trace_id": "request-..."
 }
@@ -37,6 +38,14 @@ local response includes:
   "provider_metadata": {"engine": "deterministic-template-v1"}
 }
 ```
+
+External model-authored free text is never returned directly. On a successful
+external call, deterministic interpretation text reports only the model's validated
+selection of submitted `source_refs`. Hugging Face metadata also reports the
+response model and routed inference provider; an identity mismatch uses local fallback.
+
+Browser clients require their exact origin in `CORS_ALLOWED_ORIGINS` (comma-separated).
+The default empty allowlist intentionally permits only same-origin access.
 
 ## Security events and recommendations
 

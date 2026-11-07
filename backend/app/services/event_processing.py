@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import math
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
@@ -143,8 +142,8 @@ class SecurityEventProcessor:
             return "A complete scale-bound alert threshold has not been configured."
         scale = prediction.score_scale
         if not (
-            math.isclose(configured.scale_minimum, scale.minimum)
-            and math.isclose(configured.scale_maximum, scale.maximum)
+            configured.scale_minimum == scale.minimum
+            and configured.scale_maximum == scale.maximum
             and configured.higher_is_riskier is scale.higher_is_riskier
         ):
             return "The configured alert threshold semantics do not match the prediction scale."

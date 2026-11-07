@@ -5,7 +5,9 @@ from uuid import uuid4
 import httpx
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api import router
 from app.config import ExplanationProvider as ConfigExplanationProvider
@@ -14,6 +16,7 @@ from app.domain.contracts import ErrorBody, ErrorDetail, ErrorResponse, Explanat
 from app.domain.errors import (
     EventAlreadyExistsError,
     EventNotFoundError,
+    EventStoreUnavailableError,
     InvalidRecommendationTransitionError,
     PredictionAlreadyExistsError,
     PredictionNotFoundError,
@@ -36,13 +39,20 @@ def _error_response(
     code: str,
     message: str,
     details: list[ErrorDetail] | None = None,
+    headers: dict[str, str] | None = None,
 ) -> JSONResponse:
     trace_id = getattr(request.state, "trace_id", f"request-{uuid4().hex}")
     payload = ErrorResponse(
         error=ErrorBody(code=code, message=message, details=details or []),
         trace_id=trace_id,
     )
-    return JSONResponse(status_code=status_code, content=payload.model_dump(mode="json"))
+    response_headers = dict(headers or {})
+    response_headers["X-Trace-ID"] = trace_id
+    return JSONResponse(
+        status_code=status_code,
+        content=payload.model_dump(mode="json"),
+        headers=response_headers,
+    )
 
 
 def create_app(
@@ -75,6 +85,16 @@ def create_app(
             higher_is_riskier=resolved_settings.event_threshold_higher_is_riskier,
         ),
     )
+
+    allowed_origins = resolved_settings.allowed_cors_origins()
+    if allowed_origins:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=allowed_origins,
+            allow_credentials=True,
+            allow_methods=["GET", "POST", "OPTIONS"],
+            allow_headers=["Content-Type", "Authorization"],
+        )
 
     if explanation_service is not None:
         app.state.explanation_service = explanation_service
@@ -171,6 +191,43 @@ def create_app(
                 f"Recommendation {exc.recommendation_id!r} cannot be changed from "
                 f"{exc.current_status!r}."
             ),
+        )
+
+    @app.exception_handler(EventStoreUnavailableError)
+    async def event_store_unavailable_handler(
+        request: Request, exc: EventStoreUnavailableError
+    ) -> JSONResponse:
+        return _error_response(
+            request,
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            "event_store_unavailable",
+            "The event workflow store is temporarily unavailable.",
+            headers={"Retry-After": "1"},
+        )
+
+    @app.exception_handler(StarletteHTTPException)
+    async def http_error_handler(request: Request, exc: StarletteHTTPException) -> JSONResponse:
+        if exc.status_code == status.HTTP_404_NOT_FOUND:
+            code, message = "route_not_found", "The requested route was not found."
+        elif exc.status_code == status.HTTP_405_METHOD_NOT_ALLOWED:
+            code, message = "method_not_allowed", "The request method is not allowed."
+        else:
+            code, message = "http_error", "The request could not be completed."
+        return _error_response(
+            request,
+            exc.status_code,
+            code,
+            message,
+            headers=dict(exc.headers or {}),
+        )
+
+    @app.exception_handler(Exception)
+    async def internal_error_handler(request: Request, exc: Exception) -> JSONResponse:
+        return _error_response(
+            request,
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+            "internal_server_error",
+            "The server could not complete the request.",
         )
 
     app.include_router(router)

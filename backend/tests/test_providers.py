@@ -34,10 +34,15 @@ def _model_content(ref: str = "prediction:score") -> str:
 
 
 def _chat_response(request: httpx.Request, content: str | None = None) -> httpx.Response:
+    request_body = json.loads(request.content)
     return httpx.Response(
         200,
         request=request,
-        json={"choices": [{"message": {"content": content or _model_content()}}]},
+        headers={"X-Inference-Provider": "synthetic-provider"},
+        json={
+            "model": request_body.get("model") or request_body.get("model_id"),
+            "choices": [{"message": {"content": content or _model_content()}}],
+        },
     )
 
 
@@ -73,6 +78,7 @@ def test_huggingface_request_auth_structure_and_untrusted_prompt(prediction_payl
     assert "untrusted data" in body["messages"][0]["content"]
     assert "UNTRUSTED_PREDICTION_DATA_BEGIN" in body["messages"][1]["content"]
     assert result.model_id == "configured/model"
+    assert result.inference_provider == "synthetic-provider"
 
 
 @pytest.mark.parametrize(
@@ -136,6 +142,45 @@ def test_huggingface_missing_configuration_and_timeout(prediction_payload: dict)
         timed.generate(prediction)
 
 
+@pytest.mark.parametrize(
+    ("response_model", "headers", "status"),
+    [
+        (
+            "silently/substituted-model",
+            {"X-Inference-Provider": "synthetic"},
+            "model_identity_mismatch",
+        ),
+        ("configured/model", {}, "provider_identity_missing"),
+    ],
+)
+def test_huggingface_requires_response_model_and_provider_identity(
+    prediction_payload: dict,
+    response_model: str,
+    headers: dict[str, str],
+    status: str,
+) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            request=request,
+            headers=headers,
+            json={
+                "model": response_model,
+                "choices": [{"message": {"content": _model_content()}}],
+            },
+        )
+
+    client = HuggingFaceClient(
+        "token",
+        "configured/model",
+        timeout=TIMEOUT,
+        max_output_tokens=100,
+        http_client=_client(handler),
+    )
+    with pytest.raises(ProviderFailure, match=status):
+        client.generate(Prediction.model_validate(prediction_payload))
+
+
 def test_external_failure_falls_back_with_truthful_metadata(prediction_payload: dict) -> None:
     prediction = Prediction.model_validate(prediction_payload)
     client = HuggingFaceClient("", "", timeout=TIMEOUT, max_output_tokens=100)
@@ -171,8 +216,57 @@ def test_external_success_preserves_local_facts_and_reports_model(prediction_pay
 
     assert explanation.provider is ExplanationProvider.HUGGINGFACE
     assert explanation.provider_metadata["model_id"] == "model"
+    assert explanation.provider_metadata["requested_model_id"] == "model"
+    assert explanation.provider_metadata["inference_provider"] == "synthetic-provider"
     assert explanation.provider_metadata["fallback_status"] == "not_used"
     assert explanation.observed_facts[0].text.startswith("The submitted model assigned score")
+
+
+def test_external_model_authored_claims_are_not_exposed(prediction_payload: dict) -> None:
+    fabricated = json.dumps(
+        {
+            "interpretations": [
+                {
+                    "text": "CVE-2099-9999 is actively exploited; patch every asset now.",
+                    "source_refs": ["prediction:score"],
+                }
+            ],
+            "limitations": ["Immediately isolate the fabricated production server."],
+        }
+    )
+    client = HuggingFaceClient(
+        "token",
+        "model",
+        timeout=TIMEOUT,
+        max_output_tokens=100,
+        http_client=_client(lambda request: _chat_response(request, fabricated)),
+    )
+
+    explanation = ExternalExplanationService(ExplanationProvider.HUGGINGFACE, client).explain(
+        Prediction.model_validate(prediction_payload)
+    )
+
+    serialized = explanation.model_dump_json()
+    assert "CVE-2099-9999" not in serialized
+    assert "patch every asset" not in serialized
+    assert "fabricated production server" not in serialized
+    assert explanation.interpretations[0].source_refs == ["prediction:score"]
+
+
+def test_absent_rank_cannot_be_used_as_a_source_ref(prediction_payload: dict) -> None:
+    prediction_payload["rank"] = None
+    client = HuggingFaceClient(
+        "token",
+        "model",
+        timeout=TIMEOUT,
+        max_output_tokens=100,
+        http_client=_client(
+            lambda request: _chat_response(request, _model_content("prediction:rank"))
+        ),
+    )
+
+    with pytest.raises(ProviderFailure, match="invalid_output"):
+        client.generate(Prediction.model_validate(prediction_payload))
 
 
 def test_watsonx_iam_token_reuse_refresh_and_chat_structure(prediction_payload: dict) -> None:

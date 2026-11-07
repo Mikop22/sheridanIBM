@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Request, status
+from fastapi import APIRouter, Depends, Request, Response, status
 
 from app.domain.contracts import (
     ErrorResponse,
@@ -47,12 +47,14 @@ EventRepositoryDependency = Annotated[SecurityEventRepository, Depends(get_event
 @router.get(
     "/health",
     response_model=HealthStatus,
-    responses={503: {"model": ErrorResponse}},
+    responses={503: {"model": HealthStatus}},
     tags=["operations"],
 )
-def health(request: Request) -> HealthStatus:
+def health(request: Request, response: Response) -> HealthStatus:
     provider = request.app.state.settings.explanation_provider
     provider_ready = request.app.state.settings.provider_ready()
+    if not provider_ready:
+        response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
     return HealthStatus(
         status="ready" if provider_ready else "not_ready",
         explanation_provider=provider.value,
@@ -64,7 +66,10 @@ def health(request: Request) -> HealthStatus:
     "/v1/predictions",
     response_model=Prediction,
     status_code=status.HTTP_201_CREATED,
-    responses={409: {"model": ErrorResponse}, 422: {"model": ErrorResponse}},
+    responses={
+        409: {"model": ErrorResponse},
+        422: {"model": ErrorResponse},
+    },
     tags=["predictions"],
 )
 def create_prediction(prediction: Prediction, repository: RepositoryDependency) -> Prediction:
@@ -86,7 +91,6 @@ def get_prediction(prediction_id: str, repository: RepositoryDependency) -> Pred
     response_model=Explanation,
     responses={
         404: {"model": ErrorResponse},
-        503: {"model": ErrorResponse},
     },
     tags=["explanations"],
 )
@@ -101,7 +105,11 @@ def explain_prediction(
 @router.post(
     "/v1/security-events",
     response_model=EventProcessingOutcome,
-    responses={409: {"model": ErrorResponse}, 422: {"model": ErrorResponse}},
+    responses={
+        409: {"model": ErrorResponse},
+        422: {"model": ErrorResponse},
+        503: {"model": ErrorResponse},
+    },
     tags=["security-events"],
 )
 def submit_security_event(
@@ -113,7 +121,7 @@ def submit_security_event(
 @router.get(
     "/v1/security-events/{event_id}",
     response_model=EventProcessingOutcome,
-    responses={404: {"model": ErrorResponse}},
+    responses={404: {"model": ErrorResponse}, 503: {"model": ErrorResponse}},
     tags=["security-events"],
 )
 def get_security_event(
@@ -125,6 +133,7 @@ def get_security_event(
 @router.get(
     "/v1/predictions/{prediction_id}/recommendations",
     response_model=list[RemediationRecommendation],
+    responses={503: {"model": ErrorResponse}},
     tags=["recommendations"],
 )
 def get_recommendations(
@@ -137,7 +146,12 @@ def get_recommendations(
 @router.post(
     "/v1/recommendations/{recommendation_id}/decision",
     response_model=RemediationRecommendation,
-    responses={404: {"model": ErrorResponse}, 409: {"model": ErrorResponse}},
+    responses={
+        404: {"model": ErrorResponse},
+        409: {"model": ErrorResponse},
+        422: {"model": ErrorResponse},
+        503: {"model": ErrorResponse},
+    },
     tags=["recommendations"],
 )
 def decide_recommendation(

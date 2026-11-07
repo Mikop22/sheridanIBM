@@ -12,7 +12,7 @@ from app.domain.contracts import (
     Prediction,
     SignalDirection,
 )
-from app.services.providers import ExternalExplanationClient, ProviderFailure
+from app.services.providers import ExternalExplanationClient, ProviderFailure, ProviderOutput
 
 
 class ExplanationService(Protocol):
@@ -179,24 +179,50 @@ class ExternalExplanationService:
                 }
             )
 
+        provider_metadata = {
+            "requested_provider": self._requested_provider.value,
+            "actual_provider": self._requested_provider.value,
+            "model_id": result.model_id,
+            "requested_generation_status": GenerationStatus.COMPLETE.value,
+            "fallback_status": "not_used",
+        }
+        if result.requested_model_id is not None:
+            provider_metadata["requested_model_id"] = result.requested_model_id
+        if result.inference_provider is not None:
+            provider_metadata["inference_provider"] = result.inference_provider
+
         explanation = Explanation(
             prediction_id=prediction.prediction_id,
             provider=self._requested_provider,
             generation_status=GenerationStatus.COMPLETE,
             observed_facts=baseline.observed_facts,
-            interpretations=result.output.interpretations,
-            limitations=list(dict.fromkeys([*baseline.limitations, *result.output.limitations])),
+            interpretations=self._safe_interpretations(result.output),
+            limitations=[
+                *baseline.limitations,
+                (
+                    "External model-authored free text is not exposed; only its validated "
+                    "selection of submitted source references is reported."
+                ),
+            ],
             trace_id=self._trace_id(prediction, result.output.model_dump(mode="json")),
-            provider_metadata={
-                "requested_provider": self._requested_provider.value,
-                "actual_provider": self._requested_provider.value,
-                "model_id": result.model_id,
-                "requested_generation_status": GenerationStatus.COMPLETE.value,
-                "fallback_status": "not_used",
-            },
+            provider_metadata=provider_metadata,
         )
         explanation.validate_source_refs(prediction)
         return explanation
+
+    @staticmethod
+    def _safe_interpretations(output: ProviderOutput) -> list[GroundedStatement]:
+        return [
+            GroundedStatement(
+                text=(
+                    "The external provider identified these submitted source references as "
+                    f"relevant: {', '.join(statement.source_refs)}. No additional "
+                    "model-authored factual claim was accepted."
+                ),
+                source_refs=statement.source_refs,
+            )
+            for statement in output.interpretations
+        ]
 
     def _trace_id(self, prediction: Prediction, output: dict) -> str:
         payload = json.dumps(

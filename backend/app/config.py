@@ -1,7 +1,7 @@
 from enum import StrEnum
 from pathlib import Path
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -24,6 +24,8 @@ class Settings(BaseSettings):
     hf_token: str = ""
     hf_model_id: str = ""
 
+    cors_allowed_origins: str = ""
+
     watsonx_api_key: str = ""
     watsonx_project_id: str = ""
     watsonx_url: str = ""
@@ -34,6 +36,17 @@ class Settings(BaseSettings):
     event_threshold_scale_minimum: float | None = None
     event_threshold_scale_maximum: float | None = None
     event_threshold_higher_is_riskier: bool | None = None
+
+    @field_validator("cors_allowed_origins")
+    @classmethod
+    def reject_wildcard_cors(cls, value: str) -> str:
+        origins = [item.strip() for item in value.split(",") if item.strip()]
+        if "*" in origins:
+            raise ValueError("CORS_ALLOWED_ORIGINS must contain explicit origins, not '*'")
+        return value
+
+    def allowed_cors_origins(self) -> list[str]:
+        return [item.strip() for item in self.cors_allowed_origins.split(",") if item.strip()]
 
     def provider_ready(self) -> bool:
         if self.explanation_provider is ExplanationProvider.LOCAL:

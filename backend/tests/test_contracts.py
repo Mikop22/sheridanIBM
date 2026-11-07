@@ -64,6 +64,14 @@ def test_dangling_signal_evidence_reference_is_rejected(prediction_payload: dict
         Prediction.model_validate(invalid)
 
 
+def test_duplicate_signal_names_are_rejected(prediction_payload: dict) -> None:
+    duplicate = deepcopy(prediction_payload)
+    duplicate["signals"].append(deepcopy(duplicate["signals"][0]))
+
+    with pytest.raises(ValidationError, match="signal names must be unique"):
+        Prediction.model_validate(duplicate)
+
+
 @pytest.mark.parametrize(
     ("filename", "model"),
     [

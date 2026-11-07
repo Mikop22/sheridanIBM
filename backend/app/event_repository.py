@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -15,6 +17,7 @@ from app.domain.contracts import (
 from app.domain.errors import (
     EventAlreadyExistsError,
     EventNotFoundError,
+    EventStoreUnavailableError,
     InvalidRecommendationTransitionError,
     RecommendationNotFoundError,
 )
@@ -40,8 +43,24 @@ class SecurityEventRepository:
         connection.execute("PRAGMA foreign_keys = ON")
         return connection
 
+    @contextmanager
+    def _connection(self) -> Iterator[sqlite3.Connection]:
+        connection = self._connect()
+        try:
+            with connection:
+                yield connection
+        except sqlite3.OperationalError as exc:
+            if getattr(exc, "sqlite_errorcode", None) in {
+                sqlite3.SQLITE_BUSY,
+                sqlite3.SQLITE_LOCKED,
+            }:
+                raise EventStoreUnavailableError from exc
+            raise
+        finally:
+            connection.close()
+
     def _initialize(self) -> None:
-        with self._connect() as connection:
+        with self._connection() as connection:
             connection.executescript(
                 """
                 CREATE TABLE IF NOT EXISTS events (
@@ -72,7 +91,7 @@ class SecurityEventRepository:
             )
 
     def find_event(self, event_id: str) -> StoredEvent | None:
-        with self._connect() as connection:
+        with self._connection() as connection:
             row = connection.execute(
                 "SELECT fingerprint, outcome_json FROM events WHERE event_id = ?", (event_id,)
             ).fetchone()
@@ -95,7 +114,7 @@ class SecurityEventRepository:
         outcome: EventProcessingOutcome,
         recommendation: RemediationRecommendation | None,
     ) -> EventProcessingOutcome:
-        with self._connect() as connection:
+        with self._connection() as connection:
             connection.execute("BEGIN IMMEDIATE")
             existing = connection.execute(
                 "SELECT fingerprint, outcome_json FROM events WHERE event_id = ?",
@@ -137,7 +156,7 @@ class SecurityEventRepository:
             return outcome
 
     def list_recommendations(self, prediction_id: str) -> list[RemediationRecommendation]:
-        with self._connect() as connection:
+        with self._connection() as connection:
             rows = connection.execute(
                 """
                 SELECT recommendation_json FROM recommendations
@@ -153,7 +172,7 @@ class SecurityEventRepository:
     def decide(
         self, recommendation_id: str, decision: RecommendationDecision
     ) -> RemediationRecommendation:
-        with self._connect() as connection:
+        with self._connection() as connection:
             connection.execute("BEGIN IMMEDIATE")
             row = connection.execute(
                 """

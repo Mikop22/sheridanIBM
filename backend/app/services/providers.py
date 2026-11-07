@@ -29,6 +29,8 @@ class ProviderOutput(BaseModel):
 class ProviderResult:
     output: ProviderOutput
     model_id: str
+    requested_model_id: str | None = None
+    inference_provider: str | None = None
 
 
 class ExternalExplanationClient(Protocol):
@@ -76,11 +78,20 @@ def _parse_output(content: Any, prediction: Prediction) -> ProviderOutput:
     return output
 
 
-def _content_from_chat_response(response: httpx.Response) -> Any:
+def _chat_response_payload(response: httpx.Response) -> dict[str, Any]:
     try:
         payload = response.json()
+        if not isinstance(payload, dict):
+            raise TypeError
+        return payload
+    except (ValueError, TypeError) as exc:
+        raise ProviderFailure("invalid_output") from exc
+
+
+def _content_from_chat_payload(payload: dict[str, Any]) -> Any:
+    try:
         return payload["choices"][0]["message"]["content"]
-    except (ValueError, KeyError, IndexError, TypeError) as exc:
+    except (KeyError, IndexError, TypeError) as exc:
         raise ProviderFailure("invalid_output") from exc
 
 
@@ -132,8 +143,21 @@ class HuggingFaceClient:
         except httpx.HTTPError as exc:
             raise ProviderFailure("unavailable") from exc
         _raise_for_provider_status(response)
-        output = _parse_output(_content_from_chat_response(response), prediction)
-        return ProviderResult(output=output, model_id=self._model_id)
+        response_payload = _chat_response_payload(response)
+        response_model = response_payload.get("model")
+        requested_base_model = self._model_id.split(":", maxsplit=1)[0]
+        if response_model not in {self._model_id, requested_base_model}:
+            raise ProviderFailure("model_identity_mismatch")
+        inference_provider = response.headers.get("x-inference-provider", "").strip()
+        if not inference_provider:
+            raise ProviderFailure("provider_identity_missing")
+        output = _parse_output(_content_from_chat_payload(response_payload), prediction)
+        return ProviderResult(
+            output=output,
+            model_id=response_model,
+            requested_model_id=self._model_id,
+            inference_provider=inference_provider,
+        )
 
     def _post(self, url: str, **kwargs: Any) -> httpx.Response:
         if self._http_client is not None:
@@ -185,8 +209,15 @@ class WatsonxGraniteClient:
             self._invalidate_token()
             response = self._chat(payload, self._access_token())
         _raise_for_provider_status(response)
-        output = _parse_output(_content_from_chat_response(response), prediction)
-        return ProviderResult(output=output, model_id=self._model_id)
+        output = _parse_output(
+            _content_from_chat_payload(_chat_response_payload(response)), prediction
+        )
+        return ProviderResult(
+            output=output,
+            model_id=self._model_id,
+            requested_model_id=self._model_id,
+            inference_provider="watsonx",
+        )
 
     def _chat(self, payload: dict[str, Any], token: str) -> httpx.Response:
         try:

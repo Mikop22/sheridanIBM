@@ -44,9 +44,19 @@ WATSONX_MODEL_ID=a-supported-granite-model-you-selected
 
 watsonx.ai authentication uses reusable, expiring IBM IAM tokens. External output
 is accepted only as Pydantic-validated JSON with prediction-backed source
-references. Confirmed facts remain deterministic. Missing configuration, timeouts,
-authentication failures, unavailable models, rate limits, and invalid output all
-return the local explanation with truthful fallback metadata.
+references. Model-authored free text is not exposed: the API reports only the
+provider's validated source selection using deterministic wording. Confirmed facts
+remain deterministic. Hugging Face responses must identify the requested model and
+routed inference provider. Missing configuration, timeouts, authentication failures,
+unavailable models, rate limits, and invalid output all return the local explanation
+with truthful fallback metadata.
+
+For a browser frontend, configure an explicit comma-separated origin allowlist;
+wildcards are rejected:
+
+```dotenv
+CORS_ALLOWED_ORIGINS=http://localhost:3000
+```
 
 ## Deterministic security events
 

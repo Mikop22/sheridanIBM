@@ -74,6 +74,12 @@
     "error": {
       "$ref": "#/$defs/ErrorBody"
     },
+    "schema_version": {
+      "const": "1.0",
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
     "trace_id": {
       "minLength": 1,
       "title": "Trace Id",

@@ -14,6 +14,10 @@ class ProviderUnavailableError(Exception):
     """Raised when the configured explanation provider cannot serve requests."""
 
 
+class EventStoreUnavailableError(Exception):
+    """Raised when transient SQLite contention prevents event workflow access."""
+
+
 class EventAlreadyExistsError(Exception):
     def __init__(self, event_id: str) -> None:
         self.event_id = event_id

@@ -8,6 +8,9 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
+    StrictBool,
+    StrictFloat,
+    StrictInt,
     StringConstraints,
     model_validator,
 )
@@ -21,9 +24,9 @@ class ContractModel(BaseModel):
 
 
 class ScoreScale(ContractModel):
-    minimum: float
-    maximum: float
-    higher_is_riskier: bool
+    minimum: StrictFloat
+    maximum: StrictFloat
+    higher_is_riskier: StrictBool
 
     @model_validator(mode="after")
     def validate_bounds(self) -> ScoreScale:
@@ -62,7 +65,7 @@ class SignalDirection(StrEnum):
 class ExplanatorySignal(ContractModel):
     name: NonEmptyString
     value: Any
-    contribution: float | None = None
+    contribution: StrictFloat | None = None
     direction: SignalDirection = SignalDirection.UNKNOWN
     evidence_refs: list[NonEmptyString] = Field(default_factory=list)
 
@@ -79,9 +82,9 @@ class Prediction(ContractModel):
     prediction_id: NonEmptyString
     snapshot_date: date
     vulnerability: VulnerabilityRef
-    score: float
+    score: StrictFloat
     score_scale: ScoreScale
-    rank: int | None = Field(default=None, ge=1)
+    rank: StrictInt | None = Field(default=None, ge=1)
     model_version: NonEmptyString
     signals: list[ExplanatorySignal] = Field(default_factory=list)
     affected_assets: list[AffectedAsset] = Field(default_factory=list)
@@ -99,6 +102,10 @@ class Prediction(ContractModel):
         asset_ids = [item.asset_id for item in self.affected_assets]
         if len(asset_ids) != len(set(asset_ids)):
             raise ValueError("asset_id values must be unique")
+
+        signal_names = [item.name for item in self.signals]
+        if len(signal_names) != len(set(signal_names)):
+            raise ValueError("signal names must be unique")
 
         available_evidence = set(evidence_ids)
         for signal in self.signals:
@@ -121,11 +128,12 @@ class Prediction(ContractModel):
         refs = {
             "prediction:score",
             "prediction:score_scale",
-            "prediction:rank",
             "prediction:model_version",
             "prediction:snapshot_date",
             "vulnerability:identity",
         }
+        if self.rank is not None:
+            refs.add("prediction:rank")
         refs.update(f"signal:{signal.name}" for signal in self.signals)
         refs.update(f"asset:{asset.asset_id}" for asset in self.affected_assets)
         refs.update(f"evidence:{item.evidence_id}" for item in self.evidence)
@@ -222,7 +230,7 @@ class RemediationRecommendation(ContractModel):
     prediction_id: NonEmptyString
     vulnerability_id: NonEmptyString
     asset_id: NonEmptyString
-    risk_score: float
+    risk_score: StrictFloat
     score_scale: ScoreScale
     trigger_reason: NonEmptyString
     evidence_refs: list[NonEmptyString] = Field(min_length=1)
@@ -267,5 +275,6 @@ class ErrorBody(ContractModel):
 
 
 class ErrorResponse(ContractModel):
+    schema_version: Literal[SCHEMA_VERSION] = SCHEMA_VERSION
     error: ErrorBody
     trace_id: NonEmptyString

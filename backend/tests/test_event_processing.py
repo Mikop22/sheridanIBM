@@ -143,6 +143,19 @@ def test_missing_or_incompatible_score_semantics_do_not_trigger(
     assert events.list_recommendations(event_payload["prediction_id"]) == []
 
 
+def test_nearly_equal_score_scale_is_still_incompatible(
+    tmp_path: Path, prediction_payload: dict, event_payload: dict
+) -> None:
+    prediction_payload["score_scale"]["maximum"] = 1.0000000001
+    processor, events = _processor(tmp_path / "near-scale.db", prediction_payload)
+
+    outcome = processor.process(SecurityEvent.model_validate(event_payload))
+
+    assert outcome.processing_status is EventProcessingStatus.INSUFFICIENT_INFORMATION
+    assert outcome.reason_code == "incompatible_score_semantics"
+    assert events.list_recommendations(event_payload["prediction_id"]) == []
+
+
 def test_lower_score_can_be_riskier_when_declared(
     tmp_path: Path, prediction_payload: dict, event_payload: dict
 ) -> None:
@@ -235,6 +248,58 @@ def test_sqlite_state_survives_repository_restart(
     recommendations = restarted.list_recommendations(event_payload["prediction_id"])
     assert len(recommendations) == 1
     assert recommendations[0].workflow_status is RecommendationStatus.APPROVED
+
+
+def test_sqlite_connections_are_closed_after_repository_operations(
+    tmp_path: Path, prediction_payload: dict, event_payload: dict
+) -> None:
+    database_path = tmp_path / "closed.db"
+    processor, events = _processor(database_path, prediction_payload)
+    processor.process(SecurityEvent.model_validate(event_payload))
+    events.get_event(event_payload["event_id"])
+
+    renamed_path = tmp_path / "renamed.db"
+    database_path.rename(renamed_path)
+
+    assert renamed_path.exists()
+
+
+def test_sqlite_lock_returns_retryable_error_envelope(
+    tmp_path: Path,
+    prediction_payload: dict,
+    event_payload: dict,
+    monkeypatch,
+) -> None:
+    database_path = tmp_path / "locked.db"
+    event_repository = SecurityEventRepository(database_path)
+    settings = Settings(
+        event_database_path=database_path,
+        event_risk_threshold=0.75,
+        event_threshold_scale_minimum=0.0,
+        event_threshold_scale_maximum=1.0,
+        event_threshold_higher_is_riskier=True,
+    )
+    real_connect = sqlite3.connect
+    lock_connection = real_connect(database_path)
+    lock_connection.execute("BEGIN EXCLUSIVE")
+
+    def connect_without_wait(database, *args, **kwargs):  # type: ignore[no-untyped-def]
+        kwargs["timeout"] = 0
+        return real_connect(database, *args, **kwargs)
+
+    monkeypatch.setattr("app.event_repository.sqlite3.connect", connect_without_wait)
+    try:
+        with TestClient(create_app(settings, event_repository=event_repository)) as locked_client:
+            assert locked_client.post("/v1/predictions", json=prediction_payload).status_code == 201
+            response = locked_client.post("/v1/security-events", json=event_payload)
+    finally:
+        lock_connection.rollback()
+        lock_connection.close()
+
+    assert response.status_code == 503
+    assert response.json()["error"]["code"] == "event_store_unavailable"
+    assert response.headers["Retry-After"] == "1"
+    assert response.headers["X-Trace-ID"] == response.json()["trace_id"]
 
 
 def test_workflow_never_executes_remediation(
