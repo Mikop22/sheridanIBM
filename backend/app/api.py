@@ -4,8 +4,19 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request, status
 
-from app.domain.contracts import ErrorResponse, Explanation, HealthStatus, Prediction
+from app.domain.contracts import (
+    ErrorResponse,
+    EventProcessingOutcome,
+    Explanation,
+    HealthStatus,
+    Prediction,
+    RecommendationDecision,
+    RemediationRecommendation,
+    SecurityEvent,
+)
+from app.event_repository import SecurityEventRepository
 from app.repositories import PredictionRepository
+from app.services.event_processing import SecurityEventProcessor
 from app.services.explanations import ExplanationService
 
 router = APIRouter()
@@ -19,8 +30,18 @@ def get_explanation_service(request: Request) -> ExplanationService:
     return request.app.state.explanation_service
 
 
+def get_event_processor(request: Request) -> SecurityEventProcessor:
+    return request.app.state.event_processor
+
+
+def get_event_repository(request: Request) -> SecurityEventRepository:
+    return request.app.state.event_repository
+
+
 RepositoryDependency = Annotated[PredictionRepository, Depends(get_repository)]
 ExplanationDependency = Annotated[ExplanationService, Depends(get_explanation_service)]
+EventProcessorDependency = Annotated[SecurityEventProcessor, Depends(get_event_processor)]
+EventRepositoryDependency = Annotated[SecurityEventRepository, Depends(get_event_repository)]
 
 
 @router.get(
@@ -75,3 +96,53 @@ def explain_prediction(
     explanation_service: ExplanationDependency,
 ) -> Explanation:
     return explanation_service.explain(repository.get(prediction_id))
+
+
+@router.post(
+    "/v1/security-events",
+    response_model=EventProcessingOutcome,
+    responses={409: {"model": ErrorResponse}, 422: {"model": ErrorResponse}},
+    tags=["security-events"],
+)
+def submit_security_event(
+    event: SecurityEvent, event_processor: EventProcessorDependency
+) -> EventProcessingOutcome:
+    return event_processor.process(event)
+
+
+@router.get(
+    "/v1/security-events/{event_id}",
+    response_model=EventProcessingOutcome,
+    responses={404: {"model": ErrorResponse}},
+    tags=["security-events"],
+)
+def get_security_event(
+    event_id: str, event_repository: EventRepositoryDependency
+) -> EventProcessingOutcome:
+    return event_repository.get_event(event_id)
+
+
+@router.get(
+    "/v1/predictions/{prediction_id}/recommendations",
+    response_model=list[RemediationRecommendation],
+    tags=["recommendations"],
+)
+def get_recommendations(
+    prediction_id: str,
+    event_repository: EventRepositoryDependency,
+) -> list[RemediationRecommendation]:
+    return event_repository.list_recommendations(prediction_id)
+
+
+@router.post(
+    "/v1/recommendations/{recommendation_id}/decision",
+    response_model=RemediationRecommendation,
+    responses={404: {"model": ErrorResponse}, 409: {"model": ErrorResponse}},
+    tags=["recommendations"],
+)
+def decide_recommendation(
+    recommendation_id: str,
+    decision: RecommendationDecision,
+    event_repository: EventRepositoryDependency,
+) -> RemediationRecommendation:
+    return event_repository.decide(recommendation_id, decision)

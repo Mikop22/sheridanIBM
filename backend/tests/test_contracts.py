@@ -7,7 +7,16 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from app.domain.contracts import ErrorResponse, Explanation, HealthStatus, Prediction
+from app.domain.contracts import (
+    ErrorResponse,
+    EventProcessingOutcome,
+    Explanation,
+    HealthStatus,
+    Prediction,
+    RecommendationDecision,
+    RemediationRecommendation,
+    SecurityEvent,
+)
 from app.services.explanations import LocalExplanationService
 
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
@@ -19,6 +28,13 @@ def test_fixture_is_valid_and_explicitly_synthetic(prediction_payload: dict) -> 
     serialized = json.dumps(prediction.model_dump(mode="json")).lower()
     assert "synthetic" in serialized
     assert prediction.prediction_id.startswith("synthetic-")
+
+
+def test_security_event_fixture_is_valid_and_explicitly_synthetic(event_payload: dict) -> None:
+    event = SecurityEvent.model_validate(event_payload)
+
+    assert event.event_id.startswith("synthetic-")
+    assert "synthetic" in json.dumps(event.model_dump(mode="json")).lower()
 
 
 def test_response_examples_match_contracts_and_local_output(prediction_payload: dict) -> None:
@@ -55,6 +71,10 @@ def test_dangling_signal_evidence_reference_is_rejected(prediction_payload: dict
         ("explanation.schema.json", Explanation),
         ("health-status.schema.json", HealthStatus),
         ("prediction.schema.json", Prediction),
+        ("security-event.schema.json", SecurityEvent),
+        ("event-processing-outcome.schema.json", EventProcessingOutcome),
+        ("remediation-recommendation.schema.json", RemediationRecommendation),
+        ("recommendation-decision.schema.json", RecommendationDecision),
     ],
 )
 def test_exported_schema_matches_model(filename: str, model: type) -> None:

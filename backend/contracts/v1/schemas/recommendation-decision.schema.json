@@ -1,0 +1,41 @@
+{
+  "$defs": {
+    "DecisionAction": {
+      "enum": [
+        "approve",
+        "reject"
+      ],
+      "title": "DecisionAction",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "action": {
+      "$ref": "#/$defs/DecisionAction"
+    },
+    "actor": {
+      "minLength": 1,
+      "title": "Actor",
+      "type": "string"
+    },
+    "reason": {
+      "minLength": 1,
+      "title": "Reason",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "1.0",
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "action",
+    "actor",
+    "reason"
+  ],
+  "title": "RecommendationDecision",
+  "type": "object"
+}

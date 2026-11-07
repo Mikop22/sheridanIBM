@@ -12,3 +12,30 @@ class PredictionNotFoundError(Exception):
 
 class ProviderUnavailableError(Exception):
     """Raised when the configured explanation provider cannot serve requests."""
+
+
+class EventAlreadyExistsError(Exception):
+    def __init__(self, event_id: str) -> None:
+        self.event_id = event_id
+        super().__init__(f"event {event_id!r} already exists with different content")
+
+
+class EventNotFoundError(Exception):
+    def __init__(self, event_id: str) -> None:
+        self.event_id = event_id
+        super().__init__(f"event {event_id!r} was not found")
+
+
+class RecommendationNotFoundError(Exception):
+    def __init__(self, recommendation_id: str) -> None:
+        self.recommendation_id = recommendation_id
+        super().__init__(f"recommendation {recommendation_id!r} was not found")
+
+
+class InvalidRecommendationTransitionError(Exception):
+    def __init__(self, recommendation_id: str, current_status: str) -> None:
+        self.recommendation_id = recommendation_id
+        self.current_status = current_status
+        super().__init__(
+            f"recommendation {recommendation_id!r} cannot be changed from {current_status!r}"
+        )

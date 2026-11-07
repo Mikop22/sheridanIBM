@@ -1,0 +1,166 @@
+{
+  "$defs": {
+    "RecommendationStatus": {
+      "enum": [
+        "pending_approval",
+        "approved",
+        "rejected"
+      ],
+      "title": "RecommendationStatus",
+      "type": "string"
+    },
+    "ScoreScale": {
+      "additionalProperties": false,
+      "properties": {
+        "higher_is_riskier": {
+          "title": "Higher Is Riskier",
+          "type": "boolean"
+        },
+        "maximum": {
+          "title": "Maximum",
+          "type": "number"
+        },
+        "minimum": {
+          "title": "Minimum",
+          "type": "number"
+        }
+      },
+      "required": [
+        "minimum",
+        "maximum",
+        "higher_is_riskier"
+      ],
+      "title": "ScoreScale",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "approval_required": {
+      "const": true,
+      "default": true,
+      "title": "Approval Required",
+      "type": "boolean"
+    },
+    "asset_id": {
+      "minLength": 1,
+      "title": "Asset Id",
+      "type": "string"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "decided_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Decided At"
+    },
+    "decided_by": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Decided By"
+    },
+    "decision_reason": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Decision Reason"
+    },
+    "event_id": {
+      "minLength": 1,
+      "title": "Event Id",
+      "type": "string"
+    },
+    "evidence_refs": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Evidence Refs",
+      "type": "array"
+    },
+    "prediction_id": {
+      "minLength": 1,
+      "title": "Prediction Id",
+      "type": "string"
+    },
+    "recommendation_id": {
+      "minLength": 1,
+      "title": "Recommendation Id",
+      "type": "string"
+    },
+    "recommended_next_step": {
+      "minLength": 1,
+      "title": "Recommended Next Step",
+      "type": "string"
+    },
+    "risk_score": {
+      "title": "Risk Score",
+      "type": "number"
+    },
+    "schema_version": {
+      "const": "1.0",
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "score_scale": {
+      "$ref": "#/$defs/ScoreScale"
+    },
+    "trigger_reason": {
+      "minLength": 1,
+      "title": "Trigger Reason",
+      "type": "string"
+    },
+    "vulnerability_id": {
+      "minLength": 1,
+      "title": "Vulnerability Id",
+      "type": "string"
+    },
+    "workflow_status": {
+      "$ref": "#/$defs/RecommendationStatus"
+    }
+  },
+  "required": [
+    "recommendation_id",
+    "event_id",
+    "prediction_id",
+    "vulnerability_id",
+    "asset_id",
+    "risk_score",
+    "score_scale",
+    "trigger_reason",
+    "evidence_refs",
+    "recommended_next_step",
+    "workflow_status",
+    "created_at"
+  ],
+  "title": "RemediationRecommendation",
+  "type": "object"
+}

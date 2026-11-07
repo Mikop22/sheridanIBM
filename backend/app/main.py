@@ -11,8 +11,17 @@ from app.api import router
 from app.config import ExplanationProvider as ConfigExplanationProvider
 from app.config import Settings, get_settings
 from app.domain.contracts import ErrorBody, ErrorDetail, ErrorResponse, ExplanationProvider
-from app.domain.errors import PredictionAlreadyExistsError, PredictionNotFoundError
+from app.domain.errors import (
+    EventAlreadyExistsError,
+    EventNotFoundError,
+    InvalidRecommendationTransitionError,
+    PredictionAlreadyExistsError,
+    PredictionNotFoundError,
+    RecommendationNotFoundError,
+)
+from app.event_repository import SecurityEventRepository
 from app.repositories import InMemoryPredictionRepository, PredictionRepository
+from app.services.event_processing import RiskThreshold, SecurityEventProcessor
 from app.services.explanations import (
     ExplanationService,
     ExternalExplanationService,
@@ -40,18 +49,32 @@ def create_app(
     settings: Settings | None = None,
     repository: PredictionRepository | None = None,
     explanation_service: ExplanationService | None = None,
+    event_repository: SecurityEventRepository | None = None,
 ) -> FastAPI:
     resolved_settings = settings or get_settings()
     app = FastAPI(
         title="Before the Breach — Member 3 API",
         version="1.0.0",
         description=(
-            "Versioned prediction ingestion and deterministic, evidence-grounded explanations. "
-            "All bundled examples are synthetic."
+            "Versioned prediction ingestion, evidence-grounded explanations, and deterministic "
+            "security event recommendations. All bundled examples are synthetic."
         ),
     )
     app.state.settings = resolved_settings
     app.state.prediction_repository = repository or InMemoryPredictionRepository()
+    app.state.event_repository = event_repository or SecurityEventRepository(
+        resolved_settings.event_database_path
+    )
+    app.state.event_processor = SecurityEventProcessor(
+        app.state.prediction_repository,
+        app.state.event_repository,
+        RiskThreshold(
+            value=resolved_settings.event_risk_threshold,
+            scale_minimum=resolved_settings.event_threshold_scale_minimum,
+            scale_maximum=resolved_settings.event_threshold_scale_maximum,
+            higher_is_riskier=resolved_settings.event_threshold_higher_is_riskier,
+        ),
+    )
 
     if explanation_service is not None:
         app.state.explanation_service = explanation_service
@@ -103,6 +126,51 @@ def create_app(
             status.HTTP_404_NOT_FOUND,
             "prediction_not_found",
             f"Prediction {exc.prediction_id!r} was not found.",
+        )
+
+    @app.exception_handler(EventAlreadyExistsError)
+    async def event_conflict_handler(
+        request: Request, exc: EventAlreadyExistsError
+    ) -> JSONResponse:
+        return _error_response(
+            request,
+            status.HTTP_409_CONFLICT,
+            "event_already_exists",
+            f"Event {exc.event_id!r} already exists with different content.",
+        )
+
+    @app.exception_handler(EventNotFoundError)
+    async def event_not_found_handler(request: Request, exc: EventNotFoundError) -> JSONResponse:
+        return _error_response(
+            request,
+            status.HTTP_404_NOT_FOUND,
+            "event_not_found",
+            f"Event {exc.event_id!r} was not found.",
+        )
+
+    @app.exception_handler(RecommendationNotFoundError)
+    async def recommendation_not_found_handler(
+        request: Request, exc: RecommendationNotFoundError
+    ) -> JSONResponse:
+        return _error_response(
+            request,
+            status.HTTP_404_NOT_FOUND,
+            "recommendation_not_found",
+            f"Recommendation {exc.recommendation_id!r} was not found.",
+        )
+
+    @app.exception_handler(InvalidRecommendationTransitionError)
+    async def invalid_transition_handler(
+        request: Request, exc: InvalidRecommendationTransitionError
+    ) -> JSONResponse:
+        return _error_response(
+            request,
+            status.HTTP_409_CONFLICT,
+            "invalid_recommendation_transition",
+            (
+                f"Recommendation {exc.recommendation_id!r} cannot be changed from "
+                f"{exc.current_status!r}."
+            ),
         )
 
     app.include_router(router)

@@ -1,0 +1,99 @@
+{
+  "$defs": {
+    "EventProcessingStatus": {
+      "enum": [
+        "no_action",
+        "recommendation_created",
+        "insufficient_information"
+      ],
+      "title": "EventProcessingStatus",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "event_id": {
+      "minLength": 1,
+      "title": "Event Id",
+      "type": "string"
+    },
+    "matched_asset_id": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Matched Asset Id"
+    },
+    "matched_vulnerability_id": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Matched Vulnerability Id"
+    },
+    "prediction_id": {
+      "minLength": 1,
+      "title": "Prediction Id",
+      "type": "string"
+    },
+    "processed_at": {
+      "format": "date-time",
+      "title": "Processed At",
+      "type": "string"
+    },
+    "processing_status": {
+      "$ref": "#/$defs/EventProcessingStatus"
+    },
+    "reason": {
+      "minLength": 1,
+      "title": "Reason",
+      "type": "string"
+    },
+    "reason_code": {
+      "minLength": 1,
+      "title": "Reason Code",
+      "type": "string"
+    },
+    "recommendation_id": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Recommendation Id"
+    },
+    "schema_version": {
+      "const": "1.0",
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "event_id",
+    "prediction_id",
+    "processing_status",
+    "reason_code",
+    "reason",
+    "processed_at"
+  ],
+  "title": "EventProcessingOutcome",
+  "type": "object"
+}

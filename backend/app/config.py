@@ -1,4 +1,5 @@
 from enum import StrEnum
+from pathlib import Path
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -27,6 +28,12 @@ class Settings(BaseSettings):
     watsonx_project_id: str = ""
     watsonx_url: str = ""
     watsonx_model_id: str = ""
+
+    event_database_path: Path = Path("security_events.db")
+    event_risk_threshold: float | None = None
+    event_threshold_scale_minimum: float | None = None
+    event_threshold_scale_maximum: float | None = None
+    event_threshold_higher_is_riskier: bool | None = None
 
     def provider_ready(self) -> bool:
         if self.explanation_provider is ExplanationProvider.LOCAL:

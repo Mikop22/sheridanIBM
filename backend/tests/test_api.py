@@ -149,3 +149,7 @@ def test_openapi_lists_public_endpoints(client: TestClient) -> None:
     assert "/v1/predictions" in paths
     assert "/v1/predictions/{prediction_id}" in paths
     assert "/v1/predictions/{prediction_id}/explanation" in paths
+    assert "/v1/security-events" in paths
+    assert "/v1/security-events/{event_id}" in paths
+    assert "/v1/predictions/{prediction_id}/recommendations" in paths
+    assert "/v1/recommendations/{recommendation_id}/decision" in paths

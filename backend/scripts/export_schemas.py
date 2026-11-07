@@ -11,9 +11,13 @@ sys.path.insert(0, str(BACKEND_ROOT))
 
 from app.domain.contracts import (  # noqa: E402
     ErrorResponse,
+    EventProcessingOutcome,
     Explanation,
     HealthStatus,
     Prediction,
+    RecommendationDecision,
+    RemediationRecommendation,
+    SecurityEvent,
 )
 
 SCHEMAS = {
@@ -21,6 +25,10 @@ SCHEMAS = {
     "explanation.schema.json": Explanation,
     "health-status.schema.json": HealthStatus,
     "prediction.schema.json": Prediction,
+    "security-event.schema.json": SecurityEvent,
+    "event-processing-outcome.schema.json": EventProcessingOutcome,
+    "remediation-recommendation.schema.json": RemediationRecommendation,
+    "recommendation-decision.schema.json": RecommendationDecision,
 }
 
 

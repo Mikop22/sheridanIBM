@@ -39,7 +39,18 @@ Run from `backend/`:
 
 - Never commit `.env`, IBM credentials, model IDs guessed from documentation,
   production data, or secrets in fixtures and logs.
-- The Milestone 1 repository is process-local and intentionally non-durable.
+- The prediction repository is process-local and intentionally non-durable;
+  only event workflow state is persisted in SQLite.
 - `EXPLANATION_PROVIDER=local` must work without network access.
 - Keep route handlers thin and modules focused; avoid speculative services,
   databases, authentication, and dependencies.
+
+## Security event workflow
+
+- Event correlation and alert evaluation are deterministic and never depend on
+  an explanation provider.
+- Alert thresholds must declare the exact score scale and risk direction they
+  apply to. A mismatch produces an insufficient-information outcome.
+- SQLite stores event idempotency, recommendations, decisions, and minimal audit
+  history only. Database files remain local and Git-ignored.
+- Approval records workflow intent; no endpoint or service executes remediation.

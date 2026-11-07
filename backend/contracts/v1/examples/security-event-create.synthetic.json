@@ -1,0 +1,10 @@
+{
+  "schema_version": "1.0",
+  "event_id": "synthetic-event-001",
+  "observed_at": "2026-01-15T12:05:00Z",
+  "source": "synthetic-test-fixture",
+  "prediction_id": "synthetic-prediction-001",
+  "vulnerability_id": "SYNTH-VULN-001",
+  "asset_id": "synthetic-asset-001",
+  "evidence_refs": ["synthetic-evidence-001"]
+}

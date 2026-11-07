@@ -48,6 +48,25 @@ references. Confirmed facts remain deterministic. Missing configuration, timeout
 authentication failures, unavailable models, rate limits, and invalid output all
 return the local explanation with truthful fallback metadata.
 
+## Deterministic security events
+
+Security events are correlated only with an already submitted prediction, its
+vulnerability identifiers, affected assets, and evidence. Alert thresholds are
+bound to an exact score scale and direction. Update these values for Member 1's
+declared score semantics; a mismatch records `insufficient_information`:
+
+```dotenv
+EVENT_DATABASE_PATH=security_events.db
+EVENT_RISK_THRESHOLD=0.75
+EVENT_THRESHOLD_SCALE_MINIMUM=0.0
+EVENT_THRESHOLD_SCALE_MAXIMUM=1.0
+EVENT_THRESHOLD_HIGHER_IS_RISKIER=true
+```
+
+SQLite persists event idempotency, recommendations, approval state, and minimal
+audit history. It does not persist predictions, and all database files are
+Git-ignored. Event processing never calls Hugging Face or watsonx.ai.
+
 ## API workflow
 
 Create a prediction using the explicitly synthetic example:
@@ -64,6 +83,27 @@ Then retrieve and explain it:
 curl.exe http://127.0.0.1:8000/v1/predictions/synthetic-prediction-001
 curl.exe -X POST http://127.0.0.1:8000/v1/predictions/synthetic-prediction-001/explanation
 ```
+
+Submit the matching synthetic security event, inspect its recommendation, and
+record approval without executing remediation:
+
+```powershell
+$outcome = curl.exe -X POST http://127.0.0.1:8000/v1/security-events `
+  -H "Content-Type: application/json" `
+  --data-binary "@contracts/v1/examples/security-event-create.synthetic.json" |
+  ConvertFrom-Json
+
+curl.exe http://127.0.0.1:8000/v1/security-events/synthetic-event-001
+curl.exe http://127.0.0.1:8000/v1/predictions/synthetic-prediction-001/recommendations
+
+$decision = '{"action":"approve","actor":"synthetic-reviewer","reason":"Synthetic demo approval only."}'
+curl.exe -X POST "http://127.0.0.1:8000/v1/recommendations/$($outcome.recommendation_id)/decision" `
+  -H "Content-Type: application/json" `
+  -d $decision
+```
+
+The resulting recommendation remains a workflow record. Approval does not run
+commands, modify infrastructure, patch software, or change accounts.
 
 Run verification from `backend/`:
 

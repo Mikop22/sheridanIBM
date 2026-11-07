@@ -172,6 +172,82 @@ class Explanation(ContractModel):
             raise ValueError(f"explanation contains unknown source_refs: {unknown}")
 
 
+class SecurityEvent(ContractModel):
+    schema_version: Literal[SCHEMA_VERSION] = SCHEMA_VERSION
+    event_id: NonEmptyString
+    observed_at: datetime
+    source: NonEmptyString
+    prediction_id: NonEmptyString
+    vulnerability_id: NonEmptyString
+    asset_id: NonEmptyString
+    evidence_refs: list[NonEmptyString] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def validate_event(self) -> SecurityEvent:
+        if self.observed_at.tzinfo is None or self.observed_at.utcoffset() is None:
+            raise ValueError("observed_at must include a timezone")
+        if len(self.evidence_refs) != len(set(self.evidence_refs)):
+            raise ValueError("evidence_refs values must be unique")
+        return self
+
+
+class EventProcessingStatus(StrEnum):
+    NO_ACTION = "no_action"
+    RECOMMENDATION_CREATED = "recommendation_created"
+    INSUFFICIENT_INFORMATION = "insufficient_information"
+
+
+class RecommendationStatus(StrEnum):
+    PENDING_APPROVAL = "pending_approval"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+
+
+class DecisionAction(StrEnum):
+    APPROVE = "approve"
+    REJECT = "reject"
+
+
+class RecommendationDecision(ContractModel):
+    schema_version: Literal[SCHEMA_VERSION] = SCHEMA_VERSION
+    action: DecisionAction
+    actor: NonEmptyString
+    reason: NonEmptyString
+
+
+class RemediationRecommendation(ContractModel):
+    schema_version: Literal[SCHEMA_VERSION] = SCHEMA_VERSION
+    recommendation_id: NonEmptyString
+    event_id: NonEmptyString
+    prediction_id: NonEmptyString
+    vulnerability_id: NonEmptyString
+    asset_id: NonEmptyString
+    risk_score: float
+    score_scale: ScoreScale
+    trigger_reason: NonEmptyString
+    evidence_refs: list[NonEmptyString] = Field(min_length=1)
+    recommended_next_step: NonEmptyString
+    approval_required: Literal[True] = True
+    workflow_status: RecommendationStatus
+    created_at: datetime
+    decided_at: datetime | None = None
+    decided_by: NonEmptyString | None = None
+    decision_reason: NonEmptyString | None = None
+
+
+class EventProcessingOutcome(ContractModel):
+    schema_version: Literal[SCHEMA_VERSION] = SCHEMA_VERSION
+    event_id: NonEmptyString
+    prediction_id: NonEmptyString
+    processing_status: EventProcessingStatus
+    reason_code: NonEmptyString
+    reason: NonEmptyString
+    matched_vulnerability_id: NonEmptyString | None = None
+    matched_asset_id: NonEmptyString | None = None
+    recommendation_id: NonEmptyString | None = None
+    processed_at: datetime
+
+
 class HealthStatus(ContractModel):
     status: Literal["ready", "not_ready"]
     explanation_provider: ExplanationProvider
