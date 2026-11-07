@@ -31,10 +31,11 @@ ExplanationDependency = Annotated[ExplanationService, Depends(get_explanation_se
 )
 def health(request: Request) -> HealthStatus:
     provider = request.app.state.settings.explanation_provider
+    provider_ready = request.app.state.settings.provider_ready()
     return HealthStatus(
-        status="ready" if provider.value == "local" else "not_ready",
+        status="ready" if provider_ready else "not_ready",
         explanation_provider=provider.value,
-        provider_ready=provider.value == "local",
+        provider_ready=provider_ready,
     )
 
 

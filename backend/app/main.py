@@ -2,20 +2,23 @@ from __future__ import annotations
 
 from uuid import uuid4
 
+import httpx
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from app.api import router
-from app.config import ExplanationProvider, Settings, get_settings
-from app.domain.contracts import ErrorBody, ErrorDetail, ErrorResponse
-from app.domain.errors import (
-    PredictionAlreadyExistsError,
-    PredictionNotFoundError,
-    ProviderUnavailableError,
-)
+from app.config import ExplanationProvider as ConfigExplanationProvider
+from app.config import Settings, get_settings
+from app.domain.contracts import ErrorBody, ErrorDetail, ErrorResponse, ExplanationProvider
+from app.domain.errors import PredictionAlreadyExistsError, PredictionNotFoundError
 from app.repositories import InMemoryPredictionRepository, PredictionRepository
-from app.services.explanations import ExplanationService, LocalExplanationService
+from app.services.explanations import (
+    ExplanationService,
+    ExternalExplanationService,
+    LocalExplanationService,
+)
+from app.services.providers import HuggingFaceClient, WatsonxGraniteClient
 
 
 def _error_response(
@@ -52,10 +55,8 @@ def create_app(
 
     if explanation_service is not None:
         app.state.explanation_service = explanation_service
-    elif resolved_settings.explanation_provider is ExplanationProvider.LOCAL:
-        app.state.explanation_service = LocalExplanationService()
     else:
-        app.state.explanation_service = _UnavailableExplanationService()
+        app.state.explanation_service = _build_explanation_service(resolved_settings)
 
     @app.middleware("http")
     async def add_trace_id(request: Request, call_next):  # type: ignore[no-untyped-def]
@@ -104,27 +105,40 @@ def create_app(
             f"Prediction {exc.prediction_id!r} was not found.",
         )
 
-    @app.exception_handler(ProviderUnavailableError)
-    async def provider_unavailable_handler(
-        request: Request, exc: ProviderUnavailableError
-    ) -> JSONResponse:
-        return _error_response(
-            request,
-            status.HTTP_503_SERVICE_UNAVAILABLE,
-            "explanation_provider_unavailable",
-            str(exc),
-        )
-
     app.include_router(router)
     return app
 
 
-class _UnavailableExplanationService:
-    def explain(self, prediction):  # type: ignore[no-untyped-def]
-        raise ProviderUnavailableError(
-            "The configured explanation provider is not available in this milestone. "
-            "Use EXPLANATION_PROVIDER=local."
+def _build_explanation_service(settings: Settings) -> ExplanationService:
+    if settings.explanation_provider is ConfigExplanationProvider.LOCAL:
+        return LocalExplanationService()
+
+    timeout = httpx.Timeout(
+        connect=settings.provider_connect_timeout,
+        read=settings.provider_read_timeout,
+        write=settings.provider_read_timeout,
+        pool=settings.provider_connect_timeout,
+    )
+    if settings.explanation_provider is ConfigExplanationProvider.HUGGINGFACE:
+        client = HuggingFaceClient(
+            settings.hf_token,
+            settings.hf_model_id,
+            timeout=timeout,
+            max_output_tokens=settings.provider_max_output_tokens,
         )
+    else:
+        client = WatsonxGraniteClient(
+            settings.watsonx_api_key,
+            settings.watsonx_project_id,
+            settings.watsonx_url,
+            settings.watsonx_model_id,
+            timeout=timeout,
+            max_output_tokens=settings.provider_max_output_tokens,
+        )
+    return ExternalExplanationService(
+        requested_provider=ExplanationProvider(settings.explanation_provider.value),
+        client=client,
+    )
 
 
 app = create_app()

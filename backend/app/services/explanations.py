@@ -12,6 +12,7 @@ from app.domain.contracts import (
     Prediction,
     SignalDirection,
 )
+from app.services.providers import ExternalExplanationClient, ProviderFailure
 
 
 class ExplanationService(Protocol):
@@ -144,3 +145,63 @@ class LocalExplanationService:
             prediction.model_dump(mode="json"), sort_keys=True, separators=(",", ":")
         ).encode("utf-8")
         return f"local-{hashlib.sha256(payload).hexdigest()[:20]}"
+
+
+class ExternalExplanationService:
+    """Uses validated model output, with the local engine as a safe fallback."""
+
+    def __init__(
+        self,
+        requested_provider: ExplanationProvider,
+        client: ExternalExplanationClient,
+        local_service: LocalExplanationService | None = None,
+    ) -> None:
+        if requested_provider is ExplanationProvider.LOCAL:
+            raise ValueError("external explanation service requires an external provider")
+        self._requested_provider = requested_provider
+        self._client = client
+        self._local = local_service or LocalExplanationService()
+
+    def explain(self, prediction: Prediction) -> Explanation:
+        baseline = self._local.explain(prediction)
+        try:
+            result = self._client.generate(prediction)
+        except ProviderFailure as exc:
+            return baseline.model_copy(
+                update={
+                    "provider_metadata": {
+                        "engine": "deterministic-template-v1",
+                        "requested_provider": self._requested_provider.value,
+                        "actual_provider": ExplanationProvider.LOCAL.value,
+                        "requested_generation_status": exc.status,
+                        "fallback_status": "used",
+                    }
+                }
+            )
+
+        explanation = Explanation(
+            prediction_id=prediction.prediction_id,
+            provider=self._requested_provider,
+            generation_status=GenerationStatus.COMPLETE,
+            observed_facts=baseline.observed_facts,
+            interpretations=result.output.interpretations,
+            limitations=list(dict.fromkeys([*baseline.limitations, *result.output.limitations])),
+            trace_id=self._trace_id(prediction, result.output.model_dump(mode="json")),
+            provider_metadata={
+                "requested_provider": self._requested_provider.value,
+                "actual_provider": self._requested_provider.value,
+                "model_id": result.model_id,
+                "requested_generation_status": GenerationStatus.COMPLETE.value,
+                "fallback_status": "not_used",
+            },
+        )
+        explanation.validate_source_refs(prediction)
+        return explanation
+
+    def _trace_id(self, prediction: Prediction, output: dict) -> str:
+        payload = json.dumps(
+            {"prediction": prediction.model_dump(mode="json"), "output": output},
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+        return f"{self._requested_provider.value}-{hashlib.sha256(payload).hexdigest()[:20]}"

@@ -9,6 +9,7 @@ description = "Member 3 API and grounded explanation service"
 requires-python = ">=3.11"
 dependencies = [
   "fastapi>=0.115,<1",
+  "httpx>=0.27,<1",
   "pydantic>=2.10,<3",
   "pydantic-settings>=2.7,<3",
   "uvicorn>=0.34,<1",
@@ -16,7 +17,6 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-  "httpx>=0.27,<1",
   "pytest>=8,<10",
   "ruff>=0.9,<1",
 ]
@@ -24,6 +24,7 @@ dev = [
 [tool.pytest.ini_options]
 addopts = "-q"
 testpaths = ["tests"]
+markers = ["live: opt-in test that calls the configured external provider"]
 
 [tool.ruff]
 line-length = 100
