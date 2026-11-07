@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { AlertCircle, ArrowDown, ArrowUp, ChevronRight, Filter, LoaderCircle, RotateCcw, Search, X } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
+import { isDemoMode } from "@/lib/api/config";
 import { fetchHiddenThreats } from "@/lib/api/hidden-threats";
 import type { HiddenThreat, HiddenThreatRisk } from "@/lib/types/hidden-threat";
 
@@ -24,6 +25,7 @@ function ThreatDetails({ threat, onClose }: { threat: HiddenThreat; onClose: () 
 }
 
 export default function HiddenThreatsPage() {
+  const demo = isDemoMode();
   const [threats, setThreats] = useState<HiddenThreat[]>([]);
   const [query, setQuery] = useState("");
   const [outsideOnly, setOutsideOnly] = useState(true);
@@ -35,14 +37,14 @@ export default function HiddenThreatsPage() {
   const [error, setError] = useState<string | null>(null);
   const [requestKey, setRequestKey] = useState(0);
 
-  useEffect(() => { let cancelled = false; fetchHiddenThreats().then((response) => { if (!cancelled) setThreats(response.threats); }).catch(() => { if (!cancelled) setError("Hidden-threat data could not be loaded."); }).finally(() => { if (!cancelled) setLoading(false); }); return () => { cancelled = true; }; }, [requestKey]);
+  useEffect(() => { let cancelled = false; fetchHiddenThreats().then((response) => { if (!cancelled) setThreats(response.threats); }).catch((cause) => { if (!cancelled) setError(cause instanceof Error ? cause.message : "Hidden-threat data could not be loaded."); }).finally(() => { if (!cancelled) setLoading(false); }); return () => { cancelled = true; }; }, [requestKey]);
 
   const filtered = useMemo(() => threats.filter((item) => `${item.id} ${item.description} ${item.affectedProduct}`.toLowerCase().includes(query.toLowerCase())).filter((item) => !outsideOnly || item.traditionalRank === null || item.traditionalRank > 500).filter((item) => risk === "All" || item.predictedRisk === risk).sort((a, b) => { const aValue = a[sortKey] ?? Number.MAX_SAFE_INTEGER; const bValue = b[sortKey] ?? Number.MAX_SAFE_INTEGER; return direction === "asc" ? aValue - bValue : bValue - aValue; }), [threats, query, outsideOnly, risk, sortKey, direction]);
 
   function handleSort(value: SortKey) { if (value === sortKey) setDirection((current) => current === "asc" ? "desc" : "asc"); else { setSortKey(value); setDirection(value === "modelRank" || value === "traditionalRank" ? "asc" : "desc"); } }
   function retry() { setLoading(true); setError(null); setRequestKey((value) => value + 1); }
 
-  return <AppShell title="Hidden Threats" subtitle="Vulnerabilities missed by conventional ranking" breadcrumb="Hidden Threats"><section className="grid gap-8 border-b border-[#e0e0e0] pb-10 lg:grid-cols-[1.2fr_.8fr]"><div><p className="mb-4 text-sm font-medium text-[#0f62fe]">Feature B · Discovery</p><h1 className="max-w-4xl text-4xl font-light leading-[1.08] tracking-tight sm:text-6xl">Find the risks traditional rankings leave behind.</h1></div><div className="self-end"><p className="max-w-xl text-base leading-7 text-[#525252]">Compare contextual model ranking with CVSS- and EPSS-led ordering to surface vulnerabilities outside conventional top-500 lists.</p><p className="mt-4 text-xs font-medium uppercase tracking-[.08em] text-[#6f6f6f]">Simulated predictions · Not production results</p></div></section>
+  return <AppShell title="Hidden Threats" subtitle="Vulnerabilities missed by conventional ranking" breadcrumb="Hidden Threats"><section className="grid gap-8 border-b border-[#e0e0e0] pb-10 lg:grid-cols-[1.2fr_.8fr]"><div><p className="mb-4 text-sm font-medium text-[#0f62fe]">Feature B · Discovery</p><h1 className="max-w-4xl text-4xl font-light leading-[1.08] tracking-tight sm:text-6xl">Find the risks traditional rankings leave behind.</h1></div><div className="self-end"><p className="max-w-xl text-base leading-7 text-[#525252]">Compare contextual model ranking with CVSS- and EPSS-led ordering to surface vulnerabilities outside conventional top-500 lists.</p><p className="mt-4 text-xs font-medium uppercase tracking-[.08em] text-[#6f6f6f]">{demo ? "Simulated predictions · Not production results" : "Live backend response"}</p></div></section>
 
     <section className="mt-8 grid gap-px bg-[#e0e0e0] sm:grid-cols-3"><div className="bg-[#f4f4f4] p-5"><p className="text-sm text-[#525252]">Threats reviewed</p><p className="mt-5 text-4xl font-light">{threats.length}</p></div><div className="bg-[#f4f4f4] p-5"><p className="text-sm text-[#525252]">Outside traditional top 500</p><p className="mt-5 text-4xl font-light">{threats.filter((item) => item.traditionalRank === null || item.traditionalRank > 500).length}</p></div><div className="bg-[#f4f4f4] p-5"><p className="text-sm text-[#525252]">Current view</p><p className="mt-5 text-4xl font-light">{filtered.length}</p></div></section>
 

@@ -4,6 +4,7 @@ import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Bell, ChevronDown, Menu, X } from "lucide-react";
+import { isDemoMode } from "@/lib/api/config";
 
 const navItems = [
   { label: "Overview", href: "/" },
@@ -23,11 +24,12 @@ interface AppShellProps {
 export function AppShell({ children, title, subtitle, breadcrumb }: AppShellProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname();
+  const demo = isDemoMode();
 
   return (
     <div className="min-h-screen bg-white text-[#161616] selection:bg-[#0f62fe] selection:text-white">
       <div className="border-b border-[#e0e0e0] bg-[#f4f4f4] px-5 py-2 text-[11px] text-[#525252] sm:px-8 lg:px-12">
-        Independent project for the IBM Before the Breach hackathon · Simulated data environment
+        Independent project for the IBM Before the Breach hackathon · {demo ? "Demo data mode" : "Live API mode"}
       </div>
       <header className="sticky top-0 z-40 border-b border-[#e0e0e0] bg-white">
         <div className="flex h-16 items-stretch px-5 sm:px-8 lg:px-12">

@@ -15,12 +15,9 @@ export interface JiraTicketPayload {
   dedupeKey: string;
 }
 
-export interface IntegrationResult {
-  mode: "simulated";
-  status: "simulated-not-sent";
-  message: string;
-  externalId: null;
-}
+import type { IntegrationDeliveryResultContract } from "@/lib/types/contracts";
+
+export type IntegrationResult = IntegrationDeliveryResultContract & { mode: "simulated"; message: string };
 
 export interface SlackAdapter { sendVulnerabilityAlert(payload: SlackNotificationPayload): Promise<IntegrationResult>; }
 export interface JiraAdapter { createOrUpdateInvestigation(payload: JiraTicketPayload): Promise<IntegrationResult>; }

@@ -1,8 +1,10 @@
-import { mockAssets } from "@/lib/data/mock-assets";
-import type { AssetInventoryResponse } from "@/lib/types/asset";
+import { getAssets } from "@/lib/api/service";
+import type { AssetInventoryResponse, BusinessCriticality, CompanyAsset } from "@/lib/types/asset";
 
-/** Replace with the teammate-owned asset inventory endpoint when available. */
 export async function fetchAssetInventory(): Promise<AssetInventoryResponse> {
-  await new Promise((resolve) => setTimeout(resolve, 240));
-  return { assets: mockAssets, source: "simulated", organizationLabel: "Demo organization" };
+  const response = await getAssets();
+  const matchesByAsset = new Map<string, typeof response.matches>();
+  response.matches.forEach((match) => matchesByAsset.set(match.assetId, [...(matchesByAsset.get(match.assetId) ?? []), match]));
+  const assets: CompanyAsset[] = response.assets.map((asset) => ({ id: asset.assetId, name: asset.name, vendor: asset.vendor ?? "Unknown vendor", product: asset.product ?? "Unknown product", version: asset.version ?? "Unknown", environment: asset.environment === "Development" ? "Development" : "Production", internetExposed: asset.internetExposed ?? false, criticality: (asset.businessCriticality === "Unknown" ? "Low" : asset.businessCriticality) as BusinessCriticality, ownerTeam: asset.owner ?? "Unassigned", matches: (matchesByAsset.get(asset.assetId) ?? []).map((match) => ({ cveId: match.cveId, status: match.matchStatus, reason: match.supportingEvidence.join(" ") || "No supporting evidence supplied.", predictedRisk: match.predictedRisk === "Critical" || match.predictedRisk === "High" || match.predictedRisk === "Elevated" || match.predictedRisk === "Moderate" ? match.predictedRisk : "Moderate" })) }));
+  return { assets, source: response.source === "demo" ? "simulated" : "api", organizationLabel: response.organizationLabel ?? "Unknown organization" };
 }
