@@ -4,7 +4,7 @@ import type { JiraAdapter, JiraTicketPayload, SlackAdapter, SlackNotificationPay
 export const mockSlackAdapter: SlackAdapter = {
   async sendVulnerabilityAlert(payload: SlackNotificationPayload) {
     void payload;
-    return { mode: "simulated", provider: "slack", status: "simulated-not-sent", message: "Demo mode: Slack delivery was not attempted.", attemptedAt: null, deliveredAt: null, externalId: null, externalUrl: null, errorCode: null, errorMessage: null };
+    return { mode: "simulated", provider: "slack", status: "simulated-not-sent", operation: null, message: "Demo mode: Slack delivery was not attempted.", attemptedAt: null, deliveredAt: null, externalId: null, externalUrl: null, errorCode: null, errorMessage: null };
   },
 };
 
@@ -14,7 +14,7 @@ export const mockJiraAdapter: JiraAdapter = {
   async createOrUpdateInvestigation(payload: JiraTicketPayload) {
     const duplicate = simulatedTicketKeys.has(payload.dedupeKey);
     simulatedTicketKeys.add(payload.dedupeKey);
-    return { mode: "simulated", provider: "jira", status: "simulated-not-sent", message: duplicate ? "Demo mode: an existing ticket would be updated using the CVE + asset key." : "Demo mode: ticket creation was not attempted.", attemptedAt: null, deliveredAt: null, externalId: null, externalUrl: null, errorCode: null, errorMessage: null };
+    return { mode: "simulated", provider: "jira", status: "simulated-not-sent", operation: duplicate ? "updated" : "created", message: duplicate ? "Demo mode: an existing ticket would be updated using the CVE + asset key." : "Demo mode: ticket creation was not attempted.", attemptedAt: null, deliveredAt: null, externalId: null, externalUrl: null, errorCode: null, errorMessage: null };
   },
 };
 

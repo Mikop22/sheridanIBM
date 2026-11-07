@@ -8,16 +8,17 @@ import { mockVulnerabilities } from "@/lib/data/mock-vulnerabilities";
 import { alertsResponseSchema, assetsResponseSchema, historicalReplaySchema, overviewResponseSchema, vulnerabilityDetailResponseSchema, vulnerabilityListResponseSchema, type AlertContract, type AlertsResponse, type AssetsResponse, type HistoricalReplay, type IntegrationDeliveryResultContract, type OverviewResponse, type VulnerabilityContract, type VulnerabilityDetailResponse, type VulnerabilityListResponse } from "@/lib/types/contracts";
 
 function overviewMockToContract(item: (typeof mockVulnerabilities)[number]): VulnerabilityContract {
-  return { cveId: item.id, description: item.title, snapshotMonth: null, cvss: item.cvss, epss: item.epss, modelRank: null, rankingScore: null, rankingScoreKind: "unknown", traditionalRank: null, predictedRisk: item.priority, evidenceIndicators: [], affectedAsset: { id: null, name: item.asset, service: item.service }, detectedAt: item.detected };
+  return { cveId: item.id, description: item.title, snapshotMonth: null, cvss: item.cvss, epss: item.epss, modelRank: null, rankingScore: null, rankingScoreKind: "unknown", traditionalRank: null, predictedRisk: item.priority === "Unknown" ? null : item.priority, evidenceIndicators: [], affectedAsset: { id: null, name: item.asset ?? "Unknown asset", service: item.service }, detectedAt: item.detected };
 }
 
 function hiddenMockToContract(item: (typeof mockHiddenThreats)[number]): VulnerabilityContract {
-  return { cveId: item.id, description: item.description, snapshotMonth: null, cvss: item.cvss, epss: item.epss, modelRank: item.modelRank, rankingScore: null, rankingScoreKind: "relative", traditionalRank: item.traditionalRank, predictedRisk: item.predictedRisk, evidenceIndicators: item.signals.map((signal, index) => ({ key: `signal-${index + 1}`, label: signal.label, value: signal.value, status: "present", observedAt: null, source: "simulated", explanation: signal.explanation })), affectedAsset: { id: null, name: item.affectedProduct, service: null }, detectedAt: null };
+  return { cveId: item.id, description: item.description, snapshotMonth: null, cvss: item.cvss, epss: item.epss, modelRank: item.modelRank, rankingScore: null, rankingScoreKind: "relative", traditionalRank: item.traditionalRank, predictedRisk: item.predictedRisk === "Unknown" ? null : item.predictedRisk, evidenceIndicators: item.signals.map((signal, index) => ({ key: `signal-${index + 1}`, label: signal.label, value: signal.value, status: "present", observedAt: null, source: "simulated", explanation: signal.explanation })), affectedAsset: { id: null, name: item.affectedProduct ?? "Unknown product", service: null }, detectedAt: null };
 }
 
 function delivery(provider: "slack" | "jira", status: string, timestamp: string, externalId: string | null, externalUrl: string | null): IntegrationDeliveryResultContract {
   const normalized = status === "Delivered" || status === "Created" || status === "Updated" ? "delivered" : status === "Failed" ? "failed" : status === "Pending" ? "pending" : "not-attempted";
-  return { provider, status: normalized, attemptedAt: normalized === "not-attempted" ? null : timestamp, deliveredAt: normalized === "delivered" ? timestamp : null, externalId, externalUrl, errorCode: normalized === "failed" ? "simulated_failure" : null, errorMessage: normalized === "failed" ? "Simulated historical delivery failure." : null };
+  const operation = provider === "jira" && status === "Created" ? "created" : provider === "jira" && status === "Updated" ? "updated" : null;
+  return { provider, status: normalized, operation, attemptedAt: normalized === "not-attempted" ? null : timestamp, deliveredAt: normalized === "delivered" ? timestamp : null, externalId, externalUrl, errorCode: normalized === "failed" ? "simulated_failure" : null, errorMessage: normalized === "failed" ? "Simulated historical delivery failure." : null };
 }
 
 function alertMockToContract(item: (typeof mockAlerts)[number]): AlertContract {

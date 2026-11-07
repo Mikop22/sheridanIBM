@@ -1,4 +1,5 @@
 import type { HistoricalSnapshot, HistoricalVulnerability, RiskLevel } from "@/lib/types/time-machine";
+import { supportedReplayMonths } from "@/lib/config/replay";
 
 const baseVulnerabilities: HistoricalVulnerability[] = [
   { id: "CVE-2024-21412", description: "Internet shortcut file security feature bypass", cvss: 8.1, epss: 0.71, modelRank: 1, predictedRisk: "Critical", outcome: "confirmed-kev", kevAddedDate: "2024-02-13", signals: [{ label: "Exploit chatter", value: "Rising", detail: "Simulated increase in public exploit discussion before the snapshot cutoff." }, { label: "Attack surface", value: "Broad", detail: "Common desktop configuration with user-interaction exposure." }, { label: "Vendor activity", value: "Active", detail: "Recent advisory and patch activity available by the prediction cutoff." }] },
@@ -9,14 +10,6 @@ const baseVulnerabilities: HistoricalVulnerability[] = [
   { id: "CVE-2024-25600", description: "Unauthenticated template injection in web framework", cvss: 9.8, epss: 0.42, modelRank: 6, predictedRisk: "Moderate", outcome: "not-kev-by-cutoff", kevAddedDate: null, signals: [{ label: "Exploitability", value: "Plausible", detail: "Technical conditions suggested practical exploitation." }, { label: "Prevalence", value: "Uncertain", detail: "Deployment prevalence was incomplete at snapshot time." }] },
 ];
 
-const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-
-export const historicalMonths = Array.from({ length: 24 }, (_, index) => {
-  const year = 2024 + Math.floor(index / 12);
-  const monthIndex = index % 12;
-  return { value: `${year}-${String(monthIndex + 1).padStart(2, "0")}`, label: `${monthNames[monthIndex]} ${year}`, shortLabel: monthNames[monthIndex].slice(0, 3) };
-});
-
 function rotateRisk(risk: RiskLevel, offset: number): RiskLevel {
   const risks: RiskLevel[] = ["Critical", "High", "Elevated", "Moderate"];
   return risks[(risks.indexOf(risk) + offset) % risks.length];
@@ -24,8 +17,8 @@ function rotateRisk(risk: RiskLevel, offset: number): RiskLevel {
 
 // SIMULATED DATA: values are for UI development and are not model-performance claims.
 export function createMockSnapshot(month: string): HistoricalSnapshot {
-  const monthMeta = historicalMonths.find((item) => item.value === month) ?? historicalMonths[0];
-  const monthIndex = historicalMonths.findIndex((item) => item.value === monthMeta.value);
+  const monthMeta = supportedReplayMonths.find((item) => item.value === month) ?? supportedReplayMonths[0];
+  const monthIndex = supportedReplayMonths.findIndex((item) => item.value === monthMeta.value);
   const predictionDate = new Date(`${monthMeta.value}-01T00:00:00Z`);
   predictionDate.setUTCMonth(predictionDate.getUTCMonth() + 1);
   predictionDate.setUTCDate(0);

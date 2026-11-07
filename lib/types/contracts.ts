@@ -76,6 +76,7 @@ export const assetVulnerabilityMatchSchema = z.object({
 export const integrationDeliveryResultSchema = z.object({
   provider: z.enum(["slack", "jira"]),
   status: z.enum(["not-attempted", "pending", "delivered", "failed", "simulated-not-sent"]),
+  operation: z.enum(["created", "updated", "commented"]).nullable(),
   attemptedAt: z.string().nullable(),
   deliveredAt: z.string().nullable(),
   externalId: z.string().nullable(),
@@ -105,7 +106,7 @@ export const alertSchema = z.object({
 });
 
 export const overviewResponseSchema = z.object({
-  summary: z.object({ totalVulnerabilities: z.number().int().nonnegative(), criticalPriority: z.number().int().nonnegative(), exposedAssets: z.number().int().nonnegative(), predictionHorizonDays: z.number().int().positive().nullable() }),
+  summary: z.object({ totalVulnerabilities: z.number().int().nonnegative().nullable(), criticalPriority: z.number().int().nonnegative().nullable(), exposedAssets: z.number().int().nonnegative().nullable(), predictionHorizonDays: z.number().int().positive().nullable() }),
   priorityVulnerabilities: z.array(vulnerabilitySchema),
   generatedAt: z.string(),
   source: dataSourceSchema,

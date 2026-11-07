@@ -3,16 +3,16 @@ import type { Priority, Vulnerability } from "@/lib/types/vulnerability";
 
 function toPriority(value: string | null): Priority {
   if (value === "Critical" || value === "High" || value === "Medium" || value === "Low") return value;
-  return value === "Elevated" ? "Medium" : "Low";
+  return value === "Elevated" || value === "Moderate" ? "Medium" : "Unknown";
 }
 
 function toViewModel(item: Awaited<ReturnType<typeof getVulnerabilities>>["vulnerabilities"][number]): Vulnerability {
-  return { id: item.cveId, title: item.description, asset: item.affectedAsset?.name ?? "Unknown asset", service: item.affectedAsset?.service ?? "Unknown service", cvss: item.cvss ?? 0, epss: item.epss ?? 0, priority: toPriority(item.predictedRisk), detected: item.detectedAt ?? "Unknown" };
+  return { id: item.cveId, title: item.description, asset: item.affectedAsset?.name ?? null, service: item.affectedAsset?.service ?? null, cvss: item.cvss, epss: item.epss, priority: toPriority(item.predictedRisk), detected: item.detectedAt };
 }
 
-export async function fetchVulnerabilityOverview(): Promise<Vulnerability[]> {
+export async function fetchVulnerabilityOverview() {
   const response = await getOverview();
-  return response.priorityVulnerabilities.map(toViewModel);
+  return { summary: response.summary, vulnerabilities: response.priorityVulnerabilities.map(toViewModel), generatedAt: response.generatedAt, source: response.source === "demo" ? "simulated" as const : "api" as const };
 }
 
 export async function fetchVulnerabilities(): Promise<Vulnerability[]> {

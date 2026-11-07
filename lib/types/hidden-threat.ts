@@ -1,14 +1,14 @@
-export type HiddenThreatRisk = "Critical" | "High" | "Elevated";
+export type HiddenThreatRisk = "Critical" | "High" | "Elevated" | "Unknown";
 
 export interface HiddenThreat {
   id: string;
   description: string;
-  cvss: number;
-  epss: number;
-  modelRank: number;
+  cvss: number | null;
+  epss: number | null;
+  modelRank: number | null;
   traditionalRank: number | null;
   predictedRisk: HiddenThreatRisk;
-  affectedProduct: string;
+  affectedProduct: string | null;
   signals: Array<{ label: string; value: string; explanation: string }>;
 }
 

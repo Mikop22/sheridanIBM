@@ -78,7 +78,7 @@ Returns dashboard totals plus prioritized vulnerabilities.
 }
 ```
 
-Required: all keys. Nullable: `predictionHorizonDays` and the nullable vulnerability fields documented below.
+Required: all keys. Every summary value may be `null` when it cannot be computed. The frontend displays `Not available` and never substitutes demo totals into a live response. Vulnerability nullability is documented below.
 
 ## GET /api/vulnerabilities
 
@@ -137,6 +137,8 @@ Return `404` with the standard error object when the CVE is unknown.
 
 Returns rankings frozen at the prediction cutoff, comparison baselines, and outcomes observed only after prediction and no later than the evaluation cutoff.
 
+The current product-supported selector range is January 2024 through December 2025, defined independently of demo fixtures in `lib/config/replay.ts`. The backend should return the standard error object for a syntactically valid month it does not support.
+
 ```json
 {
   "month": "2024-02",
@@ -194,8 +196,8 @@ Nullable asset fields: `vendor`, `product`, `version`, `internetExposed`, and `o
       "triggerReason": "Confirmed exposed match entered the critical tier.",
       "createdAt": "2025-12-18T14:30:00Z",
       "updatedAt": "2025-12-18T14:42:00Z",
-      "slackDelivery": { "provider": "slack", "status": "delivered", "attemptedAt": "2025-12-18T14:31:00Z", "deliveredAt": "2025-12-18T14:31:01Z", "externalId": "170...", "externalUrl": null, "errorCode": null, "errorMessage": null },
-      "jiraDelivery": { "provider": "jira", "status": "not-attempted", "attemptedAt": null, "deliveredAt": null, "externalId": null, "externalUrl": null, "errorCode": null, "errorMessage": null },
+      "slackDelivery": { "provider": "slack", "status": "delivered", "operation": null, "attemptedAt": "2025-12-18T14:31:00Z", "deliveredAt": "2025-12-18T14:31:01Z", "externalId": "170...", "externalUrl": null, "errorCode": null, "errorMessage": null },
+      "jiraDelivery": { "provider": "jira", "status": "delivered", "operation": "updated", "attemptedAt": "2025-12-18T14:31:00Z", "deliveredAt": "2025-12-18T14:31:02Z", "externalId": "SEC-1048", "externalUrl": "https://jira.example.invalid/browse/SEC-1048", "errorCode": null, "errorMessage": null },
       "lifecycle": "Open",
       "occurrenceCount": 2,
       "evidence": ["Product and version match."],
@@ -208,7 +210,11 @@ Nullable asset fields: `vendor`, `product`, `version`, `internetExposed`, and `o
 }
 ```
 
-`assetName` and every integration result field other than `provider` and `status` may be `null`. Duplicate alert decisions remain backend-owned; use CVE + asset identity as the stable deduplication key.
+`assetName` and every integration result field other than `provider`, `status`, and `operation` may be `null`. `operation` is required but nullable: use `created`, `updated`, or `commented` for a successful Jira operation and `null` for Slack or when no Jira operation completed. A `delivered` Jira result with `operation: null` is displayed only as delivered; the frontend does not assume a ticket was created.
+
+Delivery status is one of `not-attempted`, `pending`, `delivered`, `failed`, or `simulated-not-sent`. Slack and Jira states are independent, so partial delivery is represented by returning each provider's actual state. Do not report `delivered` without provider confirmation. Use `failed` with `errorCode`/`errorMessage` for confirmed failure and `pending` when the final state is not yet known.
+
+Duplicate alert decisions remain backend-owned; use CVE + asset identity as the stable deduplication key.
 
 ## Backend implementation checklist
 
@@ -221,5 +227,6 @@ Nullable asset fields: `vendor`, `product`, `version`, `internetExposed`, and `o
 - [ ] Authentication/server proxy decision, if the backend cannot be called safely from the browser
 - [ ] CORS configuration for the SignalZero frontend origin
 - [ ] Production environment values and deployment documentation
+- [ ] Server-side Slack/Jira adapters, credentials, retry policy, and provider-confirmed delivery results
 
 Slack/Jira mutations, autonomous alert decisions, model training, and prediction execution are intentionally outside this frontend contract.
