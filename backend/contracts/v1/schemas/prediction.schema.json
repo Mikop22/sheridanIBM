@@ -1,0 +1,261 @@
+{
+  "$defs": {
+    "AffectedAsset": {
+      "additionalProperties": false,
+      "properties": {
+        "asset_id": {
+          "minLength": 1,
+          "title": "Asset Id",
+          "type": "string"
+        },
+        "attributes": {
+          "additionalProperties": true,
+          "title": "Attributes",
+          "type": "object"
+        },
+        "evidence_refs": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Evidence Refs",
+          "type": "array"
+        },
+        "match_reason": {
+          "minLength": 1,
+          "title": "Match Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "asset_id",
+        "match_reason"
+      ],
+      "title": "AffectedAsset",
+      "type": "object"
+    },
+    "Evidence": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence_id": {
+          "minLength": 1,
+          "title": "Evidence Id",
+          "type": "string"
+        },
+        "kind": {
+          "minLength": 1,
+          "title": "Kind",
+          "type": "string"
+        },
+        "observed_at": {
+          "format": "date-time",
+          "title": "Observed At",
+          "type": "string"
+        },
+        "source": {
+          "minLength": 1,
+          "title": "Source",
+          "type": "string"
+        },
+        "value": {
+          "additionalProperties": true,
+          "title": "Value",
+          "type": "object"
+        }
+      },
+      "required": [
+        "evidence_id",
+        "kind",
+        "source",
+        "observed_at",
+        "value"
+      ],
+      "title": "Evidence",
+      "type": "object"
+    },
+    "ExplanatorySignal": {
+      "additionalProperties": false,
+      "properties": {
+        "contribution": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Contribution"
+        },
+        "direction": {
+          "$ref": "#/$defs/SignalDirection",
+          "default": "unknown"
+        },
+        "evidence_refs": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Evidence Refs",
+          "type": "array"
+        },
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "value": {
+          "title": "Value"
+        }
+      },
+      "required": [
+        "name",
+        "value"
+      ],
+      "title": "ExplanatorySignal",
+      "type": "object"
+    },
+    "ScoreScale": {
+      "additionalProperties": false,
+      "properties": {
+        "higher_is_riskier": {
+          "title": "Higher Is Riskier",
+          "type": "boolean"
+        },
+        "maximum": {
+          "title": "Maximum",
+          "type": "number"
+        },
+        "minimum": {
+          "title": "Minimum",
+          "type": "number"
+        }
+      },
+      "required": [
+        "minimum",
+        "maximum",
+        "higher_is_riskier"
+      ],
+      "title": "ScoreScale",
+      "type": "object"
+    },
+    "SignalDirection": {
+      "enum": [
+        "increases_risk",
+        "decreases_risk",
+        "neutral",
+        "unknown"
+      ],
+      "title": "SignalDirection",
+      "type": "string"
+    },
+    "VulnerabilityRef": {
+      "additionalProperties": false,
+      "properties": {
+        "aliases": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Aliases",
+          "type": "array"
+        },
+        "source": {
+          "minLength": 1,
+          "title": "Source",
+          "type": "string"
+        },
+        "vulnerability_id": {
+          "minLength": 1,
+          "title": "Vulnerability Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "vulnerability_id",
+        "source"
+      ],
+      "title": "VulnerabilityRef",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "affected_assets": {
+      "items": {
+        "$ref": "#/$defs/AffectedAsset"
+      },
+      "title": "Affected Assets",
+      "type": "array"
+    },
+    "evidence": {
+      "items": {
+        "$ref": "#/$defs/Evidence"
+      },
+      "title": "Evidence",
+      "type": "array"
+    },
+    "model_version": {
+      "minLength": 1,
+      "title": "Model Version",
+      "type": "string"
+    },
+    "prediction_id": {
+      "minLength": 1,
+      "title": "Prediction Id",
+      "type": "string"
+    },
+    "rank": {
+      "anyOf": [
+        {
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Rank"
+    },
+    "schema_version": {
+      "const": "1.0",
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "score": {
+      "title": "Score",
+      "type": "number"
+    },
+    "score_scale": {
+      "$ref": "#/$defs/ScoreScale"
+    },
+    "signals": {
+      "items": {
+        "$ref": "#/$defs/ExplanatorySignal"
+      },
+      "title": "Signals",
+      "type": "array"
+    },
+    "snapshot_date": {
+      "format": "date",
+      "title": "Snapshot Date",
+      "type": "string"
+    },
+    "vulnerability": {
+      "$ref": "#/$defs/VulnerabilityRef"
+    }
+  },
+  "required": [
+    "prediction_id",
+    "snapshot_date",
+    "vulnerability",
+    "score",
+    "score_scale",
+    "model_version"
+  ],
+  "title": "Prediction",
+  "type": "object"
+}

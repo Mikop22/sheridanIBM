@@ -1,0 +1,53 @@
+{
+  "schema_version": "1.0",
+  "prediction_id": "synthetic-prediction-001",
+  "provider": "local",
+  "generation_status": "complete",
+  "observed_facts": [
+    {
+      "text": "The submitted model assigned score 0.82 on the declared scale 0.0 to 1.0; higher values represent greater risk.",
+      "source_refs": ["prediction:score", "prediction:score_scale"]
+    },
+    {
+      "text": "The submitted prediction used model version 'synthetic-model-v1'.",
+      "source_refs": ["prediction:model_version"]
+    },
+    {
+      "text": "The submitted risk rank is 2.",
+      "source_refs": ["prediction:rank"]
+    },
+    {
+      "text": "Signal 'synthetic_exposure_signal' has submitted value 0.9, direction 'increases_risk' with supplied contribution 0.31.",
+      "source_refs": [
+        "signal:synthetic_exposure_signal",
+        "evidence:synthetic-evidence-001"
+      ]
+    },
+    {
+      "text": "Asset 'synthetic-asset-001' is associated with this prediction because the submitted synthetic inventory links this asset to the test record.",
+      "source_refs": [
+        "asset:synthetic-asset-001",
+        "evidence:synthetic-evidence-001"
+      ]
+    }
+  ],
+  "interpretations": [
+    {
+      "text": "The supplied explanatory signals identify 1 factor(s) that increase risk and 0 factor(s) that decrease risk; this service did not recalculate the model score.",
+      "source_refs": ["signal:synthetic_exposure_signal"]
+    },
+    {
+      "text": "The prediction associates the vulnerability with 1 supplied asset(s); this association does not independently establish exploitability.",
+      "source_refs": ["asset:synthetic-asset-001"]
+    }
+  ],
+  "limitations": [
+    "This explanation is limited to the submitted prediction and evidence.",
+    "The explanation does not change or independently validate the model score or rank.",
+    "No vulnerability details or remediation claims were generated."
+  ],
+  "trace_id": "local-db86babfde561b58f15a",
+  "provider_metadata": {
+    "engine": "deterministic-template-v1"
+  }
+}

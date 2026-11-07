@@ -1,0 +1,119 @@
+{
+  "$defs": {
+    "ExplanationProvider": {
+      "enum": [
+        "local",
+        "watsonx"
+      ],
+      "title": "ExplanationProvider",
+      "type": "string"
+    },
+    "GenerationStatus": {
+      "enum": [
+        "complete",
+        "unavailable",
+        "invalid_output"
+      ],
+      "title": "GenerationStatus",
+      "type": "string"
+    },
+    "GroundedStatement": {
+      "additionalProperties": false,
+      "properties": {
+        "source_refs": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Source Refs",
+          "type": "array"
+        },
+        "text": {
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text",
+        "source_refs"
+      ],
+      "title": "GroundedStatement",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "generation_status": {
+      "$ref": "#/$defs/GenerationStatus"
+    },
+    "interpretations": {
+      "items": {
+        "$ref": "#/$defs/GroundedStatement"
+      },
+      "title": "Interpretations",
+      "type": "array"
+    },
+    "limitations": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Limitations",
+      "type": "array"
+    },
+    "observed_facts": {
+      "items": {
+        "$ref": "#/$defs/GroundedStatement"
+      },
+      "title": "Observed Facts",
+      "type": "array"
+    },
+    "prediction_id": {
+      "minLength": 1,
+      "title": "Prediction Id",
+      "type": "string"
+    },
+    "provider": {
+      "$ref": "#/$defs/ExplanationProvider"
+    },
+    "provider_metadata": {
+      "anyOf": [
+        {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Provider Metadata"
+    },
+    "schema_version": {
+      "const": "1.0",
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "trace_id": {
+      "minLength": 1,
+      "title": "Trace Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "prediction_id",
+    "provider",
+    "generation_status",
+    "observed_facts",
+    "interpretations",
+    "limitations",
+    "trace_id"
+  ],
+  "title": "Explanation",
+  "type": "object"
+}

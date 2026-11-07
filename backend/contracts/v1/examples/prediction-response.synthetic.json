@@ -1,0 +1,48 @@
+{
+  "schema_version": "1.0",
+  "prediction_id": "synthetic-prediction-001",
+  "snapshot_date": "2026-01-15",
+  "vulnerability": {
+    "vulnerability_id": "SYNTH-VULN-001",
+    "source": "synthetic-test-fixture",
+    "aliases": []
+  },
+  "score": 0.82,
+  "score_scale": {
+    "minimum": 0.0,
+    "maximum": 1.0,
+    "higher_is_riskier": true
+  },
+  "rank": 2,
+  "model_version": "synthetic-model-v1",
+  "signals": [
+    {
+      "name": "synthetic_exposure_signal",
+      "value": 0.9,
+      "contribution": 0.31,
+      "direction": "increases_risk",
+      "evidence_refs": ["synthetic-evidence-001"]
+    }
+  ],
+  "affected_assets": [
+    {
+      "asset_id": "synthetic-asset-001",
+      "attributes": {
+        "environment": "synthetic-lab"
+      },
+      "match_reason": "the submitted synthetic inventory links this asset to the test record",
+      "evidence_refs": ["synthetic-evidence-001"]
+    }
+  ],
+  "evidence": [
+    {
+      "evidence_id": "synthetic-evidence-001",
+      "kind": "synthetic-asset-observation",
+      "source": "synthetic-test-fixture",
+      "observed_at": "2026-01-15T12:00:00Z",
+      "value": {
+        "note": "Invented data for contract testing only"
+      }
+    }
+  ]
+}
