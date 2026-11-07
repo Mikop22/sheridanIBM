@@ -1,0 +1,14 @@
+[
+  {
+    "record_id": "synthetic-text-record-001",
+    "vulnerability_description": "Synthetic service accepts an invented test input.",
+    "vendor_description": "Synthetic vendor used only for deterministic testing.",
+    "product_description": "Synthetic network service fixture."
+  },
+  {
+    "record_id": "synthetic-text-record-002",
+    "vulnerability_description": "",
+    "vendor_description": null,
+    "product_description": ""
+  }
+]

@@ -54,3 +54,13 @@ Run from `backend/`:
 - SQLite stores event idempotency, recommendations, decisions, and minimal audit
   history only. Database files remain local and Git-ignored.
 - Approval records workflow intent; no endpoint or service executes remediation.
+
+## Text feature adapter
+
+- The local text adapter produces deterministic sparse hashed features, not
+  semantic neural embeddings, and requires no fit step or network access.
+- Only explicitly allowlisted pre-prediction text fields may contribute.
+  Known labels, outcomes, post-snapshot observations, and remediation fields
+  must fail validation rather than enter the feature matrix.
+- Feature configuration and metadata are part of the Member 1 integration
+  boundary; do not couple the adapter to a training implementation.

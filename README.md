@@ -67,6 +67,19 @@ SQLite persists event idempotency, recommendations, approval state, and minimal
 audit history. It does not persist predictions, and all database files are
 Git-ignored. Event processing never calls Hugging Face or watsonx.ai.
 
+## Hashed text features
+
+The provisional Member 1 adapter exposes
+`TextHashingTransformer.transform(records)` and returns a deterministic sparse
+matrix with 4,096 columns by default. It uses only allowlisted pre-prediction
+description fields and does not download a model or produce semantic neural
+embeddings.
+
+See [Member 1 feature integration](docs/member1-feature-integration.md) for the
+Python interface and leakage controls, [Member 2 API integration](docs/member2-api-integration.md)
+for endpoint states and errors, and the [offline synthetic demo](docs/offline-demo.md)
+for the complete judged workflow.
+
 ## API workflow
 
 Create a prediction using the explicitly synthetic example:
