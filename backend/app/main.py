@@ -248,6 +248,7 @@ def _build_explanation_service(settings: Settings) -> ExplanationService:
         client = HuggingFaceClient(
             settings.hf_token,
             settings.hf_model_id,
+            response_model_id=settings.hf_response_model_id,
             timeout=timeout,
             max_output_tokens=settings.provider_max_output_tokens,
         )

@@ -23,6 +23,7 @@ class Settings(BaseSettings):
 
     hf_token: str = ""
     hf_model_id: str = ""
+    hf_response_model_id: str = ""
 
     cors_allowed_origins: str = ""
 

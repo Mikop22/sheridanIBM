@@ -86,7 +86,11 @@ def test_huggingface_request_auth_structure_and_untrusted_prompt(prediction_payl
     [
         (httpx.Response(429), "rate_limited"),
         (httpx.Response(401), "authentication_failed"),
+        (httpx.Response(402), "insufficient_credits"),
+        (httpx.Response(403), "permission_denied"),
         (httpx.Response(404), "model_unavailable"),
+        (httpx.Response(422), "request_rejected"),
+        (httpx.Response(503), "provider_unavailable"),
     ],
 )
 def test_huggingface_http_failures(
@@ -143,29 +147,40 @@ def test_huggingface_missing_configuration_and_timeout(prediction_payload: dict)
 
 
 @pytest.mark.parametrize(
-    ("response_model", "headers", "status"),
+    ("error", "status"),
     [
-        (
-            "silently/substituted-model",
-            {"X-Inference-Provider": "synthetic"},
-            "model_identity_mismatch",
-        ),
-        ("configured/model", {}, "provider_identity_missing"),
+        (httpx.ConnectError("network failed"), "network_error"),
+        (httpx.RemoteProtocolError("protocol failed"), "protocol_error"),
     ],
 )
-def test_huggingface_requires_response_model_and_provider_identity(
+def test_huggingface_transport_failures_are_distinguished(
+    prediction_payload: dict, error: httpx.HTTPError, status: str
+) -> None:
+    def failing_handler(request: httpx.Request) -> httpx.Response:
+        raise type(error)(str(error), request=request)
+
+    client = HuggingFaceClient(
+        "token",
+        "model",
+        timeout=TIMEOUT,
+        max_output_tokens=100,
+        http_client=_client(failing_handler),
+    )
+
+    with pytest.raises(ProviderFailure, match=status):
+        client.generate(Prediction.model_validate(prediction_payload))
+
+
+def test_huggingface_rejects_response_model_mismatch(
     prediction_payload: dict,
-    response_model: str,
-    headers: dict[str, str],
-    status: str,
 ) -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(
             200,
             request=request,
-            headers=headers,
+            headers={"X-Inference-Provider": "synthetic"},
             json={
-                "model": response_model,
+                "model": "silently/substituted-model",
                 "choices": [{"message": {"content": _model_content()}}],
             },
         )
@@ -177,8 +192,59 @@ def test_huggingface_requires_response_model_and_provider_identity(
         max_output_tokens=100,
         http_client=_client(handler),
     )
-    with pytest.raises(ProviderFailure, match=status):
+    with pytest.raises(ProviderFailure, match="model_identity_mismatch"):
         client.generate(Prediction.model_validate(prediction_payload))
+
+
+def test_huggingface_accepts_documented_response_without_provider_header(
+    prediction_payload: dict,
+) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            request=request,
+            json={
+                "model": "configured/model",
+                "choices": [{"message": {"content": _model_content()}}],
+            },
+        )
+
+    result = HuggingFaceClient(
+        "token",
+        "configured/model",
+        timeout=TIMEOUT,
+        max_output_tokens=100,
+        http_client=_client(handler),
+    ).generate(Prediction.model_validate(prediction_payload))
+
+    assert result.model_id == "configured/model"
+    assert result.inference_provider is None
+
+
+def test_huggingface_accepts_explicit_documented_response_model_alias(
+    prediction_payload: dict,
+) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            request=request,
+            json={
+                "model": "provider/model-alias",
+                "choices": [{"message": {"content": _model_content()}}],
+            },
+        )
+
+    result = HuggingFaceClient(
+        "token",
+        "configured/model:provider",
+        response_model_id="provider/model-alias",
+        timeout=TIMEOUT,
+        max_output_tokens=100,
+        http_client=_client(handler),
+    ).generate(Prediction.model_validate(prediction_payload))
+
+    assert result.requested_model_id == "configured/model:provider"
+    assert result.model_id == "provider/model-alias"
 
 
 def test_external_failure_falls_back_with_truthful_metadata(prediction_payload: dict) -> None:

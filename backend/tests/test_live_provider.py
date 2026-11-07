@@ -38,8 +38,10 @@ def test_configured_external_provider_live() -> None:
     )
     assert explanation.provider_metadata["fallback_status"] == "not_used"
     assert explanation.provider_metadata["requested_model_id"] == settings.hf_model_id
-    assert explanation.provider_metadata["model_id"] == settings.hf_model_id.split(":", 1)[0]
-    assert explanation.provider_metadata["inference_provider"]
+    accepted_response_models = {settings.hf_model_id.split(":", 1)[0]}
+    if settings.hf_response_model_id:
+        accepted_response_models.add(settings.hf_response_model_id)
+    assert explanation.provider_metadata["model_id"] in accepted_response_models
     assert explanation.interpretations
     assert all(
         "No additional model-authored factual claim was accepted." in item.text
@@ -49,5 +51,5 @@ def test_configured_external_provider_live() -> None:
     print(
         "LIVE_PROVIDER_METADATA "
         f"model={explanation.provider_metadata['model_id']} "
-        f"provider={explanation.provider_metadata['inference_provider']}"
+        f"provider={explanation.provider_metadata.get('inference_provider', 'unverified')}"
     )

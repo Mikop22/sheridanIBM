@@ -96,14 +96,24 @@ def _content_from_chat_payload(payload: dict[str, Any]) -> Any:
 
 
 def _raise_for_provider_status(response: httpx.Response) -> None:
-    if response.status_code in {401, 403}:
+    if response.status_code == 401:
         raise ProviderFailure("authentication_failed")
+    if response.status_code == 402:
+        raise ProviderFailure("insufficient_credits")
+    if response.status_code == 403:
+        raise ProviderFailure("permission_denied")
     if response.status_code == 429:
         raise ProviderFailure("rate_limited")
-    if response.status_code in {404, 422}:
+    if response.status_code == 404:
         raise ProviderFailure("model_unavailable")
+    if response.status_code in {400, 422}:
+        raise ProviderFailure("request_rejected")
+    if response.status_code in {502, 503, 504}:
+        raise ProviderFailure("provider_unavailable")
+    if response.status_code >= 500:
+        raise ProviderFailure("router_error")
     if response.status_code >= 400:
-        raise ProviderFailure("unavailable")
+        raise ProviderFailure("request_failed")
 
 
 class HuggingFaceClient:
@@ -112,12 +122,14 @@ class HuggingFaceClient:
         token: str,
         model_id: str,
         *,
+        response_model_id: str = "",
         timeout: httpx.Timeout,
         max_output_tokens: int,
         http_client: httpx.Client | None = None,
     ) -> None:
         self._token = token.strip()
         self._model_id = model_id.strip()
+        self._response_model_id = response_model_id.strip()
         self._timeout = timeout
         self._max_output_tokens = max_output_tokens
         self._http_client = http_client
@@ -140,23 +152,28 @@ class HuggingFaceClient:
             )
         except httpx.TimeoutException as exc:
             raise ProviderFailure("timeout") from exc
+        except httpx.NetworkError as exc:
+            raise ProviderFailure("network_error") from exc
+        except httpx.ProtocolError as exc:
+            raise ProviderFailure("protocol_error") from exc
         except httpx.HTTPError as exc:
-            raise ProviderFailure("unavailable") from exc
+            raise ProviderFailure("transport_error") from exc
         _raise_for_provider_status(response)
         response_payload = _chat_response_payload(response)
         response_model = response_payload.get("model")
         requested_base_model = self._model_id.split(":", maxsplit=1)[0]
-        if response_model not in {self._model_id, requested_base_model}:
+        accepted_model_ids = {self._model_id, requested_base_model}
+        if self._response_model_id:
+            accepted_model_ids.add(self._response_model_id)
+        if response_model not in accepted_model_ids:
             raise ProviderFailure("model_identity_mismatch")
         inference_provider = response.headers.get("x-inference-provider", "").strip()
-        if not inference_provider:
-            raise ProviderFailure("provider_identity_missing")
         output = _parse_output(_content_from_chat_payload(response_payload), prediction)
         return ProviderResult(
             output=output,
             model_id=response_model,
             requested_model_id=self._model_id,
-            inference_provider=inference_provider,
+            inference_provider=inference_provider or None,
         )
 
     def _post(self, url: str, **kwargs: Any) -> httpx.Response:

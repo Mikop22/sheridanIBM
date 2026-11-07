@@ -27,10 +27,13 @@ For temporary Hugging Face inference, set:
 EXPLANATION_PROVIDER=huggingface
 HF_TOKEN=your-token
 HF_MODEL_ID=an-inference-provider-model-you-selected
+HF_RESPONSE_MODEL_ID=optional-documented-provider-response-alias
 ```
 
 Requests use Hugging Face's OpenAI-compatible chat endpoint. The backend never
-selects or substitutes a model automatically.
+selects or substitutes a model automatically. If the selected provider documents a
+different response-model alias, set `HF_RESPONSE_MODEL_ID`; responses matching no
+configured identity are rejected.
 
 For IBM Granite later, set:
 
