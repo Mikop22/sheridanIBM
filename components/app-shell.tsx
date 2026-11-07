@@ -9,8 +9,8 @@ const navItems = [
   { label: "Overview", href: "/" },
   { label: "Time Machine", href: "/time-machine" },
   { label: "Hidden Threats", href: "/hidden-threats" },
-  { label: "Company Assets", href: "#" },
-  { label: "Alert Activity", href: "#", badge: "8" },
+  { label: "Company Assets", href: "/assets" },
+  { label: "Alert Activity", href: "/alerts", badge: "8" },
 ];
 
 interface AppShellProps {
@@ -31,13 +31,13 @@ export function AppShell({ children, title, subtitle, breadcrumb }: AppShellProp
       </div>
       <header className="sticky top-0 z-40 border-b border-[#e0e0e0] bg-white">
         <div className="flex h-16 items-stretch px-5 sm:px-8 lg:px-12">
-          <Link href="/" className="flex min-w-fit items-center border-r border-[#e0e0e0] pr-6 text-xl font-medium tracking-tight" onClick={() => setMobileOpen(false)}>
+          <Link href="/" draggable={false} className="flex min-w-fit select-none items-center border-r border-[#e0e0e0] pr-6 text-xl font-medium tracking-tight" onClick={() => setMobileOpen(false)}>
             Signal<span className="text-[#0f62fe]">Zero</span>
           </Link>
           <nav className="hidden items-stretch lg:flex">
             {navItems.map(({ label, href, badge }) => {
-              const active = href === "/" ? pathname === "/" : href !== "#" && pathname.startsWith(href);
-              return <Link key={label} href={href} className={`relative flex items-center gap-2 px-5 text-sm transition-colors hover:bg-[#f4f4f4] ${active ? "font-medium text-[#161616]" : "text-[#525252]"}`}><span className={`absolute inset-x-0 bottom-0 h-[3px] ${active ? "bg-[#0f62fe]" : "bg-transparent"}`}/>{label}{badge && <span className="bg-[#da1e28] px-1.5 py-0.5 text-[10px] text-white">{badge}</span>}</Link>;
+              const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
+              return <Link key={label} href={href} draggable={false} aria-current={active ? "page" : undefined} className={`relative flex select-none items-center gap-2 px-5 text-sm transition-colors hover:bg-[#f4f4f4] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#0f62fe] ${active ? "font-medium text-[#161616]" : "text-[#525252]"}`}><span className={`pointer-events-none absolute inset-x-0 bottom-0 h-[3px] ${active ? "bg-[#0f62fe]" : "bg-transparent"}`}/>{label}{badge && <span className="pointer-events-none bg-[#da1e28] px-1.5 py-0.5 text-[10px] text-white">{badge}</span>}</Link>;
             })}
           </nav>
           <div className="ml-auto flex items-stretch">
@@ -46,7 +46,7 @@ export function AppShell({ children, title, subtitle, breadcrumb }: AppShellProp
             <button className="grid w-12 place-items-center border-l border-[#e0e0e0] lg:hidden" onClick={() => setMobileOpen((value) => !value)} aria-label="Toggle navigation">{mobileOpen ? <X size={21}/> : <Menu size={21}/>}</button>
           </div>
         </div>
-        {mobileOpen && <nav className="border-t border-[#e0e0e0] bg-white lg:hidden">{navItems.map(({ label, href, badge }) => { const active = href === "/" ? pathname === "/" : href !== "#" && pathname.startsWith(href); return <Link key={label} href={href} onClick={() => setMobileOpen(false)} className={`flex h-12 items-center justify-between border-b border-[#e0e0e0] px-5 text-sm ${active ? "border-l-4 border-l-[#0f62fe] bg-[#f4f4f4] font-medium" : "text-[#525252]"}`}><span>{label}</span>{badge && <span className="bg-[#da1e28] px-2 py-0.5 text-[10px] text-white">{badge}</span>}</Link>; })}</nav>}
+        {mobileOpen && <nav className="border-t border-[#e0e0e0] bg-white lg:hidden">{navItems.map(({ label, href, badge }) => { const active = href === "/" ? pathname === "/" : pathname.startsWith(href); return <Link key={label} href={href} draggable={false} aria-current={active ? "page" : undefined} onClick={() => setMobileOpen(false)} className={`flex h-12 select-none items-center justify-between border-b border-[#e0e0e0] px-5 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0f62fe] ${active ? "border-l-4 border-l-[#0f62fe] bg-[#f4f4f4] font-medium" : "text-[#525252]"}`}><span>{label}</span>{badge && <span className="pointer-events-none bg-[#da1e28] px-2 py-0.5 text-[10px] text-white">{badge}</span>}</Link>; })}</nav>}
       </header>
 
       <main>
