@@ -47,6 +47,13 @@ class Settings(BaseSettings):
     operations_database_path: Path = Path("operations.db")
     operations_delivery: Literal["recording", "live"] = "recording"
     slack_webhook_url: str = ""
+    slack_channel_id: str = ""
+    slack_app_id: str = ""
+    slack_team_id: str = ""
+    slack_cli_path: str = Field(
+        default="",
+        validation_alias=AliasChoices("SLACK_CLI_PATH", "SLACK_CMD"),
+    )
     jira_base_url: str = ""
     jira_email: str = ""
     jira_api_token: str = ""

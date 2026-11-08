@@ -20,6 +20,17 @@ def _settings(tmp_path: Path, **overrides: object) -> Settings:
         "explanation_provider": ExplanationProvider.LOCAL,
         "event_database_path": tmp_path / "events.db",
         "operations_database_path": tmp_path / "operations.db",
+        "operations_delivery": "recording",
+        "slack_webhook_url": "",
+        "slack_channel_id": "",
+        "slack_app_id": "",
+        "slack_team_id": "",
+        "jira_base_url": "",
+        "jira_email": "",
+        "jira_api_token": "",
+        "jira_project_key": "",
+        "entire_token": "",
+        "github_token": "",
         "event_risk_threshold": 0.75,
         "event_threshold_scale_minimum": 0.0,
         "event_threshold_scale_maximum": 1.0,
@@ -100,7 +111,9 @@ def test_judge_script_records_side_effects_without_calling_the_network(
     assert all(step["suppressed"] for step in replay["steps"])
     assert len(replay["jobs"]) == 1
     assert readiness.json()["live_calls_enabled"] is False
-    assert "GH_TOKEN" in readiness.json()["missing"]
+    missing = readiness.json()["missing"]
+    assert "GH_TOKEN" in missing
+    assert any(item.startswith("SLACK_") for item in missing)
     assert readiness.json()["github_push_verified"] is False
 
 

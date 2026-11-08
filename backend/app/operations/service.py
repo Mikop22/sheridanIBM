@@ -34,10 +34,21 @@ class OperationsService:
         self._store = OperationsStore(settings.operations_database_path)
 
     def readiness(self) -> ReadinessResponse:
+        slack_ready = bool(self._settings.slack_webhook_url.strip()) or all(
+            value.strip()
+            for value in (
+                self._settings.slack_channel_id,
+                self._settings.slack_app_id,
+                self._settings.slack_team_id,
+            )
+        )
         missing = [
             name
             for name, present in (
-                ("SLACK_WEBHOOK_URL", self._settings.slack_webhook_url.strip()),
+                (
+                    "SLACK_WEBHOOK_URL or SLACK_CHANNEL_ID/SLACK_APP_ID/SLACK_TEAM_ID",
+                    slack_ready,
+                ),
                 ("JIRA_BASE_URL", self._settings.jira_base_url.strip()),
                 ("JIRA_EMAIL", self._settings.jira_email.strip()),
                 ("JIRA_API_TOKEN", self._settings.jira_api_token.strip()),

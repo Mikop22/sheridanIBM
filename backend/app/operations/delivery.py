@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+import json
+import shutil
+import subprocess
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Protocol
 from urllib.parse import urlsplit
 
@@ -150,19 +154,32 @@ class LiveDelivery:
 
     def post_slack(self, finding_key: str, team: str, kind: str, text: str) -> Outbound:
         webhook = self._settings.slack_webhook_url.strip()
-        if not webhook:
-            return _blocked(kind, finding_key, team, text, ["SLACK_WEBHOOK_URL"])
-        response = httpx.post(webhook, json={"text": text}, timeout=20.0)
-        response.raise_for_status()
+        if webhook:
+            response = httpx.post(webhook, json={"text": text}, timeout=20.0)
+            response.raise_for_status()
+            return Outbound(
+                kind=kind,
+                finding_key=finding_key,
+                team=team,
+                delivered=True,
+                mode="live",
+                external_id=None,
+                body=text,
+                detail="Posted to Slack via webhook.",
+            )
+        missing = _slack_cli_missing(self._settings)
+        if missing:
+            return _blocked(kind, finding_key, team, text, missing)
+        payload = _post_via_slack_cli(self._settings, text)
         return Outbound(
             kind=kind,
             finding_key=finding_key,
             team=team,
             delivered=True,
             mode="live",
-            external_id=None,
+            external_id=str(payload.get("ts")) if payload.get("ts") else None,
             body=text,
-            detail="Posted to Slack.",
+            detail="Posted to Slack via the authenticated Slack CLI bot.",
         )
 
     def _client(self) -> httpx.Client:
@@ -194,6 +211,63 @@ def _jira_missing(settings: Settings) -> list[str]:
         if parsed.scheme != "https" or not parsed.hostname:
             missing.append("JIRA_BASE_URL")
     return missing
+
+
+def _slack_cli_missing(settings: Settings) -> list[str]:
+    pairs = (
+        ("SLACK_CHANNEL_ID", settings.slack_channel_id),
+        ("SLACK_APP_ID", settings.slack_app_id),
+        ("SLACK_TEAM_ID", settings.slack_team_id),
+    )
+    missing = [name for name, value in pairs if not value.strip()]
+    if not _resolve_slack_cli(settings):
+        missing.append("SLACK_CLI_PATH")
+    return missing
+
+
+def _resolve_slack_cli(settings: Settings) -> str | None:
+    configured = settings.slack_cli_path.strip()
+    if configured:
+        path = Path(configured)
+        return str(path) if path.is_file() else None
+    default = Path.home() / ".slack" / "bin" / "slack"
+    if default.is_file():
+        return str(default)
+    return shutil.which("slack")
+
+
+def _slack_project_dir() -> Path | None:
+    candidate = Path(__file__).resolve().parents[3] / "signalzero-slack"
+    if (candidate / ".slack" / "apps.dev.json").is_file():
+        return candidate
+    return None
+
+
+def _post_via_slack_cli(settings: Settings, text: str) -> dict[str, object]:
+    command = [
+        _resolve_slack_cli(settings) or "slack",
+        "api",
+        "chat.postMessage",
+        f"channel={settings.slack_channel_id.strip()}",
+        f"text={text}",
+        f"--app={settings.slack_app_id.strip()}",
+        f"--team={settings.slack_team_id.strip()}",
+        "--skip-update",
+    ]
+    completed = subprocess.run(
+        command,
+        capture_output=True,
+        text=True,
+        check=False,
+        cwd=_slack_project_dir(),
+    )
+    if completed.returncode != 0:
+        detail = completed.stderr.strip() or completed.stdout.strip() or "slack cli failed"
+        raise RuntimeError(detail)
+    payload = json.loads(completed.stdout)
+    if not payload.get("ok"):
+        raise RuntimeError(str(payload.get("error") or payload))
+    return payload
 
 
 def _blocked(
