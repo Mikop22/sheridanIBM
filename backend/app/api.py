@@ -29,6 +29,13 @@ from app.domain.frontend_contracts import (
     FrontendVulnerabilityList,
 )
 from app.event_repository import SecurityEventRepository
+from app.operations.models import (
+    JudgeScriptReport,
+    JudgeScriptRequest,
+    PullRequestRecord,
+    RankingsResponse,
+    ReadinessResponse,
+)
 from app.repositories import PredictionRepository
 from app.services.event_processing import SecurityEventProcessor
 from app.services.explanations import ExplanationService
@@ -211,6 +218,49 @@ def frontend_assets() -> FrontendAssets:
 def frontend_alerts() -> FrontendAlerts:
     """Frontend alerts remain empty until an explicit adapter is configured."""
     return FrontendAlerts()
+
+
+def _operations(request: Request):  # type: ignore[no-untyped-def]
+    return request.app.state.operations_service
+
+
+@router.get("/v1/operations/readiness", response_model=ReadinessResponse, tags=["operations-plan"])
+def operations_readiness(request: Request) -> ReadinessResponse:
+    return _operations(request).readiness()
+
+
+@router.get("/v1/operations/rankings", response_model=RankingsResponse, tags=["operations-plan"])
+def operations_rankings(request: Request) -> RankingsResponse:
+    return _operations(request).rankings()
+
+
+@router.get(
+    "/v1/operations/judge-script",
+    response_model=JudgeScriptReport,
+    tags=["operations-plan"],
+)
+def operations_judge_state(request: Request) -> JudgeScriptReport:
+    return _operations(request).state()
+
+
+@router.post(
+    "/v1/operations/judge-script",
+    response_model=JudgeScriptReport,
+    tags=["operations-plan"],
+)
+def operations_run_judge_script(body: JudgeScriptRequest, request: Request) -> JudgeScriptReport:
+    return _operations(request).run_judge_script(body.through)
+
+
+@router.post(
+    "/v1/operations/remediations/{cve_id}/pull-request",
+    response_model=JudgeScriptReport,
+    tags=["operations-plan"],
+)
+def operations_record_pull_request(
+    cve_id: str, body: PullRequestRecord, request: Request
+) -> JudgeScriptReport:
+    return _operations(request).record_pull_request(cve_id, body.pr_url, body.checks_passed)
 
 
 @router.get(

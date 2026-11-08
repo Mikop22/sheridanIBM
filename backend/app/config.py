@@ -1,8 +1,9 @@
 from enum import StrEnum
 from pathlib import Path
+from typing import Literal
 from urllib.parse import urlsplit
 
-from pydantic import Field, field_validator
+from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -16,7 +17,7 @@ class ExplanationProvider(StrEnum):
 class Settings(BaseSettings):
     """Runtime configuration. Local mode has no external dependencies."""
 
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore", populate_by_name=True)
 
     explanation_provider: ExplanationProvider = ExplanationProvider.LOCAL
     provider_connect_timeout: float = Field(default=5.0, gt=0)
@@ -42,6 +43,20 @@ class Settings(BaseSettings):
     event_threshold_scale_minimum: float | None = None
     event_threshold_scale_maximum: float | None = None
     event_threshold_higher_is_riskier: bool | None = None
+
+    operations_database_path: Path = Path("operations.db")
+    operations_delivery: Literal["recording", "live"] = "recording"
+    slack_webhook_url: str = ""
+    jira_base_url: str = ""
+    jira_email: str = ""
+    jira_api_token: str = ""
+    jira_project_key: str = ""
+    jira_issue_type: str = "Task"
+    entire_token: str = ""
+    github_token: str = Field(
+        default="",
+        validation_alias=AliasChoices("GITHUB_TOKEN", "GH_TOKEN"),
+    )
 
     @field_validator("cors_allowed_origins")
     @classmethod
