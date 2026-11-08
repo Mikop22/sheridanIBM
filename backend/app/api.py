@@ -6,7 +6,8 @@ import time
 from datetime import UTC, datetime
 from typing import Annotated, Any, Literal
 from urllib.error import URLError
-from urllib.request import Request as UrlRequest, urlopen
+from urllib.request import Request as UrlRequest
+from urllib.request import urlopen
 
 from fastapi import APIRouter, Depends, Request, Response, status
 
@@ -53,7 +54,8 @@ from app.operations.models import (
     RankingsResponse,
     ReadinessResponse,
 )
-from app.operations.remediation import REPOSITORY as SECURITYDEMO_REPO, branch_for_route
+from app.operations.remediation import REPOSITORY as SECURITYDEMO_REPO
+from app.operations.remediation import branch_for_route
 from app.operations.service import OperationsService
 from app.operations.store import DeliveryRow, FindingRow, JobRow
 from app.repositories import PredictionRepository
@@ -120,11 +122,15 @@ def _fetch_live_github_prs(repo: str, token: str) -> dict[str, dict[str, Any]]:
                 if isinstance(branch, str) and branch and isinstance(html_url, str) and html_url:
                     result[branch] = {
                         "url": html_url,
-                        "number": item.get("number") if isinstance(item.get("number"), int) else _pr_number_from_url(html_url),
+                        "number": item.get("number")
+                        if isinstance(item.get("number"), int)
+                        else _pr_number_from_url(html_url),
                         "title": item.get("title") if isinstance(item.get("title"), str) else None,
                         "branch": branch,
                         "draft": bool(item.get("draft", True)),
-                        "updated_at": item.get("updated_at") if isinstance(item.get("updated_at"), str) else None,
+                        "updated_at": item.get("updated_at")
+                        if isinstance(item.get("updated_at"), str)
+                        else None,
                     }
         _GITHUB_PR_CACHE[repo] = (now, result)
     except (URLError, TimeoutError, ValueError, OSError):
@@ -371,9 +377,7 @@ def _frontend_vulnerability(
     )
     asset_decisions = [
         evaluator.evaluate(prediction, correlation)
-        for correlation in correlations.correlations_for(
-            prediction.vulnerability.vulnerability_id
-        )
+        for correlation in correlations.correlations_for(prediction.vulnerability.vulnerability_id)
     ]
     decision_order = {
         OperationalDecision.MONITOR: 0,
@@ -669,11 +673,7 @@ def _frontend_alert(
     repository = (job.repository if job else None) or (asset.repository if asset else None)
     owner_team = asset.owner if asset else (finding.team if finding.team != "unknown" else None)
     if pr_url:
-        pr_ts = (
-            pr_info.get("updated_at")
-            if (pr_info and pr_info.get("updated_at"))
-            else updated_at
-        )
+        pr_ts = pr_info.get("updated_at") if (pr_info and pr_info.get("updated_at")) else updated_at
         history.append(
             FrontendAlertHistoryEvent(
                 timestamp=pr_ts,
@@ -822,7 +822,9 @@ def frontend_assets(correlations: CorrelationDependency) -> FrontendAssets:
                 internetExposed=(
                     True
                     if asset.exposure_status.value == "internet_facing"
-                    else False if asset.exposure_status.value == "internal" else None
+                    else False
+                    if asset.exposure_status.value == "internal"
+                    else None
                 ),
                 businessCriticality=asset.business_criticality.value.title(),
                 owner=asset.owner_team,
@@ -860,35 +862,35 @@ def frontend_alerts(
 ) -> FrontendAlerts:
     """Expose deterministic decisions and recorded operations delivery state."""
     decisions = [
-            FrontendPersistentDecision(
-                recommendationId=item.recommendation_id,
-                findingId=item.finding_id,
-                cveId=item.vulnerability_id,
-                assetId=item.asset_id,
-                operationalDecision=item.operational_decision.value,
-                workflowStatus=item.workflow_status.value,
-                reasonCodes=[reason.code for reason in item.decision_reasons],
-                evidenceRefs=item.evidence_refs,
-                remediationEligibility=item.eligibility.outcome.value,
-                agentEligible=item.eligibility.agent_eligible,
-                executionAuthorized=False,
-                proposedNextAction=item.recommended_next_step,
-                createdAt=item.created_at,
-                decidedAt=item.decided_at,
-                decidedBy=item.decided_by,
-                decisionReason=item.decision_reason,
-                activityHistory=[
-                    FrontendDecisionActivity(
-                        eventId=outcome.event_id,
-                        processedAt=outcome.processed_at,
-                        reasonCode=outcome.reason_code,
-                        reusedRecommendation=outcome.reused_recommendation,
-                    )
-                    for outcome in event_repository.list_finding_outcomes(item.finding_id)
-                ],
-            )
-            for item in event_repository.list_all_recommendations()
-        ]
+        FrontendPersistentDecision(
+            recommendationId=item.recommendation_id,
+            findingId=item.finding_id,
+            cveId=item.vulnerability_id,
+            assetId=item.asset_id,
+            operationalDecision=item.operational_decision.value,
+            workflowStatus=item.workflow_status.value,
+            reasonCodes=[reason.code for reason in item.decision_reasons],
+            evidenceRefs=item.evidence_refs,
+            remediationEligibility=item.eligibility.outcome.value,
+            agentEligible=item.eligibility.agent_eligible,
+            executionAuthorized=False,
+            proposedNextAction=item.recommended_next_step,
+            createdAt=item.created_at,
+            decidedAt=item.decided_at,
+            decidedBy=item.decided_by,
+            decisionReason=item.decision_reason,
+            activityHistory=[
+                FrontendDecisionActivity(
+                    eventId=outcome.event_id,
+                    processedAt=outcome.processed_at,
+                    reasonCode=outcome.reason_code,
+                    reusedRecommendation=outcome.reused_recommendation,
+                )
+                for outcome in event_repository.list_finding_outcomes(item.finding_id)
+            ],
+        )
+        for item in event_repository.list_all_recommendations()
+    ]
     store = operations.store
     findings = store.list_findings()
     if not findings:
