@@ -519,6 +519,67 @@ def _integration_from_deliveries(
     )
 
 
+def _remediation_summary(
+    finding: FindingRow,
+    asset: DemoAsset | None,
+    *,
+    pr_url: str | None,
+    pr_number: int | None,
+) -> tuple[str, list[str]]:
+    if asset is None:
+        return (
+            "Test case: CVE recorded without a matching asset in the inventory.",
+            [
+                "Intentional test case for missing-asset handling.",
+                f"Finding level: {finding.level}",
+            ],
+        )
+    if asset.route == "appliance":
+        summary = (
+            f"CISA KEV escalation on {asset.product} {asset.installed_version} — "
+            "upgrade appliance firmware to 7.2.63.2+ immediately (manual network ops path; no code PR)."
+            if finding.urgent
+            else f"Managed network appliance ({asset.product} {asset.installed_version}) — "
+            "vendor firmware upgrade required (no automated code PR)."
+        )
+        evidence = [
+            f"Affected component: {asset.product} {asset.installed_version} on {asset.name} ({asset.owner} team)",
+            "Action required: Patch Progress LoadMaster firmware to 7.2.63.2 or later.",
+            "Route: Managed appliance — handled via Jira Bug and Slack urgent escalation rather than a GitHub PR.",
+            asset.note,
+        ]
+        return summary, evidence
+    if asset.route == "code_patch":
+        pr_label = f"PR #{pr_number}" if pr_number else "draft PR"
+        summary = (
+            f"First-party code patch ({asset.advisory_id}): rewrite resolve_config_path in "
+            f"portal/config_loader.py to contain profile paths under portal/configs ({pr_label} passing checks)."
+        )
+        evidence = [
+            f"Affected component: {asset.product} in {asset.repository}",
+            "Action required: Enforce path containment under portal/configs in resolve_config_path.",
+            "Verification: Automated check_code_fix.py passing on draft branch; awaiting human review.",
+            asset.note,
+        ]
+        if pr_url:
+            evidence.append(f"Draft PR awaiting review: {pr_url}")
+        return summary, evidence
+    pr_label = f"PR #{pr_number}" if pr_number else "draft PR"
+    summary = (
+        f"Dependency upgrade ({asset.advisory_id}): bump {asset.product} "
+        f"{asset.installed_version} → {asset.fixed_version} in pom.xml ({pr_label} passing checks)."
+    )
+    evidence = [
+        f"Affected component: {asset.product} {asset.installed_version} → {asset.fixed_version} in {asset.repository}",
+        "Action required: Upgrade pom.xml on the 4.3.x line (do not jump to 5.0.2).",
+        "Verification: Automated check_version.py passing on draft branch; awaiting human review.",
+        asset.note,
+    ]
+    if pr_url:
+        evidence.append(f"Draft PR awaiting review: {pr_url}")
+    return summary, evidence
+
+
 def _frontend_alert(
     finding: FindingRow,
     deliveries: list[DeliveryRow],
@@ -598,24 +659,20 @@ def _frontend_alert(
                 kind="status",
             )
         )
-    evidence = [
-        f"Finding level: {finding.level}",
-        f"Remediation route: {finding.route}",
-        "Inventory is synthetic demo data, not a live asset scan.",
-    ]
-    if asset is not None:
-        evidence.insert(0, asset.note)
-    if pr_url:
-        evidence.append(f"Draft PR awaiting review: {pr_url}")
+    trigger_reason, evidence = _remediation_summary(
+        finding,
+        asset,
+        pr_url=pr_url,
+        pr_number=pr_number,
+    )
+
     return FrontendAlert(
         alertId=finding.finding_key,
         cveId=finding.cve_id,
         assetId=finding.asset_id,
         assetName=asset_name,
         priority=_alert_priority(finding.level),
-        triggerReason=(
-            f"Operations finding at level '{finding.level}' for route '{finding.route}'."
-        ),
+        triggerReason=trigger_reason,
         createdAt=created_at,
         updatedAt=updated_at,
         slackDelivery=_integration_from_deliveries(

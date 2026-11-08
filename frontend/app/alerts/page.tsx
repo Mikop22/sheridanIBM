@@ -25,7 +25,14 @@ import type {
   VulnerabilityAlert,
 } from "@/lib/types/alert";
 
-type WorkflowStatus = "Pending" | "Running" | "Succeeded" | "Failed" | "Skipped" | "Unavailable";
+type WorkflowStatus =
+  | "Pending"
+  | "Running"
+  | "Succeeded"
+  | "Failed"
+  | "Skipped"
+  | "Manual path"
+  | "Unavailable";
 const priorityStyles: Record<AlertPriority, string> = {
   Critical: "bg-[#da1e28] text-white",
   High: "bg-[#ff832b] text-[#161616]",
@@ -43,6 +50,7 @@ const workflowStyles: Record<WorkflowStatus, string> = {
   Succeeded: "bg-[#defbe6] text-[#0e6027]",
   Failed: "bg-[#fff1f1] text-[#a2191f]",
   Skipped: "bg-[#f4f4f4] text-[#525252]",
+  "Manual path": "bg-[#edf5ff] text-[#0043ce]",
   Unavailable: "bg-[#f4f4f4] text-[#6f6f6f]",
 };
 const formatTimestamp = (value: string) =>
@@ -98,6 +106,12 @@ function providerStatus(status: DeliveryStatus | JiraStatus): WorkflowStatus {
 function workflowFor(alert: VulnerabilityAlert) {
   const hasPr = Boolean(alert.prUrl);
   const unknownAsset = isIntentionalTestCase(alert);
+  const manualAppliance = !unknownAsset && !hasPr && !alert.repository;
+  const codeStageStatus: WorkflowStatus = hasPr
+    ? "Succeeded"
+    : manualAppliance
+      ? "Manual path"
+      : "Unavailable";
   const testStatus: WorkflowStatus =
     alert.checksPassed === true
       ? "Succeeded"
@@ -105,7 +119,14 @@ function workflowFor(alert: VulnerabilityAlert) {
         ? "Failed"
         : hasPr
           ? "Succeeded"
-          : "Unavailable";
+          : manualAppliance
+            ? "Manual path"
+            : "Unavailable";
+  const approvalStatus: WorkflowStatus = hasPr
+    ? "Pending"
+    : manualAppliance
+      ? "Pending"
+      : "Unavailable";
   return [
     { label: "Threat detected", status: "Succeeded" as WorkflowStatus, timestamp: alert.timestamp },
     {
@@ -124,23 +145,23 @@ function workflowFor(alert: VulnerabilityAlert) {
       timestamp: alert.jiraDelivery?.deliveredAt ?? alert.jiraDelivery?.attemptedAt ?? null,
     },
     {
-      label: "Coding agent investigation",
-      status: (hasPr ? "Succeeded" : "Unavailable") as WorkflowStatus,
+      label: manualAppliance ? "Coding agent investigation (appliance)" : "Coding agent investigation",
+      status: codeStageStatus,
       timestamp: hasPr ? alert.timestamp : null,
     },
     {
-      label: "Draft GitHub PR",
-      status: (hasPr ? "Succeeded" : "Unavailable") as WorkflowStatus,
+      label: manualAppliance ? "Vendor firmware route (no code PR)" : "Draft GitHub PR",
+      status: codeStageStatus,
       timestamp: hasPr ? alert.timestamp : null,
     },
     {
-      label: "Automated tests",
+      label: manualAppliance ? "Automated repo tests (not applicable)" : "Automated tests",
       status: testStatus,
       timestamp: hasPr ? alert.timestamp : null,
     },
     {
-      label: "Awaiting human approval",
-      status: (hasPr ? "Pending" : "Unavailable") as WorkflowStatus,
+      label: manualAppliance ? "Awaiting network ops firmware upgrade" : "Awaiting human approval",
+      status: approvalStatus,
       timestamp: null,
     },
   ];
@@ -160,7 +181,9 @@ function WorkflowStrip({ alert }: { alert: VulnerabilityAlert }) {
                 ? "bg-[#da1e28]"
                 : stage.status === "Pending" || stage.status === "Running"
                   ? "bg-[#0f62fe]"
-                  : "bg-[#c6c6c6]"
+                  : stage.status === "Manual path"
+                    ? "bg-[#a6c8ff]"
+                    : "bg-[#c6c6c6]"
           }`}
         />
       ))}

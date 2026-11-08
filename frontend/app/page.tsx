@@ -179,11 +179,9 @@ export default function Home() {
       {!loading && !error && (
         <>
           <section aria-labelledby="posture-heading">
-            <div className="mb-5">
-              <h1 id="posture-heading" className="text-2xl font-light">
-                What needs attention now
-              </h1>
-            </div>
+            <h2 id="posture-heading" className="sr-only">
+              What needs attention now
+            </h2>
             <div className="glass-stats grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               {metrics.map((metric) => (
                 <MetricCard key={metric.label} {...metric} />
@@ -201,13 +199,13 @@ export default function Home() {
             <div className="border border-[#e0e0e0]">
               <div className="flex items-end justify-between border-b border-[#e0e0e0] p-5">
                 <div>
-                  <h2 className="text-xl font-light">Prioritized findings</h2>
+                  <h2 className="text-xl font-light">Prioritized findings in your estate</h2>
                   <p className="mt-1 text-xs text-[#6f6f6f]">
-                    Top model-ranked CVEs with vulnerability descriptions and matched assets
+                    Inventory-matched assets first, followed by top watchlist predictions
                   </p>
                 </div>
                 <a href="/hidden-threats" className="text-sm text-[#0f62fe] hover:underline">
-                  View all {vulnerabilities.length}
+                  Explore all {vulnerabilities.length} in Threat Intelligence
                 </a>
               </div>
               <div className="overflow-x-auto">
@@ -221,7 +219,15 @@ export default function Home() {
                     </tr>
                   </thead>
                   <tbody>
-                    {vulnerabilities.slice(0, 8).map((item) => (
+                    {[...vulnerabilities]
+                      .sort((a, b) => {
+                        const aMatched = a.asset !== null ? 0 : 1;
+                        const bMatched = b.asset !== null ? 0 : 1;
+                        if (aMatched !== bMatched) return aMatched - bMatched;
+                        return (a.modelRank ?? 999) - (b.modelRank ?? 999);
+                      })
+                      .slice(0, 6)
+                      .map((item) => (
                       <tr key={item.id} className="border-t border-[#e0e0e0] hover:bg-[#f4f4f4]">
                         <td className="px-4 py-4 align-top">
                           <span className="text-base font-light tabular-nums text-[#0f62fe]">
