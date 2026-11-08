@@ -11,7 +11,6 @@ import {
   Wrench,
 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
-import { Hint } from "@/components/hint";
 import { isDemoMode } from "@/lib/api/config";
 import { fetchAlertActivity } from "@/lib/api/alerts";
 import { fetchVulnerabilityOverview } from "@/lib/api/vulnerabilities";
@@ -198,7 +197,7 @@ export default function Home() {
           <section className="mt-10 grid gap-8 xl:grid-cols-[1.55fr_.75fr]">
             <div className="border border-[#e0e0e0]">
               <div className="flex items-center justify-between border-b border-[#e0e0e0] p-5">
-                <h2 className="text-xl font-light">Prioritized findings in your estate</h2>
+                <h2 className="text-xl font-light">Prioritized findings</h2>
                 <a href="/hidden-threats" className="text-sm text-[#0f62fe] hover:underline">
                   Explore all {vulnerabilities.length} in Threat Intelligence
                 </a>
@@ -244,11 +243,7 @@ export default function Home() {
                           {item.asset ? (
                             <p className="text-sm">{item.asset}</p>
                           ) : (
-                            <p className="text-sm text-[#525252]">
-                              <Hint label="This CVE is in the ranked prediction set, but it is not correlated to a company asset in the demo inventory yet.">
-                                Not in inventory
-                              </Hint>
-                            </p>
+                            <p className="text-sm text-[#6f6f6f]">Not used in our systems</p>
                           )}
                           {item.service && (
                             <p className="mt-0.5 text-xs text-[#6f6f6f]">{item.service}</p>

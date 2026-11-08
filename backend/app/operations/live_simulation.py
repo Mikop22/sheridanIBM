@@ -87,6 +87,16 @@ class _ScenarioSpec:
 
 SCENARIOS: tuple[_ScenarioSpec, ...] = (
     _ScenarioSpec(
+        id="gateway_auth",
+        category="Gateway Auth Bypass (#1 Ranked CVE)",
+        label="ShareFile SZC Config Guard (CVE-2026-2699)",
+        cve_id="CVE-2026-2699",
+        asset_id="file-gateway",
+        urgent=False,
+        route_label="Jira Story · Entire CLI + Gateway Guard · GitHub Draft PR #3",
+        summary="Blocks unauthenticated access to restricted SZC config pages in gateway/szc_config_guard.py with an Entire checkpoint, runs check_gateway_fix.py, updates GitHub PR #3, and alerts Slack & Jira.",
+    ),
+    _ScenarioSpec(
         id="code_patch",
         category="First-Party Code Vulnerability",
         label="Path Traversal in Config Loader (CVE-2026-22739)",
@@ -184,6 +194,7 @@ def execute_simulation_step(
     delivery = build_delivery(operations.settings)
 
     # Ensure base finding row exists so UI reflects progress at every stage
+    effective_route = "code_patch" if spec.id == "gateway_auth" else asset.route
     if prior is None:
         prior = FindingRow(
             finding_key=finding_key,
@@ -195,7 +206,7 @@ def execute_simulation_step(
             review_notified=False,
             evidence_hash=_evidence_hash(ranking, asset, spec.urgent),
             team=asset.team,
-            route=asset.route,
+            route=effective_route,
             urgent=spec.urgent,
         )
         operations.store.save_finding(prior)
@@ -220,7 +231,7 @@ def execute_simulation_step(
     if stage == 2:
         detail = (
             f"Matched {asset.name} ({asset.product} {asset.installed_version}) "
-            f"owned by {asset.owner} team → route '{asset.route}'."
+            f"owned by {asset.owner} team → route '{effective_route}'."
         )
         _record_event(operations, finding_key, prior.level, "sim_stage_2", detail)
         return SimulationStepResponse(
@@ -235,18 +246,18 @@ def execute_simulation_step(
 
     if stage == 3:
         issue_key = prior.jira_issue_key or "pending-jira"
-        if spec.urgent or asset.route == "appliance":
+        if spec.urgent or effective_route == "appliance":
             text = _urgent_text(ranking, asset, issue_key)
             outbound = delivery.post_slack(finding_key, asset.team, "slack_urgent", text)
         else:
-            pr_num = 2 if asset.route == "code_patch" else 1
+            pr_num = _pr_number_for_asset(asset)
             pr_url = f"https://github.com/{REPOSITORY}/pull/{pr_num}"
             text = (
                 f"*Live simulation triggered* · *{ranking.cve_id} (Model Rank #{ranking.rank})*\n"
                 f"CVE: {ranking.cve_id} · *Asset:* {asset.name} (`{asset.product}` {asset.installed_version}) · *Owner:* {asset.owner} Team\n\n"
                 f"*What is the issue?*\n{ranking.description}\n\n"
                 f"*Pipeline Action*\n"
-                f"• Route `{asset.route}` dispatched for `{asset.name}`\n"
+                f"• Route `{effective_route}` dispatched for `{asset.name}`\n"
                 f"• Target PR: {pr_url} · Jira `{issue_key}`"
             )
             outbound = delivery.post_slack(finding_key, asset.team, "slack_triage", text)
@@ -314,7 +325,7 @@ def execute_simulation_step(
                 review_notified=prior.review_notified,
                 evidence_hash=prior.evidence_hash,
                 team=asset.team,
-                route=asset.route,
+                route=effective_route,
                 urgent=spec.urgent,
             )
         )
@@ -337,7 +348,7 @@ def execute_simulation_step(
         )
 
     # Appliance route: stages 5-7 are Manual path, stage 8 is Pending network ops
-    if asset.route == "appliance":
+    if effective_route == "appliance":
         if stage in {5, 6, 7}:
             detail = (
                 f"Manual path — {asset.product} is a managed network appliance; "
@@ -418,7 +429,7 @@ def execute_simulation_step(
 
     if stage == 7:
         passed, cmd_label, output = _run_verification_script(asset)
-        pr_number = 2 if asset.route == "code_patch" else 1
+        pr_number = _pr_number_for_asset(asset)
         pr_url = f"https://github.com/{REPOSITORY}/pull/{pr_number}"
         operations.store.save_job(
             JobRow(
@@ -427,7 +438,7 @@ def execute_simulation_step(
                 branch=branch_for_asset(asset),
                 repository=REPOSITORY,
                 task=task_for_route(
-                    asset.route,
+                    effective_route,
                     ranking_score=ranking.ranking_score,
                     rank=ranking.rank,
                 ),
@@ -450,7 +461,7 @@ def execute_simulation_step(
         )
 
     # Stage 8: Post final review Slack notification & mark Awaiting human approval
-    pr_number = 2 if asset.route == "code_patch" else 1
+    pr_number = _pr_number_for_asset(asset)
     pr_url = f"https://github.com/{REPOSITORY}/pull/{pr_number}"
     text = _review_text(
         ranking,
@@ -472,7 +483,7 @@ def execute_simulation_step(
             review_notified=True,
             evidence_hash=prior.evidence_hash,
             team=asset.team,
-            route=asset.route,
+            route=effective_route,
             urgent=spec.urgent,
         )
     )
@@ -534,7 +545,15 @@ def _run_unmatched_step(
 
 
 def branch_for_asset(asset: DemoAsset) -> str:
+    if asset.asset_id == "file-gateway":
+        return "signalzero/cve-2026-2699"
     return CODE_BRANCH if asset.route == "code_patch" else DEPENDENCY_BRANCH
+
+
+def _pr_number_for_asset(asset: DemoAsset) -> int:
+    if asset.asset_id == "file-gateway":
+        return 3
+    return 2 if asset.route == "code_patch" else 1
 
 
 def _ensure_worktree(github_token: str) -> Path:
@@ -645,7 +664,15 @@ def _run_entire_checkpoint(asset: DemoAsset, ranking: RankingRow) -> tuple[str, 
         text=True,
     )
 
-    target_file = "portal/config_loader.py" if asset.route == "code_patch" else "pom.xml"
+    if asset.asset_id == "file-gateway":
+        target_file = "gateway/szc_config_guard.py"
+        commit_msg = "Block unauthenticated access to restricted ShareFile SZC config pages for CVE-2026-2699."
+    elif asset.route == "code_patch":
+        target_file = "portal/config_loader.py"
+        commit_msg = "Contain profile path resolution inside portal/configs for CVE-2026-22739 defense-in-depth."
+    else:
+        target_file = "pom.xml"
+        commit_msg = "Bump spring-cloud-config-server from 4.3.1 to 4.3.2 for CVE-2026-22739."
     subprocess.run(
         ["git", "checkout", f"origin/{branch}", "--", target_file],
         cwd=worktree,
@@ -653,11 +680,6 @@ def _run_entire_checkpoint(asset: DemoAsset, ranking: RankingRow) -> tuple[str, 
         check=True,
         capture_output=True,
         text=True,
-    )
-    commit_msg = (
-        "Contain profile path resolution inside portal/configs for CVE-2026-22739 defense-in-depth."
-        if asset.route == "code_patch"
-        else "Bump spring-cloud-config-server from 4.3.1 to 4.3.2 for CVE-2026-22739."
     )
     subprocess.run(
         ["git", "commit", "-m", commit_msg],
@@ -730,6 +752,7 @@ def _push_and_update_github_pr(
                 "-c",
                 extra,
                 "push",
+                "--no-verify",
                 "--force-with-lease",
                 "origin",
                 branch,
@@ -748,6 +771,7 @@ def _push_and_update_github_pr(
                 "-c",
                 extra,
                 "push",
+                "--no-verify",
                 "origin",
                 "entire/checkpoints/v1",
             ],
@@ -758,9 +782,14 @@ def _push_and_update_github_pr(
             text=True,
         )
 
-    pr_number = 2 if asset.route == "code_patch" else 1
+    pr_number = _pr_number_for_asset(asset)
     pr_url = f"https://github.com/{REPOSITORY}/pull/{pr_number}"
-    verify_cmd = "python3 check_code_fix.py" if asset.route == "code_patch" else "python3 check_version.py"
+    if asset.asset_id == "file-gateway":
+        verify_cmd = "python3 check_gateway_fix.py"
+    elif asset.route == "code_patch":
+        verify_cmd = "python3 check_code_fix.py"
+    else:
+        verify_cmd = "python3 check_version.py"
     if token:
         headers = {
             "Accept": "application/vnd.github+json",
@@ -790,7 +819,12 @@ def _push_and_update_github_pr(
 
 def _run_verification_script(asset: DemoAsset) -> tuple[bool, str, str]:
     worktree = SECURITYDEMO_WORKTREE if (SECURITYDEMO_WORKTREE / ".git").is_dir() else LOCAL_DEMO_DIR
-    script_name = "check_code_fix.py" if asset.route == "code_patch" else "check_version.py"
+    if asset.asset_id == "file-gateway":
+        script_name = "check_gateway_fix.py"
+    elif asset.route == "code_patch":
+        script_name = "check_code_fix.py"
+    else:
+        script_name = "check_version.py"
     completed = subprocess.run(
         [sys.executable, script_name],
         cwd=worktree,

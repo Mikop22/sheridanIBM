@@ -88,7 +88,9 @@ _GITHUB_PR_TTL_SECONDS = 30.0
 _KNOWN_BRANCH_SHAS: dict[str, str] = {
     "signalzero/cve-2026-22739": "ba6cbd2780a77ec908e23fb510095ebd61ce49e8",
     "signalzero/cve-2026-22739-code": "31295711c13c2694c0c6af498a134ce203bd3f86",
+    "signalzero/cve-2026-2699": "0b68ade82b6cccc6ea420b4326fb7033ff2d3f20",
 }
+_LIFECYCLE_OVERRIDES: dict[str, Literal["Open", "Investigating", "Resolved", "Suppressed"]] = {}
 
 
 def _pr_number_from_url(url: str | None) -> int | None:
@@ -551,6 +553,19 @@ def _remediation_summary(
                 f"Finding level: {finding.level}",
             ],
         )
+    if asset.asset_id == "file-gateway" and pr_url:
+        pr_label = f"PR #{pr_number}" if pr_number else "draft PR"
+        summary = (
+            f"Gateway config guard: block unauthenticated access to restricted ShareFile SZC "
+            f"config pages in gateway/szc_config_guard.py ({pr_label} passing checks)."
+        )
+        evidence = [
+            f"Affected component: {asset.product} {asset.installed_version} on {asset.name} ({asset.owner} team)",
+            "Action required: Enforce authenticated admin check on restricted SZC configuration paths in gateway/szc_config_guard.py.",
+            "Verification: Automated check_gateway_fix.py passing on draft branch; awaiting human review.",
+            f"Draft PR awaiting review: {pr_url}",
+        ]
+        return summary, evidence
     if asset.route == "appliance":
         summary = (
             f"CISA KEV escalation on {asset.product} {asset.installed_version} — "
@@ -668,15 +683,14 @@ def _frontend_alert(
         if (pr_url and isinstance(head_sha, str) and head_sha)
         else None
     )
-    verification_command = (
-        "python3 check_version.py (exit 0)"
-        if (pr_url and finding.route == "dependency_upgrade")
-        else (
-            "python3 check_code_fix.py (exit 0)"
-            if (pr_url and finding.route == "code_patch")
-            else None
-        )
-    )
+    if pr_url and finding.asset_id == "file-gateway":
+        verification_command = "python3 check_gateway_fix.py (exit 0)"
+    elif pr_url and finding.route == "dependency_upgrade":
+        verification_command = "python3 check_version.py (exit 0)"
+    elif pr_url and finding.route == "code_patch":
+        verification_command = "python3 check_code_fix.py (exit 0)"
+    else:
+        verification_command = None
     if pr_url:
         pr_ts = (
             pr_info.get("updated_at")
@@ -722,7 +736,10 @@ def _frontend_alert(
             deliveries=jira_rows,
             jira_base_url=jira_base_url,
         ),
-        lifecycle="Investigating" if (finding.review_notified or bool(pr_url)) else "Open",
+        lifecycle=_LIFECYCLE_OVERRIDES.get(
+            finding.finding_key,
+            "Investigating" if (finding.review_notified or bool(pr_url)) else "Open",
+        ),
         occurrenceCount=1,
         evidence=evidence,
         history=history,
@@ -828,9 +845,13 @@ def frontend_alerts(operations: OperationsDependency) -> FrontendAlerts:
             job.branch
             if job is not None
             else (
-                branch_for_route(finding.route)
-                if finding.route in {"dependency_upgrade", "code_patch"}
-                else None
+                "signalzero/cve-2026-2699"
+                if finding.asset_id == "file-gateway"
+                else (
+                    branch_for_route(finding.route)
+                    if finding.route in {"dependency_upgrade", "code_patch"}
+                    else None
+                )
             )
         )
         pr_info = prs_by_branch.get(branch) if branch else None
@@ -926,13 +947,35 @@ def frontend_simulation_step(
         ) from exc
     if body.stage == 6 and result.commitSha and result.prNumber:
         branch = (
-            "signalzero/cve-2026-22739-code"
-            if body.scenarioId == "code_patch"
-            else "signalzero/cve-2026-22739"
+            "signalzero/cve-2026-2699"
+            if body.scenarioId == "gateway_auth"
+            else (
+                "signalzero/cve-2026-22739-code"
+                if body.scenarioId == "code_patch"
+                else "signalzero/cve-2026-22739"
+            )
         )
         if result.commitUrl:
             _KNOWN_BRANCH_SHAS[branch] = result.commitUrl.rsplit("/", 1)[-1]
         _GITHUB_PR_CACHE.clear()
+    if body.stage == 1 and result.findingKey:
+        _LIFECYCLE_OVERRIDES.pop(result.findingKey, None)
     return result
+
+
+@router.post(
+    "/api/alerts/{alert_id:path}/lifecycle",
+    tags=["frontend"],
+)
+def frontend_flip_alert_lifecycle(
+    alert_id: str,
+    body: dict[str, str],
+) -> dict[str, str]:
+    target = body.get("lifecycle", "Resolved")
+    if target not in {"Open", "Investigating", "Resolved", "Suppressed"}:
+        target = "Resolved"
+    _LIFECYCLE_OVERRIDES[alert_id] = target  # type: ignore[assignment]
+    return {"alertId": alert_id, "lifecycle": target}
+
 
 

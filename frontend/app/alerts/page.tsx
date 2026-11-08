@@ -24,6 +24,8 @@ import {
   DEFAULT_SCENARIOS,
   executeSimulationStage,
   fetchSimulationScenarios,
+  scenarioIdForCve,
+  updateAlertLifecycle,
   type ScenarioCatalogItem,
   type SimulationStepResponse,
 } from "@/lib/api/simulations";
@@ -132,11 +134,14 @@ function workflowFor(alert: VulnerabilityAlert) {
           : manualAppliance
             ? "Manual path"
             : "Unavailable";
-  const approvalStatus: WorkflowStatus = hasPr
-    ? "Pending"
-    : manualAppliance
-      ? "Pending"
-      : "Unavailable";
+  const approvalStatus: WorkflowStatus =
+    alert.lifecycle === "Resolved"
+      ? "Succeeded"
+      : hasPr
+        ? "Pending"
+        : manualAppliance
+          ? "Pending"
+          : "Unavailable";
   return [
     { label: "Threat detected", status: "Succeeded" as WorkflowStatus, timestamp: alert.timestamp },
     {
@@ -246,7 +251,15 @@ function WorkflowStrip({
   );
 }
 
-function AlertDrawer({ alert, onClose }: { alert: VulnerabilityAlert; onClose: () => void }) {
+function AlertDrawer({
+  alert,
+  onClose,
+  onToggleLifecycle,
+}: {
+  alert: VulnerabilityAlert;
+  onClose: () => void;
+  onToggleLifecycle: (alert: VulnerabilityAlert) => void;
+}) {
   const stages = workflowFor(alert);
   const jiraLink = isValidExternalUrl(alert.jiraUrl) ? alert.jiraUrl : null;
   const slackLink = isValidExternalUrl(alert.slackDelivery?.externalUrl)
@@ -300,13 +313,22 @@ function AlertDrawer({ alert, onClose }: { alert: VulnerabilityAlert; onClose: (
               </p>
             </div>
           )}
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <span className={`px-3 py-1 text-xs font-medium ${priorityStyles[alert.priority]}`}>
               {alert.priority}
             </span>
             <span className={`px-3 py-1 text-xs font-medium ${lifecycleStyles[alert.lifecycle]}`}>
               {alert.lifecycle}
             </span>
+            <button
+              type="button"
+              onClick={() => onToggleLifecycle(alert)}
+              className="border border-[#c6c6c6] bg-white px-3 py-1 text-xs font-medium text-[#161616] transition-colors hover:border-[#0f62fe] hover:text-[#0f62fe]"
+            >
+              {alert.lifecycle === "Resolved"
+                ? "Reopen workflow"
+                : "Mark resolved"}
+            </button>
             {testCase && (
               <span className="bg-[#e8daff] px-3 py-1 text-xs font-medium text-[#491d8b]">
                 Test case
@@ -516,6 +538,26 @@ export default function AlertsPage() {
   const [simError, setSimError] = useState<string | null>(null);
   const [simCompleted, setSimCompleted] = useState(false);
 
+  function handleToggleLifecycle(target: VulnerabilityAlert) {
+    const nextLifecycle: AlertLifecycle =
+      target.lifecycle === "Resolved"
+        ? target.prUrl
+          ? "Investigating"
+          : "Open"
+        : "Resolved";
+    setAlerts((current) =>
+      current.map((item) =>
+        item.id === target.id ? { ...item, lifecycle: nextLifecycle } : item,
+      ),
+    );
+    setSelected((current) =>
+      current && current.id === target.id
+        ? { ...current, lifecycle: nextLifecycle }
+        : current,
+    );
+    void updateAlertLifecycle(target.id, nextLifecycle);
+  }
+
   useEffect(() => {
     let cancelled = false;
     fetchSimulationScenarios().then((items) => {
@@ -526,6 +568,19 @@ export default function AlertsPage() {
     return () => {
       cancelled = true;
     };
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const triageCve = params.get("triage");
+    if (triageCve) {
+      const targetScenarioId = scenarioIdForCve(triageCve);
+      setSelectedScenarioId(targetScenarioId);
+      setLabOpen(true);
+      window.history.replaceState({}, "", window.location.pathname);
+      void runLiveScenario(targetScenarioId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function runLiveScenario(scenarioId = selectedScenarioId) {
@@ -970,11 +1025,23 @@ export default function AlertsPage() {
                         )}
                       </td>
                       <td className="px-4 py-4">
-                        <span
-                          className={`px-2.5 py-1 text-xs font-medium ${lifecycleStyles[alert.lifecycle]}`}
-                        >
-                          {alert.lifecycle}
-                        </span>
+                        <div className="flex flex-col items-start gap-1.5">
+                          <span
+                            className={`px-2.5 py-1 text-xs font-medium ${lifecycleStyles[alert.lifecycle]}`}
+                          >
+                            {alert.lifecycle}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              handleToggleLifecycle(alert);
+                            }}
+                            className="text-[11px] text-[#525252] underline-offset-2 hover:text-[#0f62fe] hover:underline"
+                          >
+                            {alert.lifecycle === "Resolved" ? "Reopen" : "Mark resolved"}
+                          </button>
+                        </div>
                       </td>
                       <td className="px-4 py-4 text-xs text-[#6f6f6f]">
                         {formatTimestamp(alert.timestamp)}
@@ -1006,7 +1073,13 @@ export default function AlertsPage() {
           </div>
         )}
       </section>
-      {selected && <AlertDrawer alert={selected} onClose={() => setSelected(null)} />}
+      {selected && (
+        <AlertDrawer
+          alert={selected}
+          onClose={() => setSelected(null)}
+          onToggleLifecycle={handleToggleLifecycle}
+        />
+      )}
     </AppShell>
   );
 }

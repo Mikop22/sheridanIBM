@@ -14,7 +14,6 @@ import {
   X,
 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
-import { Hint } from "@/components/hint";
 import { isDemoMode } from "@/lib/api/config";
 import { fetchAlertActivity } from "@/lib/api/alerts";
 import { fetchHiddenThreats } from "@/lib/api/hidden-threats";
@@ -139,27 +138,7 @@ function ThreatDetails({
               records below are demo fixtures.
             </div>
           )}
-          {threat.modelRank !== null ? (
-            <span className="inline-flex bg-[#edf5ff] px-3 py-1 text-xs font-semibold text-[#0043ce]">
-              Model rank #{threat.modelRank}
-            </span>
-          ) : null}
-          <p className="mt-5 text-xl font-light leading-8">{threat.description}</p>
-          {threat.modelRank !== null && (
-            <div className="mt-5 border border-[#e0e0e0] bg-[#f4f4f4] p-4">
-              <p className="text-xs font-semibold uppercase tracking-[.08em] text-[#525252]">
-                Model rank vs traditional CVSS
-              </p>
-              <p className="mt-2 text-sm leading-6 text-[#161616]">
-                Vigil ranks this <span className="font-medium">#{threat.modelRank}</span>
-                {threat.rankingScore !== null ? ` (score ${threat.rankingScore})` : ""} from threat
-                intelligence and asset context.{" "}
-                {threat.cvss === null
-                  ? "CVSS score is not yet published."
-                  : `Traditional CVSS is ${threat.cvss.toFixed(1)}.`}
-              </p>
-            </div>
-          )}
+          <p className="text-xl font-light leading-8">{threat.description}</p>
           {rankedHigher && (
             <div className="mt-5 flex gap-3 border border-[#a6c8ff] bg-[#edf5ff] p-4">
               <CheckCircle2 className="mt-0.5 shrink-0 text-[#0f62fe]" size={18} />
@@ -245,23 +224,30 @@ function ThreatDetails({
             </>
           )}
           {alert ? (
-            <a
-              href="/alerts"
-              className="mt-8 inline-flex h-11 items-center bg-[#0f62fe] px-5 text-sm font-medium text-white hover:bg-[#0043ce]"
-            >
-              Open remediation workflow
-            </a>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <a
+                href="/alerts"
+                className="inline-flex h-11 items-center bg-[#0f62fe] px-5 text-sm font-medium text-white hover:bg-[#0043ce]"
+              >
+                Open remediation workflow
+              </a>
+              <a
+                href={`/alerts?triage=${encodeURIComponent(threat.id)}`}
+                className="inline-flex h-11 items-center border border-[#0f62fe] px-5 text-sm font-medium text-[#0f62fe] hover:bg-[#edf5ff]"
+              >
+                Triage now
+              </a>
+            </div>
           ) : threat.affectedProduct ? (
             <a
-              href="/alerts"
-              className="mt-8 inline-flex h-11 items-center border border-[#0f62fe] px-5 text-sm font-medium text-[#0f62fe] hover:bg-[#edf5ff]"
+              href={`/alerts?triage=${encodeURIComponent(threat.id)}`}
+              className="mt-8 inline-flex h-11 items-center bg-[#0f62fe] px-5 text-sm font-medium text-white hover:bg-[#0043ce]"
             >
-              Triage now in Remediation Center
+              Triage now
             </a>
           ) : (
             <p className="mt-8 text-sm leading-6 text-[#525252]">
-              Not matched to an inventory asset yet — no remediation workflow has been opened for
-              this CVE.
+              Our systems do not use this product — no remediation workflow is needed.
             </p>
           )}
         </div>
@@ -383,7 +369,7 @@ export default function HiddenThreatsPage() {
                 : "border-[#c6c6c6] bg-[#f4f4f4] text-[#161616] hover:border-[#0f62fe] hover:text-[#0f62fe]"
             }`}
           >
-            Estate match only ({inventoryMatches})
+            Affects our systems ({inventoryMatches})
           </button>
         </div>
         {loading && (
@@ -469,9 +455,7 @@ export default function HiddenThreatsPage() {
                         {item.affectedProduct ? (
                           <p>{item.affectedProduct}</p>
                         ) : (
-                          <Hint label="Ranked by the model, but not yet correlated to a company asset in the demo inventory.">
-                            Not in inventory
-                          </Hint>
+                          <p className="text-[#6f6f6f]">Not used in our systems</p>
                         )}
                         {item.affectedService && (
                           <p className="mt-0.5 text-xs text-[#6f6f6f]">{item.affectedService}</p>
@@ -479,28 +463,35 @@ export default function HiddenThreatsPage() {
                       </td>
                       <td className="px-4 py-4 text-sm">
                         {alert ? (
-                          <div className="space-y-2">
+                          <div className="space-y-1.5">
                             <p>{alert.lifecycle}</p>
-                            <a
-                              href="/alerts"
-                              onClick={(event) => event.stopPropagation()}
-                              className="inline-flex text-xs font-medium text-[#0f62fe] hover:underline"
-                            >
-                              Open remediation
-                            </a>
+                            <div className="flex items-center gap-3">
+                              <a
+                                href="/alerts"
+                                onClick={(event) => event.stopPropagation()}
+                                className="inline-flex text-xs font-medium text-[#0f62fe] hover:underline"
+                              >
+                                Open remediation
+                              </a>
+                              <a
+                                href={`/alerts?triage=${encodeURIComponent(item.id)}`}
+                                onClick={(event) => event.stopPropagation()}
+                                className="inline-flex text-xs text-[#525252] hover:text-[#0f62fe] hover:underline"
+                              >
+                                Triage now
+                              </a>
+                            </div>
                           </div>
                         ) : item.affectedProduct ? (
                           <a
-                            href="/alerts"
+                            href={`/alerts?triage=${encodeURIComponent(item.id)}`}
                             onClick={(event) => event.stopPropagation()}
                             className="inline-flex text-xs font-medium text-[#0f62fe] hover:underline"
                           >
                             Triage now
                           </a>
                         ) : (
-                          <Hint label="No inventory match yet, so Vigil keeps this on the watchlist instead of opening Slack/Jira/PR workflows.">
-                            Watchlist
-                          </Hint>
+                          <p className="text-[#6f6f6f]">No action needed</p>
                         )}
                       </td>
                       <td className="px-4 py-4">

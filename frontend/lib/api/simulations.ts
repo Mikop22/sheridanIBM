@@ -1,14 +1,17 @@
 import { getApiBaseUrl } from "@/lib/api/config";
+import type { AlertLifecycle } from "@/lib/types/alert";
 
 export interface ScenarioCatalogItem {
   id: string;
-  category: string;
+  category: str_alias;
   label: string;
   cveId: string;
   assetName: string;
   routeLabel: string;
   summary: string;
 }
+
+type str_alias = string;
 
 export interface SimulationStepResponse {
   scenarioId: string;
@@ -30,6 +33,16 @@ export interface SimulationStepResponse {
 }
 
 export const DEFAULT_SCENARIOS: ScenarioCatalogItem[] = [
+  {
+    id: "gateway_auth",
+    category: "Gateway Auth Bypass (#1 Ranked CVE)",
+    label: "ShareFile SZC Config Guard (CVE-2026-2699)",
+    cveId: "CVE-2026-2699",
+    assetName: "File gateway",
+    routeLabel: "Jira Story · Entire CLI + Gateway Guard · GitHub Draft PR #3",
+    summary:
+      "Blocks unauthenticated access to restricted SZC config pages in gateway/szc_config_guard.py with an Entire checkpoint, runs check_gateway_fix.py, updates GitHub PR #3, and alerts Slack & Jira.",
+  },
   {
     id: "code_patch",
     category: "First-Party Code Vulnerability",
@@ -72,6 +85,14 @@ export const DEFAULT_SCENARIOS: ScenarioCatalogItem[] = [
   },
 ];
 
+export function scenarioIdForCve(cveId: string): string {
+  const normalized = cveId.toUpperCase();
+  if (normalized === "CVE-2026-2699") return "gateway_auth";
+  if (normalized === "CVE-2026-8037") return "appliance_kev";
+  if (normalized === "CVE-2026-22739") return "code_patch";
+  return "gateway_auth";
+}
+
 export async function fetchSimulationScenarios(): Promise<ScenarioCatalogItem[]> {
   try {
     const response = await fetch(`${getApiBaseUrl()}/api/simulations/scenarios`, {
@@ -100,4 +121,22 @@ export async function executeSimulationStage(
     throw new Error(`Simulation stage ${stage} failed with status ${response.status}.`);
   }
   return (await response.json()) as SimulationStepResponse;
+}
+
+export async function updateAlertLifecycle(
+  alertId: string,
+  lifecycle: AlertLifecycle,
+): Promise<void> {
+  try {
+    await fetch(`${getApiBaseUrl()}/api/alerts/${encodeURIComponent(alertId)}/lifecycle`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({ lifecycle }),
+    });
+  } catch {
+    // Optimistic UI update still applies
+  }
 }
