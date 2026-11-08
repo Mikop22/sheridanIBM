@@ -512,11 +512,10 @@ def frontend_vulnerabilities(artifact: ArtifactDependency) -> FrontendVulnerabil
 
 @router.get("/api/overview", response_model=FrontendOverview, tags=["frontend"])
 def frontend_overview(artifact: ArtifactDependency) -> FrontendOverview:
-    """Dashboard totals from the prediction artifact and demo inventory counts."""
-    priority = [
-        _frontend_vulnerability(record, artifact)
-        for record in sorted(artifact.records, key=lambda item: item.prediction.rank)[:10]
-    ]
+    """Dashboard totals from the prediction artifact and demo inventory matches."""
+    ranked = sorted(artifact.records, key=lambda item: item.prediction.rank)
+    priority = [_frontend_vulnerability(record, artifact) for record in ranked]
+    inventory_matches = sum(1 for item in priority if item.affectedAsset is not None)
     return FrontendOverview(
         summary=FrontendOverviewSummary(
             totalVulnerabilities=len(artifact.records),
@@ -524,6 +523,8 @@ def frontend_overview(artifact: ArtifactDependency) -> FrontendOverview:
             # Do not equate inventory size with internet exposure.
             exposedAssets=None,
             predictionHorizonDays=None,
+            inventoryMatches=inventory_matches,
+            topModelRank=ranked[0].prediction.rank if ranked else None,
         ),
         priorityVulnerabilities=priority,
         generatedAt=datetime.now(UTC),

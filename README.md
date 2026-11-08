@@ -8,7 +8,7 @@ and a human approval workflow.
 Live UI routes are wired to real backends rather than empty placeholders: overview totals and
 priority rows come from the Member 1 prediction artifact loaded at startup; assets come from
 the synthetic demo inventory used by operations planning; alerts come from operations findings
-after the judge-script runs. Time Machine / historical replay is not exposed on the product API.
+after the judge-script runs. There is no Time Machine / historical-replay product surface.
 Member 1's training pipeline still runs offline; the backend loads generated rankings rather than
 executing the model at request time.
 
@@ -89,8 +89,8 @@ selection, and exposes deterministic wording rather than untrusted model-authore
 The historical services accept a frozen `HistoricalSnapshot`, reject training rows and post-cutoff
 evidence, create model/CVSS/EPSS rankings over comparable populations, and calculate evaluation
 metrics. The Hidden Threat Detector finds candidates ranked inside a model budget but outside the
-same baseline budget. These services remain internal; the removed Time Machine presentation route
-is not part of the product API.
+same baseline budget. These services remain internal library code and are not part of the product
+API or UI.
 
 ### Security event and approval workflow
 
@@ -156,8 +156,6 @@ access or credentials.
 The frontend is isolated under [`frontend/`](frontend):
 
 - [`app/page.tsx`](frontend/app/page.tsx) renders the vulnerability overview.
-- [`app/time-machine/page.tsx`](frontend/app/time-machine/page.tsx) renders monthly replay and
-  handles unavailable history explicitly.
 - [`app/hidden-threats/page.tsx`](frontend/app/hidden-threats/page.tsx) renders comparable ranking
   disagreements.
 - [`app/assets/page.tsx`](frontend/app/assets/page.tsx) renders asset inventory and matches.
@@ -675,8 +673,7 @@ not real vulnerability findings or model performance.
    two-page Threats/Remediation update.
 3. Request `GET /api/vulnerabilities` and confirm the response identifies the real artifact hash,
    model version, relative score semantics, and unavailable enrichment fields.
-4. Confirm `GET /api/replay` returns the standard `route_not_found` response.
-5. From a PowerShell window, submit the synthetic prediction:
+4. From a PowerShell window, submit the synthetic prediction:
 
 ```powershell
 cd backend
@@ -685,7 +682,7 @@ curl.exe -X POST http://127.0.0.1:8000/v1/predictions `
   --data-binary "@contracts/v1/examples/prediction-create.synthetic.json"
 ```
 
-6. Request one real local Granite explanation:
+5. Request one real local Granite explanation:
 
 ```powershell
 curl.exe -X POST `
@@ -696,7 +693,7 @@ Check `provider`, `generation_status`, and `provider_metadata`. With a healthy v
 model, `actual_provider` is `ollama` and `fallback_status` is `not_used`. Otherwise the response is
 the deterministic grounded explanation and truthfully reports fallback.
 
-7. Submit the matching synthetic event:
+6. Submit the matching synthetic event:
 
 ```powershell
 $outcome = curl.exe -X POST http://127.0.0.1:8000/v1/security-events `
@@ -716,7 +713,7 @@ $env:EVENT_DATABASE_PATH = "security_events.demo.$([DateTimeOffset]::UtcNow.ToUn
 python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
-8. Review and approve the recommendation:
+7. Review and approve the recommendation:
 
 ```powershell
 curl.exe http://127.0.0.1:8000/v1/predictions/synthetic-prediction-001/recommendations

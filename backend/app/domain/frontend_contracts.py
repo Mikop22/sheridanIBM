@@ -67,6 +67,8 @@ class FrontendOverviewSummary(ContractModel):
     criticalPriority: int | None = Field(default=None, ge=0)
     exposedAssets: int | None = Field(default=None, ge=0)
     predictionHorizonDays: int | None = Field(default=None, ge=1)
+    inventoryMatches: int | None = Field(default=None, ge=0)
+    topModelRank: int | None = Field(default=None, ge=1)
 
 
 class FrontendOverview(ContractModel):

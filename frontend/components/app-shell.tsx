@@ -7,11 +7,10 @@ import { Bell, ChevronDown, Menu, X } from "lucide-react";
 import { isDemoMode } from "@/lib/api/config";
 
 const navItems = [
-  { label: "Overview", href: "/", demoOnly: false },
-  { label: "Time Machine", href: "/time-machine", demoOnly: true },
-  { label: "Hidden Threats", href: "/hidden-threats", demoOnly: false },
-  { label: "Company Assets", href: "/assets", demoOnly: false },
-  { label: "Alert Activity", href: "/alerts", badge: "8", demoOnly: false },
+  { label: "Overview", href: "/" },
+  { label: "Hidden Threats", href: "/hidden-threats" },
+  { label: "Company Assets", href: "/assets" },
+  { label: "Alert Activity", href: "/alerts", badge: "8" },
 ];
 
 interface AppShellProps {
@@ -25,7 +24,6 @@ export function AppShell({ children, title, subtitle, breadcrumb }: AppShellProp
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname();
   const demo = isDemoMode();
-  const visibleNavItems = navItems.filter((item) => demo || !item.demoOnly);
 
   return (
     <div className="min-h-screen bg-white text-[#161616] selection:bg-[#0f62fe] selection:text-white">
@@ -38,7 +36,7 @@ export function AppShell({ children, title, subtitle, breadcrumb }: AppShellProp
             Signal<span className="text-[#0f62fe]">Zero</span>
           </Link>
           <nav className="hidden items-stretch lg:flex">
-            {visibleNavItems.map(({ label, href, badge }) => {
+            {navItems.map(({ label, href, badge }) => {
               const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
               return <Link key={label} href={href} draggable={false} aria-current={active ? "page" : undefined} className={`relative flex select-none items-center gap-2 px-5 text-sm transition-colors hover:bg-[#f4f4f4] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#0f62fe] ${active ? "font-medium text-[#161616]" : "text-[#525252]"}`}><span className={`pointer-events-none absolute inset-x-0 bottom-0 h-[3px] ${active ? "bg-[#0f62fe]" : "bg-transparent"}`}/>{label}{badge && <span className="pointer-events-none bg-[#da1e28] px-1.5 py-0.5 text-[10px] text-white">{badge}</span>}</Link>;
             })}
@@ -49,7 +47,7 @@ export function AppShell({ children, title, subtitle, breadcrumb }: AppShellProp
             <button className="grid w-12 place-items-center border-l border-[#e0e0e0] lg:hidden" onClick={() => setMobileOpen((value) => !value)} aria-label="Toggle navigation">{mobileOpen ? <X size={21}/> : <Menu size={21}/>}</button>
           </div>
         </div>
-        {mobileOpen && <nav className="border-t border-[#e0e0e0] bg-white lg:hidden">{visibleNavItems.map(({ label, href, badge }) => { const active = href === "/" ? pathname === "/" : pathname.startsWith(href); return <Link key={label} href={href} draggable={false} aria-current={active ? "page" : undefined} onClick={() => setMobileOpen(false)} className={`flex h-12 select-none items-center justify-between border-b border-[#e0e0e0] px-5 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0f62fe] ${active ? "border-l-4 border-l-[#0f62fe] bg-[#f4f4f4] font-medium" : "text-[#525252]"}`}><span>{label}</span>{badge && <span className="pointer-events-none bg-[#da1e28] px-2 py-0.5 text-[10px] text-white">{badge}</span>}</Link>; })}</nav>}
+        {mobileOpen && <nav className="border-t border-[#e0e0e0] bg-white lg:hidden">{navItems.map(({ label, href, badge }) => { const active = href === "/" ? pathname === "/" : pathname.startsWith(href); return <Link key={label} href={href} draggable={false} aria-current={active ? "page" : undefined} onClick={() => setMobileOpen(false)} className={`flex h-12 select-none items-center justify-between border-b border-[#e0e0e0] px-5 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0f62fe] ${active ? "border-l-4 border-l-[#0f62fe] bg-[#f4f4f4] font-medium" : "text-[#525252]"}`}><span>{label}</span>{badge && <span className="pointer-events-none bg-[#da1e28] px-2 py-0.5 text-[10px] text-white">{badge}</span>}</Link>; })}</nav>}
       </header>
 
       <main>

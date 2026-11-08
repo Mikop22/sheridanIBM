@@ -20,13 +20,16 @@ def test_frontend_threats_use_real_artifact_and_live_collections(
         "criticalPriority": None,
         "exposedAssets": None,
         "predictionHorizonDays": None,
+        "inventoryMatches": 3,
+        "topModelRank": 1,
     }
     assert overview_body["source"] == "live"
     assert overview_body["generatedAt"]
     priority = overview_body["priorityVulnerabilities"]
-    assert len(priority) == 10
+    assert len(priority) == 25
     assert priority[0]["cveId"] == "CVE-2026-2699"
     assert priority[0]["modelRank"] == 1
+    assert priority[0]["rankingScore"] == 0.317252
     assert priority[0]["predictedRisk"] is None
     assert priority[0]["affectedAsset"] == {
         "id": "file-gateway",
@@ -155,19 +158,12 @@ def test_frontend_detail_returns_not_found_for_unknown_cve(client: TestClient) -
     assert response.json()["error"]["code"] == "vulnerability_not_found"
 
 
-def test_replay_route_is_removed(client: TestClient) -> None:
-    response = client.get("/api/replay", params={"month": "2025-01"})
-
-    assert response.status_code == 404
-    assert response.json()["error"]["code"] == "route_not_found"
-
-
 def test_openapi_exposes_frontend_contract_routes(client: TestClient) -> None:
     paths = client.get("/openapi.json").json()["paths"]
 
-    assert "/api/replay" not in paths
     assert "/api/overview" in paths
     assert "/api/vulnerabilities" in paths
     assert "/api/vulnerabilities/{vulnerability_id}" in paths
     assert "/api/assets" in paths
     assert "/api/alerts" in paths
+    assert "/api/replay" not in paths

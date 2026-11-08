@@ -205,7 +205,6 @@ Duplicate alert decisions remain backend-owned; use CVE + asset identity as the 
 - [x] `GET /api/overview`
 - [x] `GET /api/vulnerabilities`
 - [x] `GET /api/vulnerabilities/{id}`
-- [x] `/api/replay` removed
 - [x] `GET /api/assets`
 - [x] `GET /api/alerts`
 - [x] Direct unauthenticated loopback access for the local milestone; no browser secret is required

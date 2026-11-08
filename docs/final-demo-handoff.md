@@ -60,7 +60,7 @@ npm.cmd run dev -- --port 3000
 
 The Threats collection uses the startup-loaded Member 1 artifact. Fields absent from
 that artifact remain null or explicitly unknown rather than being filled from demo
-fixtures. Historical replay remains internal and `/api/replay` is not exposed.
+fixtures. Historical evaluation remains internal library code with no product UI.
 
 ## Required real-data handoff
 

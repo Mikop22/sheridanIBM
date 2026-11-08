@@ -63,8 +63,9 @@ response model and routed inference provider; an identity mismatch uses local fa
 - Ranking scores remain relative model outputs and are not labelled as exploitation
   probabilities. Missing descriptions, CVSS, EPSS, feature contributions, and asset
   associations are returned as null or explicit missing-information entries.
-- `/api/assets` and `/api/alerts` remain empty compatibility collections. `/api/replay`
-  was removed with the Time Machine page; historical evaluation remains backend-only.
+- `/api/assets` and `/api/alerts` are fed from synthetic demo inventory and operations
+  findings. There is no Time Machine / `/api/replay` product surface; historical evaluation
+  remains backend-only library code.
 
 The current frontend hidden-threat adapter treats a null `traditionalRank` as being
 outside the baseline top 500. Member 2 must require a non-null rank before applying
