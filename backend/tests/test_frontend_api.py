@@ -77,10 +77,11 @@ def test_frontend_threats_use_real_artifact_and_live_collections(
     assert edge["vendor"] is None
     assert edge["version"] == "7.2.60.0"
     assert edge["environment"] == "Unknown"
-    assert edge["internetExposed"] is True
+    assert edge["internetExposed"] is None
     assert edge["businessCriticality"] == "Critical"
     portal = next(item for item in assets_body["assets"] if item["assetId"] == "customer-portal")
     assert portal["internetExposed"] is None
+    assert all(item["internetExposed"] is None for item in assets_body["assets"])
 
     assert alerts.status_code == 200
     assert alerts.json() == {"alerts": [], "source": "live"}

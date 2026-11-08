@@ -68,7 +68,6 @@ _PRIORITY_MAP: dict[str, Literal["Critical", "High", "Medium"]] = {
     "act": "High",
     "investigate": "Medium",
 }
-_INTERNET_EXPOSED_ASSET_IDS = frozenset({"edge-load-balancer", "file-gateway"})
 _SYNTHETIC_INVENTORY_LABEL = "SignalZero demo inventory (synthetic)"
 
 
@@ -324,11 +323,6 @@ def _business_criticality(
 
 
 def _frontend_asset(asset: DemoAsset) -> FrontendAsset:
-    exposed: bool | None
-    if asset.asset_id in _INTERNET_EXPOSED_ASSET_IDS:
-        exposed = True
-    else:
-        exposed = None
     return FrontendAsset(
         assetId=asset.asset_id,
         name=asset.name,
@@ -336,7 +330,8 @@ def _frontend_asset(asset: DemoAsset) -> FrontendAsset:
         product=asset.product,
         version=asset.installed_version,
         environment="Unknown",
-        internetExposed=exposed,
+        # Inventory has no sourced exposure field; do not invent True/False.
+        internetExposed=None,
         businessCriticality=_business_criticality(asset.criticality),
         owner=asset.owner,
     )
@@ -401,12 +396,13 @@ def _integration_from_deliveries(
     else:
         status = "pending"
     operation: Literal["created", "updated", "commented"] | None = None
-    if latest.kind.endswith("_create") or latest.kind == "jira_create":
-        operation = "created"
-    elif latest.kind.endswith("_update") or latest.kind == "jira_update":
-        operation = "updated"
-    elif "comment" in latest.kind:
-        operation = "commented"
+    if provider == "jira" and latest.delivered:
+        if latest.kind.endswith("_create") or latest.kind == "jira_create":
+            operation = "created"
+        elif latest.kind.endswith("_update") or latest.kind == "jira_update":
+            operation = "updated"
+        elif "comment" in latest.kind:
+            operation = "commented"
     external_id = latest.external_id
     external_url = None
     if provider == "jira":
@@ -414,7 +410,7 @@ def _integration_from_deliveries(
     return FrontendIntegrationDelivery(
         provider=provider,
         status=status,
-        operation=operation if provider == "jira" else None,
+        operation=operation,
         attemptedAt=latest.created_on,
         deliveredAt=latest.created_on if latest.delivered else None,
         externalId=external_id,
