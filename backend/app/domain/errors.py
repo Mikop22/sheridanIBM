@@ -36,6 +36,18 @@ class RecommendationNotFoundError(Exception):
         super().__init__(f"recommendation {recommendation_id!r} was not found")
 
 
+class HistoricalDataUnavailableError(Exception):
+    def __init__(self, month: str) -> None:
+        self.month = month
+        super().__init__(f"historical data for {month!r} is unavailable")
+
+
+class UnsupportedHistoricalMonthError(Exception):
+    def __init__(self, month: str) -> None:
+        self.month = month
+        super().__init__(f"historical month {month!r} is unsupported")
+
+
 class InvalidRecommendationTransitionError(Exception):
     def __init__(self, recommendation_id: str, current_status: str) -> None:
         self.recommendation_id = recommendation_id

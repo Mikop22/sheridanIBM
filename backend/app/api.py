@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Request, Response, status
+from fastapi import APIRouter, Depends, Query, Request, Response, status
 
 from app.domain.contracts import (
     ErrorResponse,
@@ -14,12 +15,21 @@ from app.domain.contracts import (
     RemediationRecommendation,
     SecurityEvent,
 )
+from app.domain.errors import HistoricalDataUnavailableError, UnsupportedHistoricalMonthError
+from app.domain.frontend_contracts import (
+    FrontendAlerts,
+    FrontendAssets,
+    FrontendReplay,
+    FrontendVulnerabilityList,
+)
 from app.event_repository import SecurityEventRepository
 from app.repositories import PredictionRepository
 from app.services.event_processing import SecurityEventProcessor
 from app.services.explanations import ExplanationService
 
 router = APIRouter()
+
+SUPPORTED_REPLAY_MONTHS = {f"{year}-{month:02d}" for year in (2024, 2025) for month in range(1, 13)}
 
 
 def get_repository(request: Request) -> PredictionRepository:
@@ -160,3 +170,36 @@ def decide_recommendation(
     event_repository: EventRepositoryDependency,
 ) -> RemediationRecommendation:
     return event_repository.decide(recommendation_id, decision)
+
+
+@router.get("/api/vulnerabilities", response_model=FrontendVulnerabilityList, tags=["frontend"])
+def frontend_vulnerabilities() -> FrontendVulnerabilityList:
+    """Return an honest empty live collection until real predictions are loaded."""
+    return FrontendVulnerabilityList(generatedAt=datetime.now(UTC))
+
+
+@router.get("/api/assets", response_model=FrontendAssets, tags=["frontend"])
+def frontend_assets() -> FrontendAssets:
+    """Do not invent simulated assets when no validated inventory is configured."""
+    return FrontendAssets()
+
+
+@router.get("/api/alerts", response_model=FrontendAlerts, tags=["frontend"])
+def frontend_alerts() -> FrontendAlerts:
+    """Frontend alerts remain empty until an explicit adapter is configured."""
+    return FrontendAlerts()
+
+
+@router.get(
+    "/api/replay",
+    response_model=FrontendReplay,
+    responses={404: {"model": ErrorResponse}, 503: {"model": ErrorResponse}},
+    tags=["frontend"],
+)
+def frontend_replay(
+    month: Annotated[str, Query(pattern=r"^\d{4}-(0[1-9]|1[0-2])$")],
+) -> FrontendReplay:
+    """Refuse to publish replay results until a month passes real-data validation."""
+    if month not in SUPPORTED_REPLAY_MONTHS:
+        raise UnsupportedHistoricalMonthError(month)
+    raise HistoricalDataUnavailableError(month)

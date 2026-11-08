@@ -17,10 +17,12 @@ from app.domain.errors import (
     EventAlreadyExistsError,
     EventNotFoundError,
     EventStoreUnavailableError,
+    HistoricalDataUnavailableError,
     InvalidRecommendationTransitionError,
     PredictionAlreadyExistsError,
     PredictionNotFoundError,
     RecommendationNotFoundError,
+    UnsupportedHistoricalMonthError,
 )
 from app.event_repository import SecurityEventRepository
 from app.repositories import InMemoryPredictionRepository, PredictionRepository
@@ -203,6 +205,28 @@ def create_app(
             "event_store_unavailable",
             "The event workflow store is temporarily unavailable.",
             headers={"Retry-After": "1"},
+        )
+
+    @app.exception_handler(HistoricalDataUnavailableError)
+    async def historical_unavailable_handler(
+        request: Request, exc: HistoricalDataUnavailableError
+    ) -> JSONResponse:
+        return _error_response(
+            request,
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            "historical_data_unavailable",
+            f"No validated historical prediction data is available for {exc.month}.",
+        )
+
+    @app.exception_handler(UnsupportedHistoricalMonthError)
+    async def unsupported_month_handler(
+        request: Request, exc: UnsupportedHistoricalMonthError
+    ) -> JSONResponse:
+        return _error_response(
+            request,
+            status.HTTP_404_NOT_FOUND,
+            "unsupported_month",
+            f"Historical month {exc.month} is not supported.",
         )
 
     @app.exception_handler(StarletteHTTPException)
