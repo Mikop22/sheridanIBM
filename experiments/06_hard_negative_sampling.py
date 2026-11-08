@@ -30,9 +30,11 @@ from lightgbm import LGBMClassifier
 from scipy.sparse import csr_matrix, hstack
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import StratifiedKFold
+import sys
 from sklearn.preprocessing import StandardScaler
 
-from eval_gbdt_ranking import (
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from src.utils import (
     FEAT_DIR,
     compute_all_metrics,
     get_tier_columns,
@@ -427,7 +429,7 @@ def main():
     df_train = pd.read_csv(os.path.join(FEAT_DIR, "features_train_2024_2025.csv"))
     df_2026 = pd.read_csv(os.path.join(FEAT_DIR, "features_scoreboard_2026.csv"))
 
-    df_train, _, X_tr_strict_tfidf, _ = prepare_strict_and_expanded_data(df_train, df_2026)
+    df_train, _, _, X_tr_strict_tfidf, _, _ = prepare_strict_and_expanded_data(df_train, df_2026)
     df_train = add_within_cohort_epss_pct(df_train)
 
     tiers_cv = get_tier_columns(df_train, temporal=False)

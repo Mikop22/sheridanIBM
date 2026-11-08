@@ -39,20 +39,23 @@ from sklearn.isotonic import IsotonicRegression
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import StratifiedKFold
 from sklearn.preprocessing import StandardScaler
+import sys
 from xgboost import XGBRanker
 
-from eval_gbdt_ranking import (
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from src.utils import (
     FEAT_DIR,
     compute_all_metrics,
     get_tier_columns,
     prepare_strict_and_expanded_data,
 )
-from optimize_ensemble_weights import (
-    MODEL_NAMES,
-    caruana_forward_stepwise_selection,
-    coordinate_ascent_simplex,
-    fit_base_models_and_predict,
-)
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from importlib import import_module as _imp
+_opt_mod = _imp("04_optimize_weights")
+MODEL_NAMES = _opt_mod.MODEL_NAMES
+caruana_forward_stepwise_selection = _opt_mod.caruana_forward_stepwise_selection
+coordinate_ascent_simplex = _opt_mod.coordinate_ascent_simplex
+fit_base_models_and_predict = _opt_mod.fit_base_models_and_predict
 
 GATE_COLS = [
     "cvss_has_v3",
@@ -533,7 +536,7 @@ def main():
     df_train = pd.read_csv(os.path.join(FEAT_DIR, "features_train_2024_2025.csv"))
     df_2026 = pd.read_csv(os.path.join(FEAT_DIR, "features_scoreboard_2026.csv"))
 
-    df_train, _, X_tr_strict_tfidf, _ = prepare_strict_and_expanded_data(df_train, df_2026)
+    df_train, _, _, X_tr_strict_tfidf, _, _ = prepare_strict_and_expanded_data(df_train, df_2026)
     tiers_cv = get_tier_columns(df_train, temporal=False)
     tiers_temp = get_tier_columns(df_train, temporal=True)
 
