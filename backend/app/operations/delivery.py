@@ -40,7 +40,29 @@ class Outbound:
 
 
 class Delivery(Protocol):
-    def create_jira(self, finding_key: str, team: str, summary: str, body: str) -> Outbound: ...
+    def ensure_jira_epic(
+        self,
+        finding_key: str,
+        team: str,
+        *,
+        cve_id: str,
+        summary: str,
+        body: str,
+        labels: list[str] | None = None,
+    ) -> Outbound: ...
+
+    def create_jira(
+        self,
+        finding_key: str,
+        team: str,
+        summary: str,
+        body: str,
+        *,
+        issue_type: str | None = None,
+        priority: str | None = None,
+        labels: list[str] | None = None,
+        parent_key: str | None = None,
+    ) -> Outbound: ...
 
     def update_jira(self, finding_key: str, team: str, issue_key: str, body: str) -> Outbound: ...
 
@@ -51,10 +73,74 @@ def local_issue_key(finding_key: str) -> str:
     return "REC-" + finding_key.replace("::", "-").replace("_", "-")
 
 
+def local_epic_key(cve_id: str) -> str:
+    return "REC-EPIC-" + cve_id.replace("_", "-")
+
+
 class RecordingDelivery:
     """Store the payload and do not call Slack or Jira."""
 
-    def create_jira(self, finding_key: str, team: str, summary: str, body: str) -> Outbound:
+    def __init__(self) -> None:
+        self._epics: dict[str, str] = {}
+
+    def ensure_jira_epic(
+        self,
+        finding_key: str,
+        team: str,
+        *,
+        cve_id: str,
+        summary: str,
+        body: str,
+        labels: list[str] | None = None,
+    ) -> Outbound:
+        existing = self._epics.get(cve_id)
+        if existing is not None:
+            return Outbound(
+                kind="jira_epic",
+                finding_key=finding_key,
+                team=team,
+                delivered=False,
+                mode="recording",
+                external_id=existing,
+                body=f"{summary}\n\n{body}",
+                detail="Reused recorded epic. OPERATIONS_DELIVERY is not live.",
+            )
+        key = local_epic_key(cve_id)
+        self._epics[cve_id] = key
+        label_note = f" labels={','.join(labels or ())}" if labels else ""
+        return Outbound(
+            kind="jira_epic",
+            finding_key=finding_key,
+            team=team,
+            delivered=False,
+            mode="recording",
+            external_id=key,
+            body=f"{summary}\n\n{body}",
+            detail=f"Recorded epic locally.{label_note} OPERATIONS_DELIVERY is not live.",
+        )
+
+    def create_jira(
+        self,
+        finding_key: str,
+        team: str,
+        summary: str,
+        body: str,
+        *,
+        issue_type: str | None = None,
+        priority: str | None = None,
+        labels: list[str] | None = None,
+        parent_key: str | None = None,
+    ) -> Outbound:
+        meta = []
+        if issue_type:
+            meta.append(f"type={issue_type}")
+        if priority:
+            meta.append(f"priority={priority}")
+        if labels:
+            meta.append("labels=" + ",".join(labels))
+        if parent_key:
+            meta.append(f"parent={parent_key}")
+        suffix = f" ({'; '.join(meta)})" if meta else ""
         text = f"{summary}\n\n{body}"
         return Outbound(
             kind="jira_create",
@@ -64,7 +150,7 @@ class RecordingDelivery:
             mode="recording",
             external_id=local_issue_key(finding_key),
             body=text,
-            detail="Recorded locally. OPERATIONS_DELIVERY is not live.",
+            detail=f"Recorded locally{suffix}. OPERATIONS_DELIVERY is not live.",
         )
 
     def update_jira(self, finding_key: str, team: str, issue_key: str, body: str) -> Outbound:
@@ -150,20 +236,98 @@ class LiveDelivery:
     def __init__(self, settings: Settings, transport: httpx.BaseTransport | None = None) -> None:
         self._settings = settings
         self._transport = transport
+        self._epic_cache: dict[str, str] = {}
 
-    def create_jira(self, finding_key: str, team: str, summary: str, body: str) -> Outbound:
+    def ensure_jira_epic(
+        self,
+        finding_key: str,
+        team: str,
+        *,
+        cve_id: str,
+        summary: str,
+        body: str,
+        labels: list[str] | None = None,
+    ) -> Outbound:
+        missing = _jira_missing(self._settings)
+        if missing:
+            return _blocked("jira_epic", finding_key, team, f"{summary}\n\n{body}", missing)
+        cached = self._epic_cache.get(cve_id)
+        if cached is not None:
+            return Outbound(
+                kind="jira_epic",
+                finding_key=finding_key,
+                team=team,
+                delivered=True,
+                mode="live",
+                external_id=cached,
+                body=f"{summary}\n\n{body}",
+                detail="Reused existing epic in Jira.",
+            )
+        label = (cve_id or "").lower()
+        project = self._settings.jira_project_key
+        existing = self._find_epic(project, label)
+        if existing is not None:
+            self._epic_cache[cve_id] = existing
+            return Outbound(
+                kind="jira_epic",
+                finding_key=finding_key,
+                team=team,
+                delivered=True,
+                mode="live",
+                external_id=existing,
+                body=f"{summary}\n\n{body}",
+                detail="Reused existing epic in Jira.",
+            )
+        fields: dict[str, object] = {
+            "project": {"key": project},
+            "summary": summary,
+            "issuetype": {"name": "Epic"},
+            "description": adf(body),
+            "labels": list(labels or ("signalzero", "epic", label)),
+        }
+        response = self._client().post("/rest/api/3/issue", json={"fields": fields})
+        response.raise_for_status()
+        key = str(response.json()["key"])
+        self._epic_cache[cve_id] = key
+        return Outbound(
+            kind="jira_epic",
+            finding_key=finding_key,
+            team=team,
+            delivered=True,
+            mode="live",
+            external_id=key,
+            body=f"{summary}\n\n{body}",
+            detail="Created epic in Jira.",
+        )
+
+    def create_jira(
+        self,
+        finding_key: str,
+        team: str,
+        summary: str,
+        body: str,
+        *,
+        issue_type: str | None = None,
+        priority: str | None = None,
+        labels: list[str] | None = None,
+        parent_key: str | None = None,
+    ) -> Outbound:
         missing = _jira_missing(self._settings)
         if missing:
             return _blocked("jira_create", finding_key, team, f"{summary}\n\n{body}", missing)
-        payload = {
-            "fields": {
-                "project": {"key": self._settings.jira_project_key},
-                "summary": summary,
-                "issuetype": {"name": self._settings.jira_issue_type},
-                "description": adf(body),
-            }
+        fields: dict[str, object] = {
+            "project": {"key": self._settings.jira_project_key},
+            "summary": summary,
+            "issuetype": {"name": issue_type or self._settings.jira_issue_type or "Task"},
+            "description": adf(body),
         }
-        response = self._client().post("/rest/api/3/issue", json=payload)
+        if priority:
+            fields["priority"] = {"name": priority}
+        if labels:
+            fields["labels"] = list(labels)
+        if parent_key:
+            fields["parent"] = {"key": parent_key}
+        response = self._client().post("/rest/api/3/issue", json={"fields": fields})
         response.raise_for_status()
         key = str(response.json()["key"])
         return Outbound(
@@ -196,6 +360,29 @@ class LiveDelivery:
             body=body,
             detail="Comment added in Jira.",
         )
+
+    def _find_epic(self, project: str, cve_label: str) -> str | None:
+        jql = (
+            f'project = "{project}" AND issuetype = Epic AND labels = "{cve_label}" '
+            "ORDER BY created ASC"
+        )
+        response = self._client().get(
+            "/rest/api/3/search/jql",
+            params={"jql": jql, "maxResults": 1, "fields": "summary"},
+        )
+        if response.status_code >= 400:
+            # Fall back to the legacy search endpoint used by older Jira tenants.
+            response = self._client().post(
+                "/rest/api/3/search",
+                json={"jql": jql, "maxResults": 1, "fields": ["summary"]},
+            )
+        if response.status_code >= 400:
+            return None
+        payload = response.json()
+        issues = payload.get("issues") or []
+        if not issues:
+            return None
+        return str(issues[0]["key"])
 
     def post_slack(self, finding_key: str, team: str, kind: str, text: str) -> Outbound:
         webhook = self._settings.slack_webhook_url.strip()

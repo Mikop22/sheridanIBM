@@ -15,6 +15,7 @@ from app.operations.inventory import (
     asset_by_id,
     asset_for,
 )
+from app.operations.jira_taxonomy import child_spec, epic_for_cve
 from app.operations.models import (
     DeliveryView,
     FindingView,
@@ -39,6 +40,7 @@ class OperationsService:
         self._settings = settings
         self._rankings = rankings or RankingCatalog()
         self._store = OperationsStore(settings.operations_database_path)
+        self._delivery_instance: Delivery | None = None
 
     @property
     def settings(self) -> Settings:
@@ -286,8 +288,31 @@ class OperationsService:
         if decision.upsert_jira:
             body = _jira_body(step, ranking, asset, urgent)
             summary = f"[{ranking.cve_id}] {asset.name} ({asset.product} {asset.installed_version})"
+            epic = epic_for_cve(ranking.cve_id, ranking.description)
+            child = child_spec(asset, cve_id=ranking.cve_id, summary=summary, urgent=urgent)
+            epic_outbound = delivery.ensure_jira_epic(
+                finding_key,
+                asset.team,
+                cve_id=epic.cve_id,
+                summary=epic.summary,
+                body=epic.body,
+                labels=list(epic.labels),
+            )
+            if "Reused" not in epic_outbound.detail:
+                self._send(epic_outbound)
+                actions.append("UPSERT_JIRA_EPIC")
+            parent_key = epic_outbound.external_id
             if issue_key is None:
-                outbound = delivery.create_jira(finding_key, asset.team, summary, body)
+                outbound = delivery.create_jira(
+                    finding_key,
+                    asset.team,
+                    child.summary,
+                    body,
+                    issue_type=child.issue_type,
+                    priority=child.priority,
+                    labels=list(child.labels),
+                    parent_key=parent_key,
+                )
                 issue_key = outbound.external_id
             else:
                 outbound = delivery.update_jira(finding_key, asset.team, issue_key, body)
@@ -346,7 +371,9 @@ class OperationsService:
         return step_view
 
     def _delivery(self) -> Delivery:
-        return build_delivery(self._settings)
+        if self._delivery_instance is None:
+            self._delivery_instance = build_delivery(self._settings)
+        return self._delivery_instance
 
     def _send(self, outbound: Outbound) -> None:
         self._store.add_delivery(outbound.row())

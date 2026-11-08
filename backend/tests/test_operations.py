@@ -82,22 +82,33 @@ def test_judge_script_records_side_effects_without_calling_the_network(
     report = first.json()
     kinds = [item["kind"] for item in report["deliveries"]]
     assert kinds == [
+        "jira_epic",
         "jira_create",
         "jira_update",
         "slack_urgent",
+        "jira_epic",
         "jira_create",
         "jira_create",
     ]
+    epic_bodies = [item["body"] for item in report["deliveries"] if item["kind"] == "jira_epic"]
+    assert any("CVE-2026-8037 · Progress LoadMaster" in body for body in epic_bodies)
+    assert any("CVE-2026-22739 · Spring Cloud Config" in body for body in epic_bodies)
+    child_details = [
+        item["detail"] for item in report["deliveries"] if item["kind"] == "jira_create"
+    ]
+    assert any("type=Bug" in detail and "priority=High" in detail for detail in child_details)
+    assert any("type=Task" in detail and "dependency-upgrade" in detail for detail in child_details)
+    assert any("type=Story" in detail and "code-patch" in detail for detail in child_details)
     assert all(
         item["mode"] == "recording" and item["delivered"] is False for item in report["deliveries"]
     )
-    urgent = report["deliveries"][2]["body"]
+    urgent = next(item["body"] for item in report["deliveries"] if item["kind"] == "slack_urgent")
     assert urgent.startswith("*Urgent — no code change*")
     assert "CVE: CVE-2026-8037" in urgent
     assert "not an exploitation probability" in urgent
     assert "2026-08-07" in urgent
     july = next(step for step in report["steps"] if step["step"] == "july")
-    assert july["actions"] == ["UPSERT_JIRA"]
+    assert july["actions"] == ["UPSERT_JIRA_EPIC", "UPSERT_JIRA"]
     assert "NOTIFY_SLACK_URGENT" not in july["actions"]
     findings = {item["finding_key"]: item for item in report["findings"]}
     assert findings["CVE-2026-8037::edge-load-balancer"]["level"] == "escalate"
@@ -311,11 +322,25 @@ def test_live_jira_client_posts_the_v3_payload(monkeypatch) -> None:
     from app.operations.delivery import LiveDelivery
 
     delivery = LiveDelivery(settings, transport=httpx.MockTransport(handler))
-    outbound = delivery.create_jira("CVE-2026-22739::customer-portal", "portal", "Summary", "Body")
+    outbound = delivery.create_jira(
+        "CVE-2026-22739::customer-portal",
+        "portal",
+        "Summary",
+        "Body",
+        issue_type="Task",
+        priority="High",
+        labels=["signalzero", "cve-2026-22739", "dependency-upgrade"],
+        parent_key="SEC-1",
+    )
     monkeypatch.delenv("JIRA_API_TOKEN", raising=False)
 
     assert outbound.delivered is True
     assert outbound.external_id == "SEC-9"
     assert seen["path"] == "/rest/api/3/issue"
-    assert b"spring" not in seen["body"] or b"Summary" in seen["body"]
-    assert b'"key": "SEC"' in seen["body"] or b'"key":"SEC"' in seen["body"]
+    body = seen["body"]
+    assert isinstance(body, (bytes, bytearray))
+    assert b'"key": "SEC"' in body or b'"key":"SEC"' in body
+    assert b"dependency-upgrade" in body
+    assert b'"name": "Task"' in body or b'"name":"Task"' in body
+    assert b'"name": "High"' in body or b'"name":"High"' in body
+    assert b'"key": "SEC-1"' in body or b'"key":"SEC-1"' in body
