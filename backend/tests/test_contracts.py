@@ -55,6 +55,16 @@ def test_response_examples_match_contracts_and_local_output(prediction_payload: 
     explanation.validate_source_refs(prediction)
     assert explanation == LocalExplanationService().explain(prediction)
 
+    event_outcome = json.loads(
+        (BACKEND_ROOT / "contracts/v1/examples/event-processing-outcome.synthetic.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    validated_outcome = EventProcessingOutcome.model_validate(event_outcome)
+    assert validated_outcome.dry_run is True
+    assert validated_outcome.persisted is False
+    assert validated_outcome.eligibility.execution_authorized is False
+
 
 def test_dangling_signal_evidence_reference_is_rejected(prediction_payload: dict) -> None:
     invalid = deepcopy(prediction_payload)

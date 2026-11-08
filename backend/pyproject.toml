@@ -37,3 +37,6 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 
 [tool.setuptools.packages.find]
 include = ["app*"]
+
+[tool.setuptools.package-data]
+app = ["data/*.json"]

@@ -1,6 +1,6 @@
 # SignalZero proposed backend contract
 
-Status: **implemented Threats adapter contract**. FastAPI loads Member 1's prediction export once at startup. The tracked default exposes the genuine top 25 and a configured full CSV exposes the complete cohort. The versioned `/v1` prediction, explanation, and event workflows remain separate backend contracts.
+Status: **implemented Threats and asset-aware decision contract**. FastAPI loads Member 1's prediction export once at startup. The tracked default exposes the genuine top 25 and a configured full CSV exposes the complete cohort. The versioned `/v1` prediction, explanation, and event workflows remain separate backend contracts.
 
 The frontend validates every successful response with Zod schemas in `frontend/lib/types/contracts.ts`. Unknown or malformed responses fail visibly in live mode; the frontend does not substitute demo data.
 
@@ -118,8 +118,13 @@ Returns the validated vulnerability collection used by Overview and Hidden Threa
       "artifact": {"artifactId": "sha256:...", "sourceKind": "summary_json", "recordCount": 25},
       "missingInformation": ["vulnerability description", "CVSS score", "EPSS score", "affected asset associations"],
       "assetMatchStatus": "unknown",
-      "investigationState": "unreviewed",
-      "suggestedAction": null,
+      "investigationState": "investigating",
+      "operationalDecision": "INVESTIGATE",
+      "decisionReasons": [{"code": "NO_EXPLICIT_ASSET_MAPPING", "message": "No synthetic scenario mapping exists.", "sourceRefs": ["asset:mapping:missing"]}],
+      "assetDecisions": [],
+      "remediationEligibility": "NEEDS_INVESTIGATION",
+      "agentEligible": false,
+      "suggestedAction": "Validate whether the finding applies to any inventoried asset.",
       "groundedExplanation": {"provider": "local", "generation_status": "complete"}
     }
   ],
@@ -128,7 +133,7 @@ Returns the validated vulnerability collection used by Overview and Hidden Threa
 }
 ```
 
-`description`, `cvss`, `epss`, `traditionalRank`, `predictedRisk`, `affectedAsset`, `detectedAt`, `generatedAt`, and `suggestedAction` may be `null`. The model rank and ranking score are present for validated artifact rows. Indicator `value`, `observedAt`, `source`, and `explanation` may also be `null`.
+`description`, `cvss`, `epss`, `traditionalRank`, `predictedRisk`, `affectedAsset`, `detectedAt`, and `generatedAt` may be `null`. The model rank and ranking score are present for validated artifact rows. Operational priority is separate from the uncalibrated ranking score. `assetDecisions` preserves every per-asset outcome even when the top-level fields show the deterministic highest-priority aggregate.
 
 ## GET /api/vulnerabilities/{id}
 
@@ -154,17 +159,19 @@ presentation contracts.
 ```json
 {
   "assets": [
-    { "assetId": "AST-001", "name": "Identity gateway", "vendor": "Example Vendor", "product": "Gateway", "version": "24.0.4", "environment": "Production", "internetExposed": true, "businessCriticality": "Critical", "owner": "Identity Platform" }
+    { "assetId": "demo-asset-identity", "name": "Demo Identity Gateway", "vendor": null, "product": "demo-auth-middleware", "version": "4.2.0-synthetic", "environment": "Production", "internetExposed": true, "businessCriticality": "Critical", "owner": "Demo Identity Team", "repositoryIdentifier": "demo/identity-gateway", "componentPackage": "demo-auth-middleware", "synthetic": true }
   ],
   "matches": [
-    { "cveId": "CVE-2025-12345", "assetId": "AST-001", "matchStatus": "Confirmed", "supportingEvidence": ["Product and version range match."], "predictedRisk": "Critical" }
+    { "cveId": "CVE-2026-2699", "assetId": "demo-asset-identity", "matchStatus": "Confirmed", "canonicalMatchStatus": "confirmed_affected", "supportingEvidence": ["Synthetic scenario assertion only; not verified real-world CVE applicability."], "predictedRisk": null, "provenance": "internally_consistent_synthetic_scenario_not_external_product_intelligence" }
   ],
-  "organizationLabel": "Demo Corp",
+  "organizationLabel": "SignalZero Synthetic Demo Organization",
+  "synthetic": true,
+  "provenance": "internally_consistent_synthetic_scenario_not_external_product_intelligence",
   "source": "live"
 }
 ```
 
-Nullable asset fields: `vendor`, `product`, `version`, `internetExposed`, and `owner`. Use `Unknown` for unknown environment or criticality. `organizationLabel` and match `predictedRisk` may be `null`.
+Nullable asset fields: `vendor`, `product`, `version`, `internetExposed`, `owner`, `repositoryIdentifier`, and `componentPackage`. Use `Unknown` for unknown environment or criticality. `verified_for_demo` never means externally verified CVE applicability. Missing mappings remain unknown, not unaffected.
 
 ## GET /api/alerts
 
@@ -190,6 +197,27 @@ Nullable asset fields: `vendor`, `product`, `version`, `internetExposed`, and `o
       "simulated": false
     }
   ],
+  "decisions": [
+    {
+      "recommendationId": "rec-...",
+      "findingId": "finding-...",
+      "cveId": "CVE-2026-2699",
+      "assetId": "demo-asset-identity",
+      "operationalDecision": "URGENT",
+      "workflowStatus": "pending_approval",
+      "reasonCodes": ["VERIFIED_SYNTHETIC_ASSET_MATCH", "TOP_RANKED_CRITICAL_EXPOSED_ASSET"],
+      "evidenceRefs": ["prediction:rank", "demo-evidence-identity-match"],
+      "remediationEligibility": "CODE_REMEDIABLE",
+      "agentEligible": true,
+      "executionAuthorized": false,
+      "proposedNextAction": "Prioritize immediate human review and remediation planning; do not execute changes.",
+      "createdAt": "2026-04-30T23:59:59Z",
+      "decidedAt": null,
+      "decidedBy": null,
+      "decisionReason": null,
+      "activityHistory": [{"eventId": "synthetic-event-001", "processedAt": "2026-04-30T23:59:59Z", "reasonCode": "VERIFIED_SYNTHETIC_ASSET_MATCH", "reusedRecommendation": false}]
+    }
+  ],
   "source": "live"
 }
 ```
@@ -199,6 +227,11 @@ Nullable asset fields: `vendor`, `product`, `version`, `internetExposed`, and `o
 Delivery status is one of `not-attempted`, `pending`, `delivered`, `failed`, or `simulated-not-sent`. Slack and Jira states are independent, so partial delivery is represented by returning each provider's actual state. Do not report `delivered` without provider confirmation. Use `failed` with `errorCode`/`errorMessage` for confirmed failure and `pending` when the final state is not yet known.
 
 Duplicate alert decisions remain backend-owned; use CVE + asset identity as the stable deduplication key.
+
+The `alerts` array remains the compatibility surface for future provider-confirmed Slack
+and Jira activity. Iteration 6 populates `decisions` only. `agentEligible` records
+technical eligibility for a future job; `executionAuthorized` remains false and no
+coding agent is invoked.
 
 ## Backend implementation checklist
 

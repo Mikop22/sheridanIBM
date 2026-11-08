@@ -1,7 +1,133 @@
 {
   "$defs": {
+    "DecisionEvidence": {
+      "additionalProperties": false,
+      "properties": {
+        "category": {
+          "minLength": 1,
+          "title": "Category",
+          "type": "string"
+        },
+        "provenance": {
+          "minLength": 1,
+          "title": "Provenance",
+          "type": "string"
+        },
+        "source_ref": {
+          "minLength": 1,
+          "title": "Source Ref",
+          "type": "string"
+        },
+        "value": {
+          "title": "Value"
+        }
+      },
+      "required": [
+        "source_ref",
+        "category",
+        "value",
+        "provenance"
+      ],
+      "title": "DecisionEvidence",
+      "type": "object"
+    },
+    "DecisionReason": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "minLength": 1,
+          "title": "Code",
+          "type": "string"
+        },
+        "message": {
+          "minLength": 1,
+          "title": "Message",
+          "type": "string"
+        },
+        "source_refs": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Source Refs",
+          "type": "array"
+        }
+      },
+      "required": [
+        "code",
+        "message",
+        "source_refs"
+      ],
+      "title": "DecisionReason",
+      "type": "object"
+    },
+    "EligibilityAssessment": {
+      "additionalProperties": false,
+      "properties": {
+        "agent_eligible": {
+          "title": "Agent Eligible",
+          "type": "boolean"
+        },
+        "evidence_refs": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Evidence Refs",
+          "type": "array"
+        },
+        "execution_authorized": {
+          "const": false,
+          "default": false,
+          "title": "Execution Authorized",
+          "type": "boolean"
+        },
+        "outcome": {
+          "$ref": "#/$defs/EligibilityOutcome"
+        },
+        "reason_codes": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Reason Codes",
+          "type": "array"
+        }
+      },
+      "required": [
+        "outcome",
+        "reason_codes",
+        "agent_eligible"
+      ],
+      "title": "EligibilityAssessment",
+      "type": "object"
+    },
+    "EligibilityOutcome": {
+      "enum": [
+        "CODE_REMEDIABLE",
+        "OPERATIONAL_REMEDIATION",
+        "NEEDS_INVESTIGATION",
+        "NOT_ELIGIBLE"
+      ],
+      "title": "EligibilityOutcome",
+      "type": "string"
+    },
+    "OperationalDecision": {
+      "enum": [
+        "MONITOR",
+        "INVESTIGATE",
+        "ACTION_REQUIRED",
+        "URGENT"
+      ],
+      "title": "OperationalDecision",
+      "type": "string"
+    },
     "RecommendationStatus": {
       "enum": [
+        "recorded",
+        "investigating",
         "pending_approval",
         "approved",
         "rejected"
@@ -37,8 +163,6 @@
   "additionalProperties": false,
   "properties": {
     "approval_required": {
-      "const": true,
-      "default": true,
       "title": "Approval Required",
       "type": "boolean"
     },
@@ -91,6 +215,17 @@
       "default": null,
       "title": "Decision Reason"
     },
+    "decision_reasons": {
+      "items": {
+        "$ref": "#/$defs/DecisionReason"
+      },
+      "minItems": 1,
+      "title": "Decision Reasons",
+      "type": "array"
+    },
+    "eligibility": {
+      "$ref": "#/$defs/EligibilityAssessment"
+    },
     "event_id": {
       "minLength": 1,
       "title": "Event Id",
@@ -104,6 +239,27 @@
       "minItems": 1,
       "title": "Evidence Refs",
       "type": "array"
+    },
+    "evidence_used": {
+      "items": {
+        "$ref": "#/$defs/DecisionEvidence"
+      },
+      "minItems": 1,
+      "title": "Evidence Used",
+      "type": "array"
+    },
+    "finding_id": {
+      "minLength": 1,
+      "title": "Finding Id",
+      "type": "string"
+    },
+    "material_fingerprint": {
+      "minLength": 1,
+      "title": "Material Fingerprint",
+      "type": "string"
+    },
+    "operational_decision": {
+      "$ref": "#/$defs/OperationalDecision"
     },
     "prediction_id": {
       "minLength": 1,
@@ -153,11 +309,18 @@
     "prediction_id",
     "vulnerability_id",
     "asset_id",
+    "finding_id",
+    "material_fingerprint",
     "risk_score",
     "score_scale",
     "trigger_reason",
     "evidence_refs",
+    "operational_decision",
+    "decision_reasons",
+    "evidence_used",
+    "eligibility",
     "recommended_next_step",
+    "approval_required",
     "workflow_status",
     "created_at"
   ],

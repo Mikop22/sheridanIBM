@@ -12,6 +12,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from app.api import router
 from app.config import ExplanationProvider as ConfigExplanationProvider
 from app.config import Settings, get_settings
+from app.domain.assets import AssetInventory
 from app.domain.contracts import ErrorBody, ErrorDetail, ErrorResponse, ExplanationProvider
 from app.domain.errors import (
     EventAlreadyExistsError,
@@ -25,7 +26,9 @@ from app.domain.errors import (
 )
 from app.event_repository import SecurityEventRepository
 from app.repositories import InMemoryPredictionRepository, PredictionRepository
-from app.services.event_processing import RiskThreshold, SecurityEventProcessor
+from app.services.asset_correlation import AssetCorrelationService, load_asset_inventory
+from app.services.escalation import EscalationEvaluator, EscalationPolicy
+from app.services.event_processing import SecurityEventProcessor
 from app.services.explanations import (
     ExplanationService,
     ExternalExplanationService,
@@ -63,6 +66,7 @@ def create_app(
     explanation_service: ExplanationService | None = None,
     event_repository: SecurityEventRepository | None = None,
     prediction_artifact: PredictionArtifact | None = None,
+    asset_inventory: AssetInventory | None = None,
 ) -> FastAPI:
     resolved_settings = settings or get_settings()
     app = FastAPI(
@@ -86,15 +90,25 @@ def create_app(
     app.state.event_repository = event_repository or SecurityEventRepository(
         resolved_settings.event_database_path
     )
+    app.state.asset_inventory = asset_inventory or load_asset_inventory(
+        resolved_settings.asset_inventory_path
+    )
+    app.state.asset_correlations = AssetCorrelationService(app.state.asset_inventory)
+    app.state.escalation_evaluator = EscalationEvaluator(
+        EscalationPolicy(
+            version=resolved_settings.escalation_policy_version,
+            urgent_max_rank=resolved_settings.escalation_urgent_max_rank,
+            action_max_rank=resolved_settings.escalation_action_max_rank,
+            investigate_unknown_max_rank=(
+                resolved_settings.escalation_investigate_unknown_max_rank
+            ),
+        )
+    )
     app.state.event_processor = SecurityEventProcessor(
         app.state.prediction_repository,
         app.state.event_repository,
-        RiskThreshold(
-            value=resolved_settings.event_risk_threshold,
-            scale_minimum=resolved_settings.event_threshold_scale_minimum,
-            scale_maximum=resolved_settings.event_threshold_scale_maximum,
-            higher_is_riskier=resolved_settings.event_threshold_higher_is_riskier,
-        ),
+        app.state.asset_correlations,
+        app.state.escalation_evaluator,
     )
 
     allowed_origins = resolved_settings.allowed_cors_origins()

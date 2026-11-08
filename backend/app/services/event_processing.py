@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import hashlib
 import json
-from dataclasses import dataclass
 from datetime import UTC, datetime
 
 from app.domain.contracts import (
+    AssetDecision,
     EventProcessingOutcome,
     EventProcessingStatus,
+    OperationalDecision,
     Prediction,
     RecommendationStatus,
     RemediationRecommendation,
@@ -16,14 +17,8 @@ from app.domain.contracts import (
 from app.domain.errors import EventAlreadyExistsError, PredictionNotFoundError
 from app.event_repository import SecurityEventRepository
 from app.repositories import PredictionRepository
-
-
-@dataclass(frozen=True)
-class RiskThreshold:
-    value: float | None
-    scale_minimum: float | None
-    scale_maximum: float | None
-    higher_is_riskier: bool | None
+from app.services.asset_correlation import AssetCorrelationService
+from app.services.escalation import EscalationEvaluator
 
 
 class SecurityEventProcessor:
@@ -31,29 +26,32 @@ class SecurityEventProcessor:
         self,
         predictions: PredictionRepository,
         events: SecurityEventRepository,
-        threshold: RiskThreshold,
+        correlations: AssetCorrelationService,
+        evaluator: EscalationEvaluator,
     ) -> None:
         self._predictions = predictions
         self._events = events
-        self._threshold = threshold
+        self._correlations = correlations
+        self._evaluator = evaluator
 
-    def process(self, event: SecurityEvent) -> EventProcessingOutcome:
-        fingerprint = self._fingerprint(event)
-        existing = self._events.find_event(event.event_id)
-        if existing is not None:
-            if existing.fingerprint != fingerprint:
-                raise EventAlreadyExistsError(event.event_id)
-            return existing.outcome
+    def process(self, event: SecurityEvent, *, dry_run: bool = False) -> EventProcessingOutcome:
+        request_fingerprint = self._request_fingerprint(event)
+        if not dry_run:
+            existing = self._events.find_event(event.event_id)
+            if existing is not None:
+                if existing.fingerprint != request_fingerprint:
+                    raise EventAlreadyExistsError(event.event_id)
+                return existing.outcome
 
         try:
             prediction = self._predictions.get(event.prediction_id)
         except PredictionNotFoundError:
-            return self._record(
+            return self._outcome_without_decision(
                 event,
-                fingerprint,
-                EventProcessingStatus.INSUFFICIENT_INFORMATION,
+                request_fingerprint,
                 "prediction_not_found",
                 "The referenced prediction is not available for deterministic evaluation.",
+                dry_run=dry_run,
             )
 
         vulnerability_ids = {
@@ -61,163 +59,192 @@ class SecurityEventProcessor:
             *prediction.vulnerability.aliases,
         }
         if event.vulnerability_id not in vulnerability_ids:
-            return self._record(
+            return self._outcome_without_decision(
                 event,
-                fingerprint,
-                EventProcessingStatus.INSUFFICIENT_INFORMATION,
+                request_fingerprint,
                 "vulnerability_not_matched",
                 "The event vulnerability identifier does not match the referenced prediction.",
+                dry_run=dry_run,
             )
 
-        asset = next(
-            (item for item in prediction.affected_assets if item.asset_id == event.asset_id), None
+        correlation = self._correlations.correlate(
+            prediction.vulnerability.vulnerability_id, event.asset_id
         )
-        if asset is None:
-            return self._record(
+        if correlation is None:
+            return self._outcome_without_decision(
                 event,
-                fingerprint,
-                EventProcessingStatus.INSUFFICIENT_INFORMATION,
-                "asset_not_matched",
-                "The event asset is not an affected asset in the referenced prediction.",
+                request_fingerprint,
+                "asset_not_in_inventory",
+                "The event asset is not present in the configured synthetic inventory.",
                 matched_vulnerability_id=prediction.vulnerability.vulnerability_id,
+                dry_run=dry_run,
             )
 
         available_evidence = {item.evidence_id for item in prediction.evidence}
         unsupported = sorted(set(event.evidence_refs) - available_evidence)
         if unsupported:
-            return self._record(
+            return self._outcome_without_decision(
                 event,
-                fingerprint,
-                EventProcessingStatus.INSUFFICIENT_INFORMATION,
+                request_fingerprint,
                 "unsupported_evidence",
                 "The event contains evidence references not supplied by the prediction.",
                 matched_vulnerability_id=prediction.vulnerability.vulnerability_id,
-                matched_asset_id=asset.asset_id,
+                matched_asset_id=correlation.asset.asset_id,
+                dry_run=dry_run,
             )
 
-        threshold_error = self._threshold_error(prediction)
-        if threshold_error is not None:
-            return self._record(
-                event,
-                fingerprint,
-                EventProcessingStatus.INSUFFICIENT_INFORMATION,
-                "incompatible_score_semantics",
-                threshold_error,
-                matched_vulnerability_id=prediction.vulnerability.vulnerability_id,
-                matched_asset_id=asset.asset_id,
-            )
-
-        if not self._meets_threshold(prediction):
-            return self._record(
-                event,
-                fingerprint,
-                EventProcessingStatus.NO_ACTION,
-                "below_configured_threshold",
-                "The existing prediction score does not meet the configured alert threshold.",
-                matched_vulnerability_id=prediction.vulnerability.vulnerability_id,
-                matched_asset_id=asset.asset_id,
-            )
-
-        recommendation = self._recommendation(event, prediction, asset.evidence_refs)
-        return self._record(
-            event,
-            fingerprint,
-            EventProcessingStatus.RECOMMENDATION_CREATED,
-            "configured_threshold_met",
-            recommendation.trigger_reason,
-            matched_vulnerability_id=prediction.vulnerability.vulnerability_id,
-            matched_asset_id=asset.asset_id,
-            recommendation=recommendation,
+        asset_decision = self._evaluator.evaluate(prediction, correlation)
+        finding_id = self._finding_id(prediction, correlation.asset.asset_id)
+        material_fingerprint = self._material_fingerprint(
+            prediction, asset_decision, event.evidence_refs, self._evaluator.policy.version
         )
-
-    def _threshold_error(self, prediction: Prediction) -> str | None:
-        configured = self._threshold
-        values = (
-            configured.value,
-            configured.scale_minimum,
-            configured.scale_maximum,
-            configured.higher_is_riskier,
+        recommendation = self._recommendation(
+            event, prediction, asset_decision, finding_id, material_fingerprint
         )
-        if any(value is None for value in values):
-            return "A complete scale-bound alert threshold has not been configured."
-        scale = prediction.score_scale
-        if not (
-            configured.scale_minimum == scale.minimum
-            and configured.scale_maximum == scale.maximum
-            and configured.higher_is_riskier is scale.higher_is_riskier
-        ):
-            return "The configured alert threshold semantics do not match the prediction scale."
-        if not scale.minimum <= configured.value <= scale.maximum:
-            return "The configured alert threshold is outside the prediction score scale."
-        return None
-
-    def _meets_threshold(self, prediction: Prediction) -> bool:
-        threshold = self._threshold.value
-        assert threshold is not None
-        if prediction.score_scale.higher_is_riskier:
-            return prediction.score >= threshold
-        return prediction.score <= threshold
-
-    def _recommendation(
-        self, event: SecurityEvent, prediction: Prediction, asset_evidence_refs: list[str]
-    ) -> RemediationRecommendation:
-        evidence_refs = list(dict.fromkeys([*event.evidence_refs, *asset_evidence_refs]))
-        threshold = self._threshold.value
-        direction = "at or above" if prediction.score_scale.higher_is_riskier else "at or below"
-        trigger_reason = (
-            f"The existing score {prediction.score!r} is {direction} the configured threshold "
-            f"{threshold!r} on the matching declared scale."
+        processing_status = (
+            EventProcessingStatus.NO_ACTION
+            if asset_decision.operational_decision is OperationalDecision.MONITOR
+            else EventProcessingStatus.RECOMMENDATION_CREATED
         )
-        digest = hashlib.sha256(
-            f"{event.event_id}\0{prediction.prediction_id}\0{event.asset_id}".encode()
-        ).hexdigest()[:20]
-        return RemediationRecommendation(
-            recommendation_id=f"rec-{digest}",
+        outcome = EventProcessingOutcome(
             event_id=event.event_id,
-            prediction_id=prediction.prediction_id,
-            vulnerability_id=prediction.vulnerability.vulnerability_id,
-            asset_id=event.asset_id,
-            risk_score=prediction.score,
-            score_scale=prediction.score_scale,
-            trigger_reason=trigger_reason,
-            evidence_refs=evidence_refs,
-            recommended_next_step=(
-                "Review the supplied evidence and validate the affected asset before authorizing "
-                "any remediation."
-            ),
-            approval_required=True,
-            workflow_status=RecommendationStatus.PENDING_APPROVAL,
-            created_at=datetime.now(UTC),
+            prediction_id=event.prediction_id,
+            finding_id=finding_id,
+            material_fingerprint=material_fingerprint,
+            processing_status=processing_status,
+            reason_code=asset_decision.reasons[0].code,
+            reason=asset_decision.reasons[0].message,
+            matched_vulnerability_id=prediction.vulnerability.vulnerability_id,
+            matched_asset_id=correlation.asset.asset_id,
+            recommendation_id=None if dry_run else recommendation.recommendation_id,
+            operational_decision=asset_decision.operational_decision,
+            decision_reasons=asset_decision.reasons,
+            evidence_used=asset_decision.evidence_used,
+            eligibility=asset_decision.eligibility,
+            proposed_next_action=asset_decision.proposed_next_action,
+            asset_decision=asset_decision,
+            dry_run=dry_run,
+            persisted=not dry_run,
+            processed_at=datetime.now(UTC),
+        )
+        if dry_run:
+            return outcome
+        return self._events.record_event(
+            request_fingerprint,
+            finding_id,
+            material_fingerprint,
+            outcome,
+            recommendation,
         )
 
-    def _record(
+    def _outcome_without_decision(
         self,
         event: SecurityEvent,
-        fingerprint: str,
-        status: EventProcessingStatus,
+        request_fingerprint: str,
         reason_code: str,
         reason: str,
         *,
         matched_vulnerability_id: str | None = None,
         matched_asset_id: str | None = None,
-        recommendation: RemediationRecommendation | None = None,
+        dry_run: bool,
     ) -> EventProcessingOutcome:
         outcome = EventProcessingOutcome(
             event_id=event.event_id,
             prediction_id=event.prediction_id,
-            processing_status=status,
+            processing_status=EventProcessingStatus.INSUFFICIENT_INFORMATION,
             reason_code=reason_code,
             reason=reason,
             matched_vulnerability_id=matched_vulnerability_id,
             matched_asset_id=matched_asset_id,
-            recommendation_id=(
-                recommendation.recommendation_id if recommendation is not None else None
-            ),
+            dry_run=dry_run,
+            persisted=not dry_run,
             processed_at=datetime.now(UTC),
         )
-        return self._events.record_event(fingerprint, outcome, recommendation)
+        if dry_run:
+            return outcome
+        return self._events.record_event(request_fingerprint, None, None, outcome, None)
+
+    def _recommendation(
+        self,
+        event: SecurityEvent,
+        prediction: Prediction,
+        decision: AssetDecision,
+        finding_id: str,
+        material_fingerprint: str,
+    ) -> RemediationRecommendation:
+        recommendation_id = f"rec-{material_fingerprint[:20]}"
+        approval_required = decision.operational_decision in {
+            OperationalDecision.ACTION_REQUIRED,
+            OperationalDecision.URGENT,
+        }
+        workflow_status = {
+            OperationalDecision.MONITOR: RecommendationStatus.RECORDED,
+            OperationalDecision.INVESTIGATE: RecommendationStatus.INVESTIGATING,
+            OperationalDecision.ACTION_REQUIRED: RecommendationStatus.PENDING_APPROVAL,
+            OperationalDecision.URGENT: RecommendationStatus.PENDING_APPROVAL,
+        }[decision.operational_decision]
+        evidence_refs = list(
+            dict.fromkeys(
+                [
+                    *event.evidence_refs,
+                    *(ref for reason in decision.reasons for ref in reason.source_refs),
+                    *decision.eligibility.evidence_refs,
+                ]
+            )
+        )
+        return RemediationRecommendation(
+            recommendation_id=recommendation_id,
+            event_id=event.event_id,
+            prediction_id=prediction.prediction_id,
+            vulnerability_id=prediction.vulnerability.vulnerability_id,
+            asset_id=decision.asset_id,
+            finding_id=finding_id,
+            material_fingerprint=material_fingerprint,
+            risk_score=prediction.score,
+            score_scale=prediction.score_scale,
+            trigger_reason=decision.reasons[0].message,
+            evidence_refs=evidence_refs,
+            operational_decision=decision.operational_decision,
+            decision_reasons=decision.reasons,
+            evidence_used=decision.evidence_used,
+            eligibility=decision.eligibility,
+            recommended_next_step=decision.proposed_next_action,
+            approval_required=approval_required,
+            workflow_status=workflow_status,
+            created_at=datetime.now(UTC),
+        )
 
     @staticmethod
-    def _fingerprint(event: SecurityEvent) -> str:
+    def _finding_id(prediction: Prediction, asset_id: str) -> str:
+        payload = (
+            f"{prediction.prediction_id}\0{prediction.vulnerability.vulnerability_id}\0{asset_id}"
+        )
+        return f"finding-{hashlib.sha256(payload.encode()).hexdigest()[:20]}"
+
+    @staticmethod
+    def _request_fingerprint(event: SecurityEvent) -> str:
         payload = json.dumps(event.model_dump(mode="json"), sort_keys=True, separators=(",", ":"))
         return hashlib.sha256(payload.encode()).hexdigest()
+
+    @staticmethod
+    def _material_fingerprint(
+        prediction: Prediction,
+        decision: AssetDecision,
+        event_evidence_refs: list[str],
+        policy_version: str,
+    ) -> str:
+        payload = {
+            "prediction": {
+                "prediction_id": prediction.prediction_id,
+                "snapshot_date": prediction.snapshot_date.isoformat(),
+                "model_version": prediction.model_version,
+                "rank": prediction.rank,
+                "score": prediction.score,
+                "score_scale": prediction.score_scale.model_dump(mode="json"),
+            },
+            "asset_decision": decision.model_dump(mode="json"),
+            "event_evidence_refs": sorted(event_evidence_refs),
+            "policy_version": policy_version,
+        }
+        encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+        return hashlib.sha256(encoded.encode()).hexdigest()

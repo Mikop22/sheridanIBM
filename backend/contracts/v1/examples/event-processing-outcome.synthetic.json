@@ -1,0 +1,94 @@
+{
+  "schema_version": "1.0",
+  "event_id": "synthetic-event-001",
+  "prediction_id": "synthetic-prediction-001",
+  "finding_id": "finding-c7d30bd008b4b5a0f237",
+  "material_fingerprint": "20e26798c08f3686cba75ce2bb6da5a8028853a9fada3e937d34467a7f885f74",
+  "processing_status": "recommendation_created",
+  "reason_code": "VERIFIED_SYNTHETIC_ASSET_MATCH",
+  "reason": "The asset is affected within the internally consistent synthetic scenario.",
+  "matched_vulnerability_id": "SYNTH-VULN-001",
+  "matched_asset_id": "synthetic-asset-001",
+  "recommendation_id": null,
+  "operational_decision": "URGENT",
+  "decision_reasons": [
+    {
+      "code": "VERIFIED_SYNTHETIC_ASSET_MATCH",
+      "message": "The asset is affected within the internally consistent synthetic scenario.",
+      "source_refs": ["demo-evidence-contract-match"]
+    },
+    {
+      "code": "TOP_RANKED_CRITICAL_EXPOSED_ASSET",
+      "message": "Rank 2, critical business impact, and internet exposure jointly meet the demonstration urgent rule.",
+      "source_refs": [
+        "prediction:rank",
+        "asset:synthetic-asset-001:criticality",
+        "asset:synthetic-asset-001:exposure",
+        "policy:synthetic-demo-v1"
+      ]
+    }
+  ],
+  "evidence_used": [
+    {
+      "source_ref": "prediction:rank",
+      "category": "model_rank",
+      "value": 2,
+      "provenance": "submitted prediction rank; no percentile was calculated"
+    },
+    {
+      "source_ref": "prediction:score",
+      "category": "model_score",
+      "value": 0.82,
+      "provenance": "uncalibrated relative model score; not an exploitation probability"
+    },
+    {
+      "source_ref": "prediction:score_scale",
+      "category": "score_semantics",
+      "value": {"minimum": 0.0, "maximum": 1.0, "higher_is_riskier": true},
+      "provenance": "declared prediction score scale and direction"
+    },
+    {
+      "source_ref": "asset:synthetic-asset-001:match",
+      "category": "asset_match",
+      "value": "confirmed_affected",
+      "provenance": "internally consistent synthetic scenario; not external product intelligence"
+    },
+    {
+      "source_ref": "asset:synthetic-asset-001:criticality",
+      "category": "business_criticality",
+      "value": "critical",
+      "provenance": "synthetic demo inventory"
+    },
+    {
+      "source_ref": "asset:synthetic-asset-001:exposure",
+      "category": "exposure_status",
+      "value": "internet_facing",
+      "provenance": "synthetic demo inventory"
+    },
+    {
+      "source_ref": "policy:synthetic-demo-v1",
+      "category": "escalation_policy",
+      "value": {"urgent_max_rank": 5, "action_max_rank": 15, "investigate_unknown_max_rank": 15},
+      "provenance": "configurable demonstration defaults; not production thresholds"
+    },
+    {
+      "source_ref": "demo-evidence-contract-match",
+      "category": "synthetic_mapping_evidence",
+      "value": "Verified only within the synthetic contract scenario.",
+      "provenance": "internally consistent synthetic scenario; not external product intelligence"
+    }
+  ],
+  "eligibility": {
+    "outcome": "CODE_REMEDIABLE",
+    "reason_codes": ["VERIFIED_DEMO_REPOSITORY_COMPONENT_AND_PATH"],
+    "evidence_refs": ["demo-evidence-contract-match"],
+    "agent_eligible": true,
+    "execution_authorized": false
+  },
+  "proposed_next_action": "Prioritize immediate human review and remediation planning; do not execute changes.",
+  "asset_decision": null,
+  "dry_run": true,
+  "persisted": false,
+  "reused_recommendation": false,
+  "processed_at": "2026-01-15T12:05:00Z"
+}

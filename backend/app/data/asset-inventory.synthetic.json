@@ -1,0 +1,227 @@
+{
+  "inventory_id": "signalzero-synthetic-inventory-v1",
+  "organization_label": "SignalZero Synthetic Demo Organization",
+  "provenance": "synthetic_demo",
+  "synthetic": true,
+  "verification_meaning": "internally_consistent_synthetic_scenario_not_external_product_intelligence",
+  "assets": [
+    {
+      "asset_id": "synthetic-asset-001",
+      "application_name": "Synthetic Contract Service",
+      "service_name": "Contract validation",
+      "repository_identifier": "demo/synthetic-contract-service",
+      "owner_team": "Synthetic Platform",
+      "component_package": "synthetic-contract-package",
+      "installed_version": "1.0.0-demo",
+      "business_criticality": "critical",
+      "exposure_status": "internet_facing",
+      "environment": "development"
+    },
+    {
+      "asset_id": "demo-asset-identity",
+      "application_name": "Demo Identity Gateway",
+      "service_name": "Synthetic authentication edge",
+      "repository_identifier": "demo/identity-gateway",
+      "owner_team": "Demo Identity Team",
+      "component_package": "demo-auth-middleware",
+      "installed_version": "4.2.0-synthetic",
+      "business_criticality": "critical",
+      "exposure_status": "internet_facing",
+      "environment": "production"
+    },
+    {
+      "asset_id": "demo-asset-analytics",
+      "application_name": "Demo Analytics API",
+      "service_name": "Synthetic reporting",
+      "repository_identifier": "demo/analytics-api",
+      "owner_team": "Demo Data Team",
+      "component_package": "demo-query-runtime",
+      "installed_version": "2.8.1-synthetic",
+      "business_criticality": "medium",
+      "exposure_status": "internal",
+      "environment": "production"
+    },
+    {
+      "asset_id": "demo-asset-payments",
+      "application_name": "Demo Payments Worker",
+      "service_name": "Synthetic payment processing",
+      "repository_identifier": null,
+      "owner_team": "Demo Payments Team",
+      "component_package": "demo-worker-runtime",
+      "installed_version": "7.1.3-synthetic",
+      "business_criticality": "high",
+      "exposure_status": "internal",
+      "environment": "production"
+    },
+    {
+      "asset_id": "demo-asset-admin",
+      "application_name": "Demo Admin Console",
+      "service_name": "Synthetic administration",
+      "repository_identifier": "demo/admin-console",
+      "owner_team": "Demo Operations",
+      "component_package": "demo-ui-framework",
+      "installed_version": "5.0.0-synthetic",
+      "business_criticality": "high",
+      "exposure_status": "internal",
+      "environment": "production"
+    },
+    {
+      "asset_id": "demo-asset-catalog",
+      "application_name": "Demo Service Catalog",
+      "service_name": "Synthetic catalog",
+      "repository_identifier": "demo/service-catalog",
+      "owner_team": "Demo Developer Experience",
+      "component_package": "demo-catalog-core",
+      "installed_version": "3.6.2-synthetic",
+      "business_criticality": "low",
+      "exposure_status": "internal",
+      "environment": "development"
+    },
+    {
+      "asset_id": "demo-asset-observability",
+      "application_name": "Demo Observability Relay",
+      "service_name": "Synthetic telemetry relay",
+      "repository_identifier": "demo/observability-relay",
+      "owner_team": "Demo Reliability",
+      "component_package": null,
+      "installed_version": null,
+      "business_criticality": "unknown",
+      "exposure_status": "unknown",
+      "environment": "unknown"
+    }
+  ],
+  "evidence": [
+    {
+      "evidence_id": "demo-evidence-contract-match",
+      "source": "synthetic_scenario_assertion",
+      "observed_at": "2026-01-15T12:00:00Z",
+      "description": "Invented contract-test assertion; not external vulnerability intelligence."
+    },
+    {
+      "evidence_id": "demo-evidence-identity-match",
+      "source": "synthetic_scenario_assertion",
+      "observed_at": "2026-04-30T23:59:59Z",
+      "description": "Synthetic scenario declares an affected identity component and repository."
+    },
+    {
+      "evidence_id": "demo-evidence-analytics-possible",
+      "source": "synthetic_scenario_assertion",
+      "observed_at": "2026-04-30T23:59:59Z",
+      "description": "Synthetic scenario has incomplete analytics applicability evidence."
+    },
+    {
+      "evidence_id": "demo-evidence-payments-match",
+      "source": "synthetic_scenario_assertion",
+      "observed_at": "2026-07-31T23:59:59Z",
+      "description": "Synthetic scenario declares operational remediation for a payments worker."
+    },
+    {
+      "evidence_id": "demo-evidence-admin-unaffected",
+      "source": "synthetic_scenario_assertion",
+      "observed_at": "2026-02-28T23:59:59Z",
+      "description": "Synthetic scenario affirmatively declares the installed demo version unaffected."
+    },
+    {
+      "evidence_id": "demo-evidence-catalog-unknown",
+      "source": "synthetic_scenario_assertion",
+      "observed_at": "2026-08-31T23:59:59Z",
+      "description": "Synthetic scenario records that applicability is unknown."
+    },
+    {
+      "evidence_id": "demo-evidence-observability-possible",
+      "source": "synthetic_scenario_assertion",
+      "observed_at": "2026-07-31T23:59:59Z",
+      "description": "Synthetic scenario records a low-ranked potential association with missing context."
+    }
+  ],
+  "mappings": [
+    {
+      "vulnerability_id": "SYNTH-VULN-001",
+      "asset_id": "synthetic-asset-001",
+      "match_status": "confirmed_affected",
+      "assertion": "Verified only within the synthetic contract scenario.",
+      "verified_for_demo": true,
+      "evidence_refs": ["demo-evidence-contract-match"],
+      "exploitation_evidence_refs": [],
+      "remediation_path": {
+        "kind": "code_dependency_change",
+        "verified_for_demo": true,
+        "repository_identifier": "demo/synthetic-contract-service",
+        "component_package": "synthetic-contract-package",
+        "evidence_refs": ["demo-evidence-contract-match"]
+      }
+    },
+    {
+      "vulnerability_id": "CVE-2026-2699",
+      "asset_id": "demo-asset-identity",
+      "match_status": "confirmed_affected",
+      "assertion": "Synthetic scenario assertion only; not verified real-world CVE applicability.",
+      "verified_for_demo": true,
+      "evidence_refs": ["demo-evidence-identity-match"],
+      "exploitation_evidence_refs": [],
+      "remediation_path": {
+        "kind": "code_dependency_change",
+        "verified_for_demo": true,
+        "repository_identifier": "demo/identity-gateway",
+        "component_package": "demo-auth-middleware",
+        "evidence_refs": ["demo-evidence-identity-match"]
+      }
+    },
+    {
+      "vulnerability_id": "CVE-2026-2699",
+      "asset_id": "demo-asset-analytics",
+      "match_status": "potentially_affected",
+      "assertion": "Synthetic scenario requires investigation; not verified real-world applicability.",
+      "verified_for_demo": true,
+      "evidence_refs": ["demo-evidence-analytics-possible"],
+      "exploitation_evidence_refs": [],
+      "remediation_path": null
+    },
+    {
+      "vulnerability_id": "CVE-2026-8037",
+      "asset_id": "demo-asset-payments",
+      "match_status": "confirmed_affected",
+      "assertion": "Synthetic scenario assertion only; not verified real-world CVE applicability.",
+      "verified_for_demo": true,
+      "evidence_refs": ["demo-evidence-payments-match"],
+      "exploitation_evidence_refs": [],
+      "remediation_path": {
+        "kind": "operational_configuration_change",
+        "verified_for_demo": true,
+        "repository_identifier": null,
+        "component_package": "demo-worker-runtime",
+        "evidence_refs": ["demo-evidence-payments-match"]
+      }
+    },
+    {
+      "vulnerability_id": "CVE-2026-1603",
+      "asset_id": "demo-asset-admin",
+      "match_status": "confirmed_unaffected",
+      "assertion": "Affirmative unaffected status exists only inside the synthetic scenario.",
+      "verified_for_demo": true,
+      "evidence_refs": ["demo-evidence-admin-unaffected"],
+      "exploitation_evidence_refs": [],
+      "remediation_path": null
+    },
+    {
+      "vulnerability_id": "CVE-2026-77806",
+      "asset_id": "demo-asset-catalog",
+      "match_status": "unknown",
+      "assertion": "Synthetic scenario explicitly records missing applicability evidence.",
+      "verified_for_demo": true,
+      "evidence_refs": ["demo-evidence-catalog-unknown"],
+      "exploitation_evidence_refs": [],
+      "remediation_path": null
+    },
+    {
+      "vulnerability_id": "CVE-2026-44825",
+      "asset_id": "demo-asset-observability",
+      "match_status": "potentially_affected",
+      "assertion": "Synthetic scenario records a possible association only.",
+      "verified_for_demo": true,
+      "evidence_refs": ["demo-evidence-observability-possible"],
+      "exploitation_evidence_refs": [],
+      "remediation_path": null
+    }
+  ]
+}

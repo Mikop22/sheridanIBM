@@ -1,5 +1,222 @@
 {
   "$defs": {
+    "AssetDecision": {
+      "additionalProperties": false,
+      "properties": {
+        "asset_id": {
+          "minLength": 1,
+          "title": "Asset Id",
+          "type": "string"
+        },
+        "asset_name": {
+          "minLength": 1,
+          "title": "Asset Name",
+          "type": "string"
+        },
+        "component_package": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Component Package"
+        },
+        "eligibility": {
+          "$ref": "#/$defs/EligibilityAssessment"
+        },
+        "evidence_used": {
+          "items": {
+            "$ref": "#/$defs/DecisionEvidence"
+          },
+          "minItems": 1,
+          "title": "Evidence Used",
+          "type": "array"
+        },
+        "mapping_provenance": {
+          "const": "internally_consistent_synthetic_scenario_not_external_product_intelligence",
+          "title": "Mapping Provenance",
+          "type": "string"
+        },
+        "match_status": {
+          "minLength": 1,
+          "title": "Match Status",
+          "type": "string"
+        },
+        "operational_decision": {
+          "$ref": "#/$defs/OperationalDecision"
+        },
+        "owner_team": {
+          "minLength": 1,
+          "title": "Owner Team",
+          "type": "string"
+        },
+        "proposed_next_action": {
+          "minLength": 1,
+          "title": "Proposed Next Action",
+          "type": "string"
+        },
+        "reasons": {
+          "items": {
+            "$ref": "#/$defs/DecisionReason"
+          },
+          "minItems": 1,
+          "title": "Reasons",
+          "type": "array"
+        },
+        "repository_identifier": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Repository Identifier"
+        },
+        "synthetic_scenario": {
+          "const": true,
+          "default": true,
+          "title": "Synthetic Scenario",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "asset_id",
+        "asset_name",
+        "owner_team",
+        "match_status",
+        "operational_decision",
+        "reasons",
+        "evidence_used",
+        "proposed_next_action",
+        "eligibility",
+        "mapping_provenance"
+      ],
+      "title": "AssetDecision",
+      "type": "object"
+    },
+    "DecisionEvidence": {
+      "additionalProperties": false,
+      "properties": {
+        "category": {
+          "minLength": 1,
+          "title": "Category",
+          "type": "string"
+        },
+        "provenance": {
+          "minLength": 1,
+          "title": "Provenance",
+          "type": "string"
+        },
+        "source_ref": {
+          "minLength": 1,
+          "title": "Source Ref",
+          "type": "string"
+        },
+        "value": {
+          "title": "Value"
+        }
+      },
+      "required": [
+        "source_ref",
+        "category",
+        "value",
+        "provenance"
+      ],
+      "title": "DecisionEvidence",
+      "type": "object"
+    },
+    "DecisionReason": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "minLength": 1,
+          "title": "Code",
+          "type": "string"
+        },
+        "message": {
+          "minLength": 1,
+          "title": "Message",
+          "type": "string"
+        },
+        "source_refs": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Source Refs",
+          "type": "array"
+        }
+      },
+      "required": [
+        "code",
+        "message",
+        "source_refs"
+      ],
+      "title": "DecisionReason",
+      "type": "object"
+    },
+    "EligibilityAssessment": {
+      "additionalProperties": false,
+      "properties": {
+        "agent_eligible": {
+          "title": "Agent Eligible",
+          "type": "boolean"
+        },
+        "evidence_refs": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Evidence Refs",
+          "type": "array"
+        },
+        "execution_authorized": {
+          "const": false,
+          "default": false,
+          "title": "Execution Authorized",
+          "type": "boolean"
+        },
+        "outcome": {
+          "$ref": "#/$defs/EligibilityOutcome"
+        },
+        "reason_codes": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Reason Codes",
+          "type": "array"
+        }
+      },
+      "required": [
+        "outcome",
+        "reason_codes",
+        "agent_eligible"
+      ],
+      "title": "EligibilityAssessment",
+      "type": "object"
+    },
+    "EligibilityOutcome": {
+      "enum": [
+        "CODE_REMEDIABLE",
+        "OPERATIONAL_REMEDIATION",
+        "NEEDS_INVESTIGATION",
+        "NOT_ELIGIBLE"
+      ],
+      "title": "EligibilityOutcome",
+      "type": "string"
+    },
     "EventProcessingStatus": {
       "enum": [
         "no_action",
@@ -8,14 +225,78 @@
       ],
       "title": "EventProcessingStatus",
       "type": "string"
+    },
+    "OperationalDecision": {
+      "enum": [
+        "MONITOR",
+        "INVESTIGATE",
+        "ACTION_REQUIRED",
+        "URGENT"
+      ],
+      "title": "OperationalDecision",
+      "type": "string"
     }
   },
   "additionalProperties": false,
   "properties": {
+    "asset_decision": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AssetDecision"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "decision_reasons": {
+      "items": {
+        "$ref": "#/$defs/DecisionReason"
+      },
+      "title": "Decision Reasons",
+      "type": "array"
+    },
+    "dry_run": {
+      "default": false,
+      "title": "Dry Run",
+      "type": "boolean"
+    },
+    "eligibility": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/EligibilityAssessment"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
     "event_id": {
       "minLength": 1,
       "title": "Event Id",
       "type": "string"
+    },
+    "evidence_used": {
+      "items": {
+        "$ref": "#/$defs/DecisionEvidence"
+      },
+      "title": "Evidence Used",
+      "type": "array"
+    },
+    "finding_id": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Finding Id"
     },
     "matched_asset_id": {
       "anyOf": [
@@ -43,6 +324,35 @@
       "default": null,
       "title": "Matched Vulnerability Id"
     },
+    "material_fingerprint": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Material Fingerprint"
+    },
+    "operational_decision": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/OperationalDecision"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "persisted": {
+      "default": true,
+      "title": "Persisted",
+      "type": "boolean"
+    },
     "prediction_id": {
       "minLength": 1,
       "title": "Prediction Id",
@@ -55,6 +365,19 @@
     },
     "processing_status": {
       "$ref": "#/$defs/EventProcessingStatus"
+    },
+    "proposed_next_action": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Proposed Next Action"
     },
     "reason": {
       "minLength": 1,
@@ -78,6 +401,11 @@
       ],
       "default": null,
       "title": "Recommendation Id"
+    },
+    "reused_recommendation": {
+      "default": false,
+      "title": "Reused Recommendation",
+      "type": "boolean"
     },
     "schema_version": {
       "const": "1.0",

@@ -67,6 +67,8 @@ class SecurityEventRepository:
                     event_id TEXT PRIMARY KEY,
                     fingerprint TEXT NOT NULL,
                     prediction_id TEXT NOT NULL,
+                    finding_id TEXT,
+                    material_fingerprint TEXT,
                     outcome_json TEXT NOT NULL,
                     created_at TEXT NOT NULL
                 );
@@ -87,6 +89,19 @@ class SecurityEventRepository:
                     reason TEXT NOT NULL,
                     recorded_at TEXT NOT NULL
                 );
+                """
+            )
+            columns = {
+                row["name"] for row in connection.execute("PRAGMA table_info(events)").fetchall()
+            }
+            if "finding_id" not in columns:
+                connection.execute("ALTER TABLE events ADD COLUMN finding_id TEXT")
+            if "material_fingerprint" not in columns:
+                connection.execute("ALTER TABLE events ADD COLUMN material_fingerprint TEXT")
+            connection.execute(
+                """
+                CREATE INDEX IF NOT EXISTS events_finding_material_idx
+                ON events(finding_id, material_fingerprint)
                 """
             )
 
@@ -111,6 +126,8 @@ class SecurityEventRepository:
     def record_event(
         self,
         fingerprint: str,
+        finding_id: str | None,
+        material_fingerprint: str | None,
         outcome: EventProcessingOutcome,
         recommendation: RemediationRecommendation | None,
     ) -> EventProcessingOutcome:
@@ -125,15 +142,57 @@ class SecurityEventRepository:
                     raise EventAlreadyExistsError(outcome.event_id)
                 return EventProcessingOutcome.model_validate_json(existing["outcome_json"])
 
+            if finding_id is not None and material_fingerprint is not None:
+                prior = connection.execute(
+                    """
+                    SELECT outcome_json FROM events
+                    WHERE finding_id = ? AND material_fingerprint = ?
+                    ORDER BY created_at, event_id LIMIT 1
+                    """,
+                    (finding_id, material_fingerprint),
+                ).fetchone()
+                if prior is not None:
+                    prior_outcome = EventProcessingOutcome.model_validate_json(
+                        prior["outcome_json"]
+                    )
+                    reused = outcome.model_copy(
+                        update={
+                            "recommendation_id": prior_outcome.recommendation_id,
+                            "reused_recommendation": True,
+                        }
+                    )
+                    connection.execute(
+                        """
+                        INSERT INTO events(
+                            event_id, fingerprint, prediction_id, finding_id,
+                            material_fingerprint, outcome_json, created_at
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                        """,
+                        (
+                            reused.event_id,
+                            fingerprint,
+                            reused.prediction_id,
+                            finding_id,
+                            material_fingerprint,
+                            reused.model_dump_json(),
+                            reused.processed_at.isoformat(),
+                        ),
+                    )
+                    return reused
+
             connection.execute(
                 """
-                INSERT INTO events(event_id, fingerprint, prediction_id, outcome_json, created_at)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO events(
+                    event_id, fingerprint, prediction_id, finding_id,
+                    material_fingerprint, outcome_json, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     outcome.event_id,
                     fingerprint,
                     outcome.prediction_id,
+                    finding_id,
+                    material_fingerprint,
                     outcome.model_dump_json(),
                     outcome.processed_at.isoformat(),
                 ),
@@ -168,6 +227,30 @@ class SecurityEventRepository:
             RemediationRecommendation.model_validate_json(row["recommendation_json"])
             for row in rows
         ]
+
+    def list_all_recommendations(self) -> list[RemediationRecommendation]:
+        with self._connection() as connection:
+            rows = connection.execute(
+                """
+                SELECT recommendation_json FROM recommendations
+                ORDER BY recommendation_id
+                """
+            ).fetchall()
+        return [
+            RemediationRecommendation.model_validate_json(row["recommendation_json"])
+            for row in rows
+        ]
+
+    def list_finding_outcomes(self, finding_id: str) -> list[EventProcessingOutcome]:
+        with self._connection() as connection:
+            rows = connection.execute(
+                """
+                SELECT outcome_json FROM events
+                WHERE finding_id = ? ORDER BY created_at, event_id
+                """,
+                (finding_id,),
+            ).fetchall()
+        return [EventProcessingOutcome.model_validate_json(row["outcome_json"]) for row in rows]
 
     def decide(
         self, recommendation_id: str, decision: RecommendationDecision

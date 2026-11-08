@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 from enum import StrEnum
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
@@ -41,10 +43,11 @@ class Settings(BaseSettings):
     watsonx_model_id: str = ""
 
     event_database_path: Path = Path("security_events.db")
-    event_risk_threshold: float | None = None
-    event_threshold_scale_minimum: float | None = None
-    event_threshold_scale_maximum: float | None = None
-    event_threshold_higher_is_riskier: bool | None = None
+    asset_inventory_path: Path | None = None
+    escalation_policy_version: str = "synthetic-demo-v1"
+    escalation_urgent_max_rank: int = Field(default=5, ge=1)
+    escalation_action_max_rank: int = Field(default=15, ge=1)
+    escalation_investigate_unknown_max_rank: int = Field(default=15, ge=1)
 
     prediction_artifact_path: Path = DEFAULT_PREDICTION_ARTIFACT
     prediction_artifact_min_snapshot_month: str | None = None
@@ -111,6 +114,14 @@ class Settings(BaseSettings):
                 self.watsonx_model_id,
             )
         )
+
+    @model_validator(mode="after")
+    def validate_escalation_bands(self) -> Settings:
+        if self.escalation_action_max_rank < self.escalation_urgent_max_rank:
+            raise ValueError(
+                "ESCALATION_ACTION_MAX_RANK must be at least ESCALATION_URGENT_MAX_RANK"
+            )
+        return self
 
 
 def get_settings() -> Settings:

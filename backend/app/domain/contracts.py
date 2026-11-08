@@ -226,6 +226,8 @@ class EventProcessingStatus(StrEnum):
 
 
 class RecommendationStatus(StrEnum):
+    RECORDED = "recorded"
+    INVESTIGATING = "investigating"
     PENDING_APPROVAL = "pending_approval"
     APPROVED = "approved"
     REJECTED = "rejected"
@@ -243,6 +245,70 @@ class RecommendationDecision(ContractModel):
     reason: NonEmptyString
 
 
+class OperationalDecision(StrEnum):
+    MONITOR = "MONITOR"
+    INVESTIGATE = "INVESTIGATE"
+    ACTION_REQUIRED = "ACTION_REQUIRED"
+    URGENT = "URGENT"
+
+
+class EligibilityOutcome(StrEnum):
+    CODE_REMEDIABLE = "CODE_REMEDIABLE"
+    OPERATIONAL_REMEDIATION = "OPERATIONAL_REMEDIATION"
+    NEEDS_INVESTIGATION = "NEEDS_INVESTIGATION"
+    NOT_ELIGIBLE = "NOT_ELIGIBLE"
+
+
+class DecisionReason(ContractModel):
+    code: NonEmptyString
+    message: NonEmptyString
+    source_refs: list[NonEmptyString] = Field(min_length=1)
+
+
+class DecisionEvidence(ContractModel):
+    source_ref: NonEmptyString
+    category: NonEmptyString
+    value: Any
+    provenance: NonEmptyString
+
+
+class EligibilityAssessment(ContractModel):
+    outcome: EligibilityOutcome
+    reason_codes: list[NonEmptyString] = Field(min_length=1)
+    evidence_refs: list[NonEmptyString] = Field(default_factory=list)
+    agent_eligible: StrictBool
+    execution_authorized: Literal[False] = False
+
+
+class AssetDecision(ContractModel):
+    asset_id: NonEmptyString
+    asset_name: NonEmptyString
+    owner_team: NonEmptyString
+    repository_identifier: NonEmptyString | None = None
+    component_package: NonEmptyString | None = None
+    match_status: NonEmptyString
+    operational_decision: OperationalDecision
+    reasons: list[DecisionReason] = Field(min_length=1)
+    evidence_used: list[DecisionEvidence] = Field(min_length=1)
+    proposed_next_action: NonEmptyString
+    eligibility: EligibilityAssessment
+    synthetic_scenario: Literal[True] = True
+    mapping_provenance: Literal[
+        "internally_consistent_synthetic_scenario_not_external_product_intelligence"
+    ]
+
+    @model_validator(mode="after")
+    def validate_decision_source_refs(self) -> AssetDecision:
+        available = {item.source_ref for item in self.evidence_used}
+        used = {
+            ref for reason in self.reasons for ref in reason.source_refs
+        } | set(self.eligibility.evidence_refs)
+        missing = sorted(used - available)
+        if missing:
+            raise ValueError(f"asset decision contains unsupported source_refs: {missing}")
+        return self
+
+
 class RemediationRecommendation(ContractModel):
     schema_version: Literal[SCHEMA_VERSION] = SCHEMA_VERSION
     recommendation_id: NonEmptyString
@@ -250,12 +316,18 @@ class RemediationRecommendation(ContractModel):
     prediction_id: NonEmptyString
     vulnerability_id: NonEmptyString
     asset_id: NonEmptyString
+    finding_id: NonEmptyString
+    material_fingerprint: NonEmptyString
     risk_score: StrictFloat
     score_scale: ScoreScale
     trigger_reason: NonEmptyString
     evidence_refs: list[NonEmptyString] = Field(min_length=1)
+    operational_decision: OperationalDecision
+    decision_reasons: list[DecisionReason] = Field(min_length=1)
+    evidence_used: list[DecisionEvidence] = Field(min_length=1)
+    eligibility: EligibilityAssessment
     recommended_next_step: NonEmptyString
-    approval_required: Literal[True] = True
+    approval_required: StrictBool
     workflow_status: RecommendationStatus
     created_at: datetime
     decided_at: datetime | None = None
@@ -267,12 +339,23 @@ class EventProcessingOutcome(ContractModel):
     schema_version: Literal[SCHEMA_VERSION] = SCHEMA_VERSION
     event_id: NonEmptyString
     prediction_id: NonEmptyString
+    finding_id: NonEmptyString | None = None
+    material_fingerprint: NonEmptyString | None = None
     processing_status: EventProcessingStatus
     reason_code: NonEmptyString
     reason: NonEmptyString
     matched_vulnerability_id: NonEmptyString | None = None
     matched_asset_id: NonEmptyString | None = None
     recommendation_id: NonEmptyString | None = None
+    operational_decision: OperationalDecision | None = None
+    decision_reasons: list[DecisionReason] = Field(default_factory=list)
+    evidence_used: list[DecisionEvidence] = Field(default_factory=list)
+    eligibility: EligibilityAssessment | None = None
+    proposed_next_action: NonEmptyString | None = None
+    asset_decision: AssetDecision | None = None
+    dry_run: StrictBool = False
+    persisted: StrictBool = True
+    reused_recommendation: StrictBool = False
     processed_at: datetime
 
 

@@ -63,8 +63,13 @@ response model and routed inference provider; an identity mismatch uses local fa
 - Ranking scores remain relative model outputs and are not labelled as exploitation
   probabilities. Missing descriptions, CVSS, EPSS, feature contributions, and asset
   associations are returned as null or explicit missing-information entries.
-- `/api/assets` and `/api/alerts` remain empty compatibility collections. `/api/replay`
-  was removed with the Time Machine page; historical evaluation remains backend-only.
+- `/api/assets` returns seven explicitly synthetic company assets plus synthetic-scenario
+  CVE mappings. `verified_for_demo` means internally consistent for the demonstration,
+  not externally verified product applicability.
+- `/api/alerts` preserves the legacy empty integration-alert collection and adds persisted
+  operational `decisions` for the Remediation page. No Slack or Jira delivery is claimed.
+- `/api/replay` was removed with the Time Machine page; historical evaluation remains
+  backend-only.
 
 The current frontend hidden-threat adapter treats a null `traditionalRank` as being
 outside the baseline top 500. Member 2 must require a non-null rank before applying
@@ -75,7 +80,9 @@ The default empty allowlist intentionally permits only same-origin access.
 
 ## Security events and recommendations
 
-- `POST /v1/security-events` evaluates a validated event deterministically.
+- `POST /v1/security-events` evaluates and persists a validated event deterministically.
+- `POST /v1/security-events?dry_run=true` uses the identical policy without writing any
+  event, recommendation, approval, or audit state.
 - `GET /v1/security-events/{event_id}` retrieves its persisted outcome.
 - `GET /v1/predictions/{prediction_id}/recommendations` lists persisted records.
 - `POST /v1/recommendations/{recommendation_id}/decision` accepts
@@ -83,8 +90,21 @@ The default empty allowlist intentionally permits only same-origin access.
 
 Event `processing_status` values are `no_action`, `recommendation_created`, and
 `insufficient_information`. Recommendation `workflow_status` values are
-`pending_approval`, `approved`, and `rejected`. Approval only records workflow
-intent; it never executes remediation.
+`recorded`, `investigating`, `pending_approval`, `approved`, and `rejected`.
+Operational decisions are `MONITOR`, `INVESTIGATE`, `ACTION_REQUIRED`, and `URGENT`.
+Approval only records workflow intent; it never executes remediation.
+
+The demonstration policy requires model rank and asset context jointly. Rank bands 1–5
+and 1–15 are configurable demo defaults, not validated production thresholds or
+percentiles. High criticality or internet exposure alone cannot produce
+`ACTION_REQUIRED`. Unknown applicability remains unknown; only higher-ranked unknowns
+enter investigation while lower-ranked unknowns remain monitored.
+
+The response includes structured reasons, evidence, remediation eligibility, a stable
+finding identity, and a material-evidence fingerprint. A new event with unchanged
+material evidence reuses its recommendation. A material model, policy, correlation, or
+asset-context change creates another persisted evaluation. Technical agent eligibility
+always returns `execution_authorized: false` in this iteration.
 
 The synthetic event request is available in
 `backend/contracts/v1/examples/security-event-create.synthetic.json`. A successful

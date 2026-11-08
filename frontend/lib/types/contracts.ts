@@ -26,7 +26,7 @@ export const vulnerabilitySchema = z.object({
   traditionalRank: z.number().int().positive().nullable(),
   predictedRisk: riskLevelSchema.nullable(),
   evidenceIndicators: z.array(evidenceIndicatorSchema),
-  affectedAsset: z.object({ id: z.string().nullable(), name: z.string(), service: z.string().nullable() }).nullable(),
+  affectedAsset: z.object({ id: z.string().nullable(), name: z.string(), service: z.string().nullable(), owner: z.string().nullable().optional() }).nullable(),
   detectedAt: z.string().nullable(),
   modelVersion: z.string().min(1).optional(),
   scoreScale: z.object({ minimum: z.number(), maximum: z.number(), higher_is_riskier: z.boolean() }).optional(),
@@ -34,9 +34,14 @@ export const vulnerabilitySchema = z.object({
   componentScores: z.record(z.string(), z.number()).optional(),
   artifact: z.object({ artifactId: z.string().min(1), sourceKind: z.enum(["summary_json", "full_csv"]), recordCount: z.number().int().positive() }).optional(),
   missingInformation: z.array(z.string()).optional(),
-  assetMatchStatus: z.literal("unknown").optional(),
-  investigationState: z.literal("unreviewed").optional(),
-  suggestedAction: z.null().optional(),
+  assetMatchStatus: z.enum(["confirmed_affected", "potentially_affected", "unknown", "confirmed_unaffected"]).optional(),
+  investigationState: z.enum(["unreviewed", "monitoring", "investigating", "action_pending"]).optional(),
+  operationalDecision: z.enum(["MONITOR", "INVESTIGATE", "ACTION_REQUIRED", "URGENT"]).optional(),
+  decisionReasons: z.array(z.object({ code: z.string(), message: z.string(), sourceRefs: z.array(z.string()) })).optional(),
+  assetDecisions: z.array(z.unknown()).optional(),
+  remediationEligibility: z.enum(["CODE_REMEDIABLE", "OPERATIONAL_REMEDIATION", "NEEDS_INVESTIGATION", "NOT_ELIGIBLE"]).optional(),
+  agentEligible: z.boolean().optional(),
+  suggestedAction: z.string().nullable().optional(),
   groundedExplanation: z.unknown().optional(),
 });
 
@@ -73,14 +78,19 @@ export const assetSchema = z.object({
   internetExposed: z.boolean().nullable(),
   businessCriticality: z.enum(["Critical", "High", "Medium", "Low", "Unknown"]),
   owner: z.string().nullable(),
+  repositoryIdentifier: z.string().nullable().optional(),
+  componentPackage: z.string().nullable().optional(),
+  synthetic: z.boolean().optional(),
 });
 
 export const assetVulnerabilityMatchSchema = z.object({
   cveId: z.string().min(1),
   assetId: z.string().min(1),
-  matchStatus: z.enum(["Confirmed", "Possible", "Unknown"]),
+  matchStatus: z.enum(["Confirmed", "Possible", "Unknown", "Unaffected"]),
+  canonicalMatchStatus: z.enum(["confirmed_affected", "potentially_affected", "unknown", "confirmed_unaffected"]).optional(),
   supportingEvidence: z.array(z.string()),
   predictedRisk: riskLevelSchema.nullable(),
+  provenance: z.string().optional(),
 });
 
 export const integrationDeliveryResultSchema = z.object({
@@ -115,6 +125,26 @@ export const alertSchema = z.object({
   simulated: z.boolean(),
 });
 
+export const persistentDecisionSchema = z.object({
+  recommendationId: z.string().min(1),
+  findingId: z.string().min(1),
+  cveId: z.string().min(1),
+  assetId: z.string().min(1),
+  operationalDecision: z.enum(["MONITOR", "INVESTIGATE", "ACTION_REQUIRED", "URGENT"]),
+  workflowStatus: z.string().min(1),
+  reasonCodes: z.array(z.string()),
+  evidenceRefs: z.array(z.string()),
+  remediationEligibility: z.enum(["CODE_REMEDIABLE", "OPERATIONAL_REMEDIATION", "NEEDS_INVESTIGATION", "NOT_ELIGIBLE"]),
+  agentEligible: z.boolean(),
+  executionAuthorized: z.literal(false),
+  proposedNextAction: z.string().min(1),
+  createdAt: z.string(),
+  decidedAt: z.string().nullable(),
+  decidedBy: z.string().nullable(),
+  decisionReason: z.string().nullable(),
+  activityHistory: z.array(z.object({ eventId: z.string(), processedAt: z.string(), reasonCode: z.string(), reusedRecommendation: z.boolean() })),
+});
+
 export const overviewResponseSchema = z.object({
   summary: z.object({ totalVulnerabilities: z.number().int().nonnegative().nullable(), criticalPriority: z.number().int().nonnegative().nullable(), exposedAssets: z.number().int().nonnegative().nullable(), predictionHorizonDays: z.number().int().positive().nullable() }),
   priorityVulnerabilities: z.array(vulnerabilitySchema),
@@ -123,8 +153,8 @@ export const overviewResponseSchema = z.object({
 });
 export const vulnerabilityListResponseSchema = z.object({ vulnerabilities: z.array(vulnerabilitySchema), generatedAt: z.string().nullable(), source: dataSourceSchema });
 export const vulnerabilityDetailResponseSchema = z.object({ vulnerability: vulnerabilitySchema, source: dataSourceSchema });
-export const assetsResponseSchema = z.object({ assets: z.array(assetSchema), matches: z.array(assetVulnerabilityMatchSchema), organizationLabel: z.string().nullable(), source: dataSourceSchema });
-export const alertsResponseSchema = z.object({ alerts: z.array(alertSchema), source: dataSourceSchema });
+export const assetsResponseSchema = z.object({ assets: z.array(assetSchema), matches: z.array(assetVulnerabilityMatchSchema), organizationLabel: z.string().nullable(), synthetic: z.boolean().optional(), provenance: z.string().optional(), source: dataSourceSchema });
+export const alertsResponseSchema = z.object({ alerts: z.array(alertSchema), decisions: z.array(persistentDecisionSchema).optional().default([]), source: dataSourceSchema });
 export const apiErrorResponseSchema = z.object({ error: z.object({ code: z.string(), message: z.string(), details: z.unknown().nullable().optional(), requestId: z.string().nullable().optional() }) });
 
 export type DataSource = z.infer<typeof dataSourceSchema>;
