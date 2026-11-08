@@ -11,6 +11,7 @@
 
 # Generated builds and framework state
 /dist/
+/.output/
 /.next/
 /.vinext/
 /out/
@@ -44,3 +45,5 @@ yarn-error.log*
 
 # OS metadata
 .DS_Store
+
+.vercel

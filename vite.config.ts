@@ -1,4 +1,6 @@
 import vinext from "vinext";
+import { nitro } from "nitro/vite";
+import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "vite";
 import hostingConfig from "./.openai/hosting.json";
 import { readExecutionProfile } from "./scripts/execution-profile.mjs";
@@ -40,8 +42,51 @@ const localBindingConfig = {
 export default defineConfig(async ({ command }) => {
   configureToolEnvironment(process.cwd());
 
-  // Wrangler snapshots its log path while the Cloudflare plugin is imported.
-  const { cloudflare } = await import("@cloudflare/vite-plugin");
+  const useNitroVercel =
+    process.env.VERCEL === "1" || process.env.NITRO_PRESET === "vercel";
+
+  const deploymentPlugins = useNitroVercel
+    ? [tailwindcss(), nitro()]
+    : await (async () => {
+        // Wrangler snapshots its log path while the Cloudflare plugin is imported.
+        const { cloudflare } = await import("@cloudflare/vite-plugin");
+
+        return [
+          sites({ mockAuth: !managedLinux }),
+          connectorPreview(),
+          cloudflare({
+            viteEnvironment: { name: "rsc", childEnvironments: ["ssr"] },
+            inspectorPort: false,
+            config: {
+              ...localBindingConfig,
+              ...(command === "serve"
+                ? {
+                    services: [
+                      {
+                        binding: "CONNECTORS",
+                        service: "sites-connector-preview",
+                        entrypoint: "ConnectorPreview",
+                      },
+                    ],
+                  }
+                : {}),
+            },
+            ...(command === "serve"
+              ? {
+                  auxiliaryWorkers: [
+                    {
+                      config: {
+                        name: "sites-connector-preview",
+                        main: "./scripts/connector-preview/worker.mjs",
+                        compatibility_date: "2026-05-15",
+                      },
+                    },
+                  ],
+                }
+              : {}),
+          }),
+        ];
+      })();
 
   return {
     server: {
@@ -52,41 +97,6 @@ export default defineConfig(async ({ command }) => {
         ? { watch: { useFsEvents: false, usePolling: true } }
         : {}),
     },
-    plugins: [
-      vinext(),
-      sites({ mockAuth: !managedLinux }),
-      connectorPreview(),
-      cloudflare({
-        viteEnvironment: { name: "rsc", childEnvironments: ["ssr"] },
-        inspectorPort: false,
-        config: {
-          ...localBindingConfig,
-          ...(command === "serve"
-            ? {
-                services: [
-                  {
-                    binding: "CONNECTORS",
-                    service: "sites-connector-preview",
-                    entrypoint: "ConnectorPreview",
-                  },
-                ],
-              }
-            : {}),
-        },
-        ...(command === "serve"
-          ? {
-              auxiliaryWorkers: [
-                {
-                  config: {
-                    name: "sites-connector-preview",
-                    main: "./scripts/connector-preview/worker.mjs",
-                    compatibility_date: "2026-05-15",
-                  },
-                },
-              ],
-            }
-          : {}),
-      }),
-    ],
+    plugins: [vinext(), ...deploymentPlugins],
   };
 });
