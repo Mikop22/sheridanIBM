@@ -2,7 +2,6 @@
 
 ```text
 /main
-├── README.md                                  # Architecture, methodology, and decision log
 ├── requirements.txt                           # Python package dependencies
 ├── src/                                       # Core production pipeline
 │   ├── __init__.py
