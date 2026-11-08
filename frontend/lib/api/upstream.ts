@@ -1,8 +1,20 @@
-const DEFAULT_UPSTREAM_BACKEND = "https://educators-foam-kiss-austin.trycloudflare.com";
+const DEFAULT_UPSTREAM_BACKEND =
+  "https://dakota-preparation-everywhere-gregory.trycloudflare.com";
+
+function isVercelRuntime(): boolean {
+  return process.env.VERCEL === "1" || process.env.NITRO_PRESET === "vercel";
+}
 
 export function getUpstreamBackendUrl(): string {
   const configured = process.env.SIGNALZERO_UPSTREAM_BACKEND_URL?.trim();
-  return (configured || DEFAULT_UPSTREAM_BACKEND).replace(/\/$/, "");
+  if (configured) {
+    return configured.replace(/\/$/, "");
+  }
+  // Local Next/Vinext should talk to FastAPI directly so Scenario lab can post Slack.
+  if (!isVercelRuntime()) {
+    return "http://127.0.0.1:8000";
+  }
+  return DEFAULT_UPSTREAM_BACKEND.replace(/\/$/, "");
 }
 
 export async function proxyBackendJson(

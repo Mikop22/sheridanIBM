@@ -764,17 +764,7 @@ export default function AlertsPage() {
         </div>
         {labOpen && (
           <div className="border-b border-[#e0e0e0] bg-[#f4f4f4]/70 p-5">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-              <div className="max-w-2xl">
-                <p className="text-[11px] font-semibold uppercase tracking-[.08em] text-[#525252]">
-                  Live vulnerability scenario runner
-                </p>
-                <p className="mt-1 text-xs text-[#525252]">
-                  Select a vulnerability category to execute the real 8-stage backend pipeline
-                  (Slack CLI, Jira REST API v3, Entire CLI v0.13.1 checkpoint, GitHub PR update, and
-                  verification script).
-                </p>
-              </div>
+            <div className="flex justify-end">
               <button
                 type="button"
                 onClick={() => void runLiveScenario(selectedScenario.id)}
