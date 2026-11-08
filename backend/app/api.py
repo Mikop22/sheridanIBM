@@ -396,6 +396,8 @@ def _integration_from_deliveries(
         status = "delivered"
     elif latest.mode == "blocked":
         status = "failed"
+    elif latest.mode == "recording":
+        status = "simulated-not-sent"
     else:
         status = "pending"
     operation: Literal["created", "updated", "commented"] | None = None
@@ -428,6 +430,7 @@ def _frontend_alert(
     *,
     jira_base_url: str,
     now_iso: str,
+    simulated: bool,
 ) -> FrontendAlert:
     asset = asset_by_id(finding.asset_id)
     asset_name = None if asset is None else asset.name
@@ -499,7 +502,7 @@ def _frontend_alert(
         evidence=evidence,
         history=history,
         dedupeKey=finding.finding_key,
-        simulated=True,
+        simulated=simulated,
     )
 
 
@@ -522,7 +525,8 @@ def frontend_overview(artifact: ArtifactDependency) -> FrontendOverview:
         summary=FrontendOverviewSummary(
             totalVulnerabilities=len(artifact.records),
             criticalPriority=None,
-            exposedAssets=len(ASSETS),
+            # Do not equate inventory size with internet exposure.
+            exposedAssets=None,
             predictionHorizonDays=None,
         ),
         priorityVulnerabilities=priority,
@@ -568,6 +572,9 @@ def frontend_alerts(operations: OperationsDependency) -> FrontendAlerts:
         by_finding.setdefault(row.finding_key, []).append(row)
     now_iso = datetime.now(UTC).isoformat()
     jira_base_url = operations.settings.jira_base_url
+    # Inventory is always synthetic; "simulated" tracks delivery mode so live
+    # Slack/Jira runs are not labeled as demo banners.
+    simulated = operations.settings.operations_delivery != "live"
     return FrontendAlerts(
         alerts=[
             _frontend_alert(
@@ -575,6 +582,7 @@ def frontend_alerts(operations: OperationsDependency) -> FrontendAlerts:
                 by_finding.get(finding.finding_key, []),
                 jira_base_url=jira_base_url,
                 now_iso=now_iso,
+                simulated=simulated,
             )
             for finding in findings
         ]

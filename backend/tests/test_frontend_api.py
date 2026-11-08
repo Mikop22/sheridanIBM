@@ -18,7 +18,7 @@ def test_frontend_threats_use_real_artifact_and_live_collections(
     assert overview_body["summary"] == {
         "totalVulnerabilities": 25,
         "criticalPriority": None,
-        "exposedAssets": len(ASSETS),
+        "exposedAssets": None,
         "predictionHorizonDays": None,
     }
     assert overview_body["source"] == "live"
@@ -105,7 +105,7 @@ def test_frontend_alerts_populate_after_judge_script(client: TestClient) -> None
     assert first["cveId"]
     assert first["assetId"]
     assert first["priority"] in {"Critical", "High", "Medium"}
-    assert first["simulated"] is True
+    assert first["simulated"] is True  # default OPERATIONS_DELIVERY=recording
     assert first["occurrenceCount"] == 1
     assert first["lifecycle"] in {"Open", "Investigating"}
     assert first["evidence"]
@@ -121,6 +121,10 @@ def test_frontend_alerts_populate_after_judge_script(client: TestClient) -> None
         "failed",
         "simulated-not-sent",
     }
+    if first["jiraDelivery"]["status"] != "not-attempted":
+        assert first["jiraDelivery"]["status"] == "simulated-not-sent"
+    if first["slackDelivery"]["status"] != "not-attempted":
+        assert first["slackDelivery"]["status"] == "simulated-not-sent"
 
 
 def test_frontend_alerts_populate_after_kev_step(client: TestClient) -> None:
