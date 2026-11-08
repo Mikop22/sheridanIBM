@@ -17,6 +17,7 @@ from app.domain.errors import (
     EventAlreadyExistsError,
     EventNotFoundError,
     EventStoreUnavailableError,
+    FrontendVulnerabilityNotFoundError,
     HistoricalDataUnavailableError,
     InvalidRecommendationTransitionError,
     PredictionAlreadyExistsError,
@@ -227,6 +228,17 @@ def create_app(
             status.HTTP_404_NOT_FOUND,
             "unsupported_month",
             f"Historical month {exc.month} is not supported.",
+        )
+
+    @app.exception_handler(FrontendVulnerabilityNotFoundError)
+    async def frontend_vulnerability_not_found_handler(
+        request: Request, exc: FrontendVulnerabilityNotFoundError
+    ) -> JSONResponse:
+        return _error_response(
+            request,
+            status.HTTP_404_NOT_FOUND,
+            "vulnerability_not_found",
+            f"Vulnerability {exc.vulnerability_id!r} is not available.",
         )
 
     @app.exception_handler(StarletteHTTPException)

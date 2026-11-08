@@ -4,10 +4,23 @@ from fastapi.testclient import TestClient
 
 
 def test_frontend_collections_are_truthful_empty_live_states(client: TestClient) -> None:
+    overview = client.get("/api/overview")
     vulnerabilities = client.get("/api/vulnerabilities")
     assets = client.get("/api/assets")
     alerts = client.get("/api/alerts")
 
+    assert overview.status_code == 200
+    assert overview.json() == {
+        "summary": {
+            "totalVulnerabilities": None,
+            "criticalPriority": None,
+            "exposedAssets": None,
+            "predictionHorizonDays": None,
+        },
+        "priorityVulnerabilities": [],
+        "generatedAt": overview.json()["generatedAt"],
+        "source": "live",
+    }
     assert vulnerabilities.status_code == 200
     assert vulnerabilities.json()["vulnerabilities"] == []
     assert vulnerabilities.json()["source"] == "live"
@@ -19,6 +32,13 @@ def test_frontend_collections_are_truthful_empty_live_states(client: TestClient)
         "source": "live",
     }
     assert alerts.json() == {"alerts": [], "source": "live"}
+
+
+def test_frontend_detail_is_truthful_not_found_without_predictions(client: TestClient) -> None:
+    response = client.get("/api/vulnerabilities/CVE-2025-0001")
+
+    assert response.status_code == 404
+    assert response.json()["error"]["code"] == "vulnerability_not_found"
 
 
 def test_replay_distinguishes_missing_data_unsupported_and_invalid_month(
@@ -40,6 +60,8 @@ def test_openapi_exposes_frontend_contract_routes(client: TestClient) -> None:
     paths = client.get("/openapi.json").json()["paths"]
 
     assert "/api/replay" in paths
+    assert "/api/overview" in paths
     assert "/api/vulnerabilities" in paths
+    assert "/api/vulnerabilities/{vulnerability_id}" in paths
     assert "/api/assets" in paths
     assert "/api/alerts" in paths

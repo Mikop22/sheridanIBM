@@ -15,11 +15,17 @@ from app.domain.contracts import (
     RemediationRecommendation,
     SecurityEvent,
 )
-from app.domain.errors import HistoricalDataUnavailableError, UnsupportedHistoricalMonthError
+from app.domain.errors import (
+    FrontendVulnerabilityNotFoundError,
+    HistoricalDataUnavailableError,
+    UnsupportedHistoricalMonthError,
+)
 from app.domain.frontend_contracts import (
     FrontendAlerts,
     FrontendAssets,
+    FrontendOverview,
     FrontendReplay,
+    FrontendVulnerabilityDetail,
     FrontendVulnerabilityList,
 )
 from app.event_repository import SecurityEventRepository
@@ -176,6 +182,23 @@ def decide_recommendation(
 def frontend_vulnerabilities() -> FrontendVulnerabilityList:
     """Return an honest empty live collection until real predictions are loaded."""
     return FrontendVulnerabilityList(generatedAt=datetime.now(UTC))
+
+
+@router.get("/api/overview", response_model=FrontendOverview, tags=["frontend"])
+def frontend_overview() -> FrontendOverview:
+    """Return nullable totals instead of inventing dashboard statistics."""
+    return FrontendOverview(generatedAt=datetime.now(UTC))
+
+
+@router.get(
+    "/api/vulnerabilities/{vulnerability_id}",
+    response_model=FrontendVulnerabilityDetail,
+    responses={404: {"model": ErrorResponse}},
+    tags=["frontend"],
+)
+def frontend_vulnerability_detail(vulnerability_id: str) -> FrontendVulnerabilityDetail:
+    """Report a truthful miss until a real prediction adapter is configured."""
+    raise FrontendVulnerabilityNotFoundError(vulnerability_id)
 
 
 @router.get("/api/assets", response_model=FrontendAssets, tags=["frontend"])

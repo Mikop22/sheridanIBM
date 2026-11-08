@@ -14,6 +14,25 @@ class FrontendVulnerabilityList(ContractModel):
     source: Literal["live"] = "live"
 
 
+class FrontendOverviewSummary(ContractModel):
+    totalVulnerabilities: int | None = Field(default=None, ge=0)
+    criticalPriority: int | None = Field(default=None, ge=0)
+    exposedAssets: int | None = Field(default=None, ge=0)
+    predictionHorizonDays: int | None = Field(default=None, ge=1)
+
+
+class FrontendOverview(ContractModel):
+    summary: FrontendOverviewSummary = Field(default_factory=FrontendOverviewSummary)
+    priorityVulnerabilities: list[dict] = Field(default_factory=list)
+    generatedAt: datetime
+    source: Literal["live"] = "live"
+
+
+class FrontendVulnerabilityDetail(ContractModel):
+    vulnerability: dict
+    source: Literal["live"] = "live"
+
+
 class FrontendAssets(ContractModel):
     assets: list[dict] = Field(default_factory=list)
     matches: list[dict] = Field(default_factory=list)
