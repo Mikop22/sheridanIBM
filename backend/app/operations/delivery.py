@@ -93,10 +93,56 @@ class RecordingDelivery:
 
 
 def adf(text: str) -> dict[str, object]:
+    blocks: list[dict[str, object]] = []
+    bullets: list[dict[str, object]] = []
+
+    def flush_bullets() -> None:
+        nonlocal bullets
+        if bullets:
+            blocks.append({"type": "bulletList", "content": bullets})
+            bullets = []
+
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        if not line:
+            flush_bullets()
+            continue
+        if line.startswith("## "):
+            flush_bullets()
+            blocks.append(
+                {
+                    "type": "heading",
+                    "attrs": {"level": 3},
+                    "content": [{"type": "text", "text": line[3:].strip()}],
+                }
+            )
+        elif line.startswith("- "):
+            bullets.append(
+                {
+                    "type": "listItem",
+                    "content": [
+                        {
+                            "type": "paragraph",
+                            "content": [{"type": "text", "text": line[2:].strip()}],
+                        }
+                    ],
+                }
+            )
+        else:
+            flush_bullets()
+            blocks.append(
+                {
+                    "type": "paragraph",
+                    "content": [{"type": "text", "text": line}],
+                }
+            )
+    flush_bullets()
+    if not blocks:
+        blocks = [{"type": "paragraph", "content": [{"type": "text", "text": text}]}]
     return {
         "type": "doc",
         "version": 1,
-        "content": [{"type": "paragraph", "content": [{"type": "text", "text": text}]}],
+        "content": blocks,
     }
 
 

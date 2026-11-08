@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import html
 import json
 from dataclasses import dataclass
 from pathlib import Path
@@ -23,6 +24,7 @@ class RankingRow:
     snapshot_month: str
     ranking_score: float
     rank: int
+    description: str | None = None
 
     @property
     def population_percentile(self) -> float:
@@ -51,6 +53,11 @@ class RankingCatalog:
                 snapshot_month=row["snapshot_month"],
                 ranking_score=float(row["score_v1_ensemble"]),
                 rank=index,
+                description=(
+                    html.unescape(str(row["description"])).replace("\xa0", " ").strip()
+                    if row.get("description")
+                    else None
+                ),
             )
             for index, row in enumerate(rows, start=1)
         ]

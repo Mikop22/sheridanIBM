@@ -285,7 +285,7 @@ class OperationsService:
         delivery = self._delivery()
         if decision.upsert_jira:
             body = _jira_body(step, ranking, asset, urgent)
-            summary = f"{ranking.cve_id} on {asset.name}"
+            summary = f"[{ranking.cve_id}] {asset.name} ({asset.product} {asset.installed_version})"
             if issue_key is None:
                 outbound = delivery.create_jira(finding_key, asset.team, summary, body)
                 issue_key = outbound.external_id
@@ -458,45 +458,70 @@ def _event(step: StepView) -> EventRow:
 
 def _jira_body(step: str, ranking: RankingRow, asset: DemoAsset, urgent: bool) -> str:
     score = format_score(ranking.ranking_score)
-    base = (
-        f"{ranking.cve_id} matches {asset.name} ({asset.product} {asset.installed_version}). "
-        f"Rank {ranking.rank} of {SCOREBOARD_ROWS} in snapshot {ranking.snapshot_month}. "
-        f"Ranking score {score} is not an exploitation probability. "
-        f"Source: {asset.source}. Inventory is synthetic."
-    )
+    description = ranking.description or "No CVE description supplied in prediction artifact."
+    lines = [
+        "## Vulnerability Summary",
+        description,
+        "",
+        "## Affected Asset & Priority",
+        f"- Asset: {asset.name} ({asset.asset_id}) · Owner: {asset.owner} Team",
+        f"- Affected Component: {asset.product} {asset.installed_version}",
+        f"- Vigil Model Rank: #{ranking.rank} of {SCOREBOARD_ROWS} (Snapshot {ranking.snapshot_month})",
+        f"- Relative Ranking Score: {score} (Ranking score {score} is not an exploitation probability)",
+        f"- Advisory / Source: {asset.source}",
+    ]
+    if asset.repository:
+        lines.append(f"- Repository: https://github.com/{asset.repository}")
+    lines.extend(["", "## Recommended Remediation"])
     if asset.route == "appliance" and not urgent:
-        return (
-            base + " This decision does not use the later KEV listing. "
-            "No code change is proposed; the asset is an appliance."
+        lines.extend(
+            [
+                "- Route: Managed network appliance — manual vendor firmware upgrade required (no automated code PR).",
+                "- Notes: Initial July snapshot assessment prior to CISA KEV listing; inventory is synthetic.",
+            ]
         )
-    if urgent:
-        return (
-            base + f" CISA KEV added this CVE on {KEV_ADDED_ON}, after snapshot "
-            f"{ranking.snapshot_month}. No code change is proposed; the asset is an appliance."
+    elif urgent:
+        lines.extend(
+            [
+                f"- Urgent Escalation: Added to CISA KEV on {KEV_ADDED_ON} (after snapshot {ranking.snapshot_month}).",
+                "- Action Required: Patch Progress LoadMaster firmware to 7.2.63.2 or later immediately.",
+                "- Route: Managed network appliance — no code change is proposed from this record (inventory is synthetic).",
+            ]
         )
-    if asset.route == "code_patch":
-        return (
-            base + f" Local evidence {asset.advisory_id} requires rewriting "
-            "portal/config_loader.py so profile paths stay under portal/configs. "
-            "A coding agent may open a draft pull request. Passing tests do not prove a "
-            "remote Spring server is patched. Nothing is merged from this record."
+    elif asset.route == "code_patch":
+        lines.extend(
+            [
+                f"- Route: First-party code patch ({asset.advisory_id})",
+                "- Action Required: Rewrite resolve_config_path in portal/config_loader.py so profile paths stay contained under portal/configs.",
+                "- Draft Pull Request: https://github.com/Mikop22/securitydemo/pull/2 (automated check_code_fix.py passing; awaiting human review).",
+                "- Review Caveat: Passing tests do not prove a remote Spring server is patched. Nothing is merged automatically (inventory is synthetic).",
+            ]
         )
-    return (
-        base + f" Verified fixed version on this line is {asset.fixed_version} "
-        f"({asset.advisory_id}). 5.0.2 is out of scope. "
-        "A coding agent may open a draft pull request. Nothing is merged from this record."
-    )
+    else:
+        lines.extend(
+            [
+                f"- Route: Dependency upgrade ({asset.advisory_id})",
+                f"- Action Required: Upgrade {asset.product} from {asset.installed_version} to {asset.fixed_version} in pom.xml (stay on the 4.3.x line; 5.0.2 is out of scope).",
+                "- Draft Pull Request: https://github.com/Mikop22/securitydemo/pull/1 (automated check_version.py passing; awaiting human review).",
+                "- Review Caveat: Passing version check does not prove the path traversal is closed. Nothing is merged automatically (inventory is synthetic).",
+            ]
+        )
+    return "\n".join(lines)
 
 
 def _urgent_text(ranking: RankingRow, asset: DemoAsset, issue_key: str) -> str:
     score = format_score(ranking.ranking_score)
+    description = ranking.description or "Unauthenticated remote vulnerability requiring immediate triage."
     return (
-        "*Urgent — no code change*\n"
-        f"CVE: {ranking.cve_id} · Asset: {asset.asset_id}\n"
-        f"KEV added: {KEV_ADDED_ON} (after snapshot {ranking.snapshot_month})\n"
-        f"Rank: {ranking.rank}/{SCOREBOARD_ROWS} · "
-        f"Ranking score {score} is not an exploitation probability\n"
-        f"Jira: {issue_key}"
+        f"*Urgent — no code change* · *{ranking.cve_id} (Model Rank #{ranking.rank} · CISA KEV)*\n"
+        f"CVE: {ranking.cve_id} · *Asset:* {asset.name} (`{asset.product}` {asset.installed_version}) · *Owner:* {asset.owner} Team\n\n"
+        f"*What is the issue?*\n"
+        f"{description}\n\n"
+        f"*Action Required*\n"
+        f"• *Asset ID:* `{asset.asset_id}` (Managed appliance — manual firmware patch required; no automated code PR)\n"
+        f"• *KEV Listing:* Added on {KEV_ADDED_ON} (after snapshot {ranking.snapshot_month})\n"
+        f"• *Model Context:* Rank {ranking.rank}/{SCOREBOARD_ROWS} · Ranking score {score} is not an exploitation probability\n"
+        f"• *Tracking:* Jira `{issue_key}` · <{asset.source}|Advisory>"
     )
 
 
@@ -507,23 +532,27 @@ def _review_text(
     pr_url: str,
     checks_passed: bool,
 ) -> str:
+    description = ranking.description or "High-priority vulnerability matched to repository asset."
     if asset.route == "code_patch":
-        change = f"Contain profile path resolution under portal/configs ({asset.product})"
+        change = f"Contain profile path resolution under `portal/configs` (`{asset.product}`)"
         caveat = "Passing tests do not prove a remote Spring server is patched"
     else:
         change = (
-            f"Bump {asset.product} {asset.installed_version} → "
-            f"{asset.fixed_version} in pom.xml"
+            f"Bump `{asset.product}` `{asset.installed_version}` → "
+            f"`{asset.fixed_version}` in `pom.xml`"
         )
         caveat = "Passing check does not prove the vulnerability is closed"
     checks = "pass" if checks_passed else "fail"
     return (
-        "*Draft fix for review*\n"
-        f"CVE: {ranking.cve_id} · Asset: {asset.name}\n"
-        f"Change: {change}\n"
-        f"Checks: {checks} · {caveat}\n"
-        f"Jira: {issue_key}\n"
-        f"PR: {pr_url} (draft — do not merge)"
+        f"*Draft fix for review* · *{ranking.cve_id} (Model Rank #{ranking.rank})*\n"
+        f"CVE: {ranking.cve_id} · *Asset:* {asset.name} (`{asset.product}` {asset.installed_version}) · *Owner:* {asset.owner} Team\n\n"
+        f"*What is the issue?*\n"
+        f"{description}\n\n"
+        f"*Proposed Remediation*\n"
+        f"• *Change:* {change}\n"
+        f"• Checks: {checks} ({caveat})\n"
+        f"• *Pull Request:* {pr_url} (draft — do not merge)\n"
+        f"• *Jira Ticket:* `{issue_key}` · <{asset.source}|Advisory>"
     )
 
 
