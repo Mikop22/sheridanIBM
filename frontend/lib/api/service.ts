@@ -49,7 +49,7 @@ function hiddenMockToContract(item: (typeof mockHiddenThreats)[number]): Vulnera
     rankingScore: null,
     rankingScoreKind: "relative",
     traditionalRank: item.traditionalRank,
-    predictedRisk: item.predictedRisk === "Unknown" ? null : item.predictedRisk,
+    predictedRisk: item.predictedRisk,
     evidenceIndicators: item.signals.map((signal, index) => ({
       key: `signal-${index + 1}`,
       label: signal.label,

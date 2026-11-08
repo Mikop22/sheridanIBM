@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "SignalZero | Vulnerability Intelligence",
+  title: "Vigil | Vulnerability Intelligence",
   description: "Cybersecurity vulnerability prediction and prioritization command center.",
   icons: { icon: "/favicon.svg", shortcut: "/favicon.svg" },
 };

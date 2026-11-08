@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import hashlib
+import html
 import io
 import json
 import math
@@ -217,7 +218,7 @@ def _optional_description(raw: Any, index: int) -> str | None:
         return None
     if isinstance(raw, bool) or not isinstance(raw, (str, int, float)):
         raise PredictionArtifactError(f"prediction row {index} has an invalid description value")
-    text = str(raw).strip()
+    text = html.unescape(str(raw)).replace("\xa0", " ").strip()
     return text or None
 
 
