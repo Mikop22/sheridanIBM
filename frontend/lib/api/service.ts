@@ -48,7 +48,13 @@ export async function getVulnerability(cveId: string): Promise<VulnerabilityDeta
 }
 
 export async function getReplay(month: string): Promise<HistoricalReplay> {
-  if (getApiMode() === "live") return fetchValidated(`/api/replay?month=${encodeURIComponent(month)}`, historicalReplaySchema);
+  if (getApiMode() === "live") {
+    throw new SignalZeroApiError(
+      "Historical replay is unavailable until a validated export is connected.",
+      501,
+      "replay_unavailable",
+    );
+  }
   const snapshot = createMockSnapshot(month);
   return historicalReplaySchema.parse({ month: snapshot.month, predictionSnapshot: { capturedAt: snapshot.predictionCutoff, featureCutoff: snapshot.predictionCutoff }, rankings: snapshot.vulnerabilities.map((item) => ({ rank: item.modelRank, predictedRisk: item.predictedRisk, vulnerability: { cveId: item.id, description: item.description, snapshotMonth: snapshot.month, cvss: item.cvss, epss: item.epss, modelRank: item.modelRank, rankingScore: null, rankingScoreKind: "unknown", traditionalRank: null, predictedRisk: item.predictedRisk, evidenceIndicators: item.signals.map((signal, index) => ({ key: `signal-${index + 1}`, label: signal.label, value: signal.value, status: "present", observedAt: snapshot.predictionCutoff, source: "simulated", explanation: signal.detail })), affectedAsset: null, detectedAt: null } })), baselines: snapshot.metrics, evaluationCutoff: snapshot.evaluationCutoff, laterOutcomes: snapshot.vulnerabilities.map((item) => ({ cveId: item.id, status: item.outcome === "missing" ? "unknown" : item.outcome, kevAddedAt: item.kevAddedDate, observedByCutoff: item.outcome !== "missing" })), source: "demo" });
 }

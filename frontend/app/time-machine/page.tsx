@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { AlertCircle, ArrowRight, Check, ChevronRight, CircleHelp, Clock3, Eye, EyeOff, LoaderCircle, RotateCcw, ShieldAlert, X } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
+import { isDemoMode } from "@/lib/api/config";
 import { fetchHistoricalSnapshot } from "@/lib/api/time-machine";
 import { supportedReplayMonths } from "@/lib/config/replay";
 import type { HistoricalSnapshot, HistoricalVulnerability, RiskLevel } from "@/lib/types/time-machine";
@@ -41,20 +42,36 @@ function LoadingState() {
   return <div className="mt-6 grid min-h-[360px] place-items-center border border-[#e0e0e0] bg-white"><div className="text-center"><LoaderCircle className="mx-auto animate-spin text-[#0f62fe]"/><p className="mt-3 text-sm text-[#525252]">Loading historical snapshot…</p><p className="mt-1 text-xs text-[#6f6f6f]">Reconstructing signals available at the selected cutoff</p></div></div>;
 }
 
+function LiveUnavailableState() {
+  return (
+    <div className="mt-6 grid min-h-[360px] place-items-center border border-[#e0e0e0] bg-white p-6 text-center">
+      <div>
+        <ShieldAlert className="mx-auto text-[#6f6f6f]" />
+        <p className="mt-3 font-medium">Historical replay unavailable</p>
+        <p className="mt-2 max-w-lg text-sm leading-6 text-[#525252]">
+          Live mode does not expose Time Machine until a validated historical export is connected. Demo mode still supports mock replay.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export default function TimeMachinePage() {
+  const demo = isDemoMode();
   const [month, setMonth] = useState("2025-12");
   const [snapshot, setSnapshot] = useState<HistoricalSnapshot | null>(null);
   const [selected, setSelected] = useState<HistoricalVulnerability | null>(null);
   const [revealed, setRevealed] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(demo);
   const [error, setError] = useState<string | null>(null);
   const [requestKey, setRequestKey] = useState(0);
 
   useEffect(() => {
+    if (!demo) return;
     let cancelled = false;
     fetchHistoricalSnapshot(month).then((data) => { if (!cancelled) setSnapshot(data); }).catch((cause) => { if (!cancelled) setError(cause instanceof Error ? cause.message : "The historical snapshot could not be loaded."); }).finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [month, requestKey]);
+  }, [demo, month, requestKey]);
 
   function changeMonth(nextMonth: string) {
     setMonth(nextMonth);
@@ -68,6 +85,19 @@ export default function TimeMachinePage() {
     setLoading(true);
     setError(null);
     setRequestKey((value) => value + 1);
+  }
+
+  if (!demo) {
+    return (
+      <AppShell title="Vulnerability Time Machine" subtitle="Historical prediction replay · Temporal evaluation" breadcrumb="Time Machine">
+        <section>
+          <div className="mb-4 inline-flex items-center gap-2 bg-[#edf5ff] px-3 py-1.5 text-xs text-[#0043ce]"><Clock3 size={14}/>Historical replay</div>
+          <h1 className="max-w-3xl text-3xl font-light tracking-tight sm:text-5xl">Travel back. Rank threats <span className="text-[#0f62fe]">before they break.</span></h1>
+          <p className="mt-4 max-w-2xl text-sm leading-6 text-[#525252]">Historical prediction replay is reserved for validated out-of-sample exports. It is not available in live API mode yet.</p>
+        </section>
+        <LiveUnavailableState />
+      </AppShell>
+    );
   }
 
   return <AppShell title="Vulnerability Time Machine" subtitle="Historical prediction replay · Temporal evaluation" breadcrumb="Time Machine">
