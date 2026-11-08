@@ -14,6 +14,7 @@ build/
 
 # Dependencies
 /node_modules/
+/frontend/node_modules/
 /.pnp
 .pnp.*
 # Keep authored Yarn tooling if the project adopts Yarn.
@@ -28,12 +29,20 @@ build/
 /.output/
 /.next/
 /.vinext/
+/.vite/
 /out/
+/frontend/dist/
+/frontend/.output/
+/frontend/.next/
+/frontend/.vinext/
+/frontend/.vite/
+/frontend/out/
 next-env.d.ts
 *.tsbuildinfo
 
 # Test output
 /coverage/
+/frontend/coverage/
 
 # Package-manager logs
 npm-debug.log*
@@ -50,14 +59,19 @@ yarn-error.log*
 # Checkout-local tool state
 /.wrangler/
 /.sites-runtime/
+/frontend/.wrangler/
+/frontend/.sites-runtime/
 
 # Workspace scaffolding and publication archives
 /.agents/
 /.codex/
 /outputs/
 /work/
+/frontend/outputs/
+/frontend/work/
 
 # OS metadata
 .DS_Store
 
 .vercel
+/frontend/.vercel/

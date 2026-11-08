@@ -4,7 +4,15 @@
 
 This repository area owns backend contracts, grounded explanations, future IBM
 Granite integration, security-event automation, and embedding feature adapters.
-Do not modify Member 1's model/training code or build Member 2's frontend.
+The integrated Member 2 application is isolated under `frontend/`; keep backend
+changes under `backend/` unless a contract or shared configuration must change.
+Do not modify Member 1's model/training code or redesign Member 2's frontend.
+
+## Repository layout
+
+- `frontend/` contains the Next.js/Vinext application and its npm configuration.
+- `backend/` contains FastAPI, contracts, services, repositories, and tests.
+- `docs/` contains integration handoffs and workflow documentation.
 
 ## Commands
 
@@ -15,6 +23,13 @@ Run from `backend/`:
 - Test: `python -m pytest`
 - Lint: `ruff check .`
 - Export contracts: `python scripts/export_schemas.py`
+
+Run frontend commands from `frontend/`:
+
+- Install: `npm ci`
+- Start: `npm run dev -- --port 3000`
+- Lint: `npm run lint`
+- Build: `npm run build`
 
 ## Contract conventions
 
