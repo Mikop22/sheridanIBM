@@ -151,11 +151,12 @@ function ThreatDetails({
                 Model rank vs traditional CVSS
               </p>
               <p className="mt-2 text-sm leading-6 text-[#161616]">
-                Vigil model rank: <span className="font-medium">#{threat.modelRank}</span>
-                {threat.rankingScore !== null ? ` · relative score ${threat.rankingScore}` : ""}.
+                Vigil ranks this <span className="font-medium">#{threat.modelRank}</span>
+                {threat.rankingScore !== null ? ` (score ${threat.rankingScore})` : ""} from threat
+                intelligence and asset context.{" "}
                 {threat.cvss === null
-                  ? " Traditional CVSS is not in this prediction artifact yet — Vigil still surfaces the finding from ranked evidence and inventory context."
-                  : ` Traditional CVSS is ${threat.cvss.toFixed(1)}; Vigil ranking is an independent prioritization signal, not a replacement CVSS score.`}
+                  ? "CVSS score is not yet published."
+                  : `Traditional CVSS is ${threat.cvss.toFixed(1)}.`}
               </p>
             </div>
           )}

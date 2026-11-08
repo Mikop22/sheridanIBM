@@ -481,15 +481,16 @@ export default function AlertsPage() {
       <section className="glass-stats grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {(
           [
-            ["Active workflows", stats.total],
-            ["Needs attention", stats.open],
-            ["Slack delivered", stats.delivered],
-            ["Delivery issues", stats.failed],
+            ["Active workflows", stats.total, "Tracked CVE + asset remediations"],
+            ["Needs attention", stats.open, "Open or awaiting human review"],
+            ["Slack delivered", stats.delivered, "Channel alerts posted"],
+            ["Delivery issues", stats.failed, "Failed Slack or Jira deliveries"],
           ] as const
-        ).map(([label, value]) => (
+        ).map(([label, value, detail]) => (
           <div key={label} className="glass-stat p-5">
             <p className="text-sm text-[#525252]">{label}</p>
             <p className="mt-5 text-4xl font-light">{value}</p>
+            <p className="mt-2 text-xs text-[#6f6f6f]">{detail}</p>
           </div>
         ))}
       </section>
@@ -505,10 +506,10 @@ export default function AlertsPage() {
               onChange={(event) => setPriority(event.target.value)}
               className="h-10 border-b-2 border-[#8d8d8d] bg-[#f4f4f4] px-3 text-sm"
             >
-              <option>All</option>
-              <option>Critical</option>
-              <option>High</option>
-              <option>Medium</option>
+              <option value="All">Priority: All</option>
+              <option value="Critical">Priority: Critical</option>
+              <option value="High">Priority: High</option>
+              <option value="Medium">Priority: Medium</option>
             </select>
             <select
               aria-label="Filter by lifecycle"
@@ -516,11 +517,11 @@ export default function AlertsPage() {
               onChange={(event) => setLifecycle(event.target.value)}
               className="h-10 border-b-2 border-[#8d8d8d] bg-[#f4f4f4] px-3 text-sm"
             >
-              <option>All</option>
-              <option>Open</option>
-              <option>Investigating</option>
-              <option>Resolved</option>
-              <option>Suppressed</option>
+              <option value="All">Lifecycle: All</option>
+              <option value="Open">Lifecycle: Open</option>
+              <option value="Investigating">Lifecycle: Investigating</option>
+              <option value="Resolved">Lifecycle: Resolved</option>
+              <option value="Suppressed">Lifecycle: Suppressed</option>
             </select>
             <select
               aria-label="Filter by Slack delivery"
@@ -528,11 +529,11 @@ export default function AlertsPage() {
               onChange={(event) => setDelivery(event.target.value)}
               className="h-10 border-b-2 border-[#8d8d8d] bg-[#f4f4f4] px-3 text-sm"
             >
-              <option>All</option>
-              <option>Delivered</option>
-              <option>Failed</option>
-              <option>Pending</option>
-              <option>Not attempted</option>
+              <option value="All">Slack: All</option>
+              <option value="Delivered">Slack: Delivered</option>
+              <option value="Failed">Slack: Failed</option>
+              <option value="Pending">Slack: Pending</option>
+              <option value="Not attempted">Slack: Not attempted</option>
             </select>
           </div>
         </div>
