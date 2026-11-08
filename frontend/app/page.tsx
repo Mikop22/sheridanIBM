@@ -11,11 +11,20 @@ import {
   Wrench,
 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
+import { Hint } from "@/components/hint";
 import { isDemoMode } from "@/lib/api/config";
 import { fetchAlertActivity } from "@/lib/api/alerts";
 import { fetchVulnerabilityOverview } from "@/lib/api/vulnerabilities";
 import type { VulnerabilityAlert } from "@/lib/types/alert";
 import type { OverviewSummary, Vulnerability } from "@/lib/types/vulnerability";
+
+function isIntentionalTestCase(alert: VulnerabilityAlert) {
+  return (
+    alert.assetName === "Unknown asset" ||
+    alert.assetId.includes("does-not-exist") ||
+    alert.cveId.startsWith("CVE-X")
+  );
+}
 
 const formatTime = (value: string) =>
   new Intl.DateTimeFormat("en-CA", {
@@ -231,7 +240,15 @@ export default function Home() {
                           </p>
                         </td>
                         <td className="px-4 py-4 align-top">
-                          <p className="text-sm">{item.asset ?? "Not in inventory"}</p>
+                          {item.asset ? (
+                            <p className="text-sm">{item.asset}</p>
+                          ) : (
+                            <p className="text-sm text-[#525252]">
+                              <Hint label="This CVE is in the ranked prediction set, but it is not correlated to a company asset in the demo inventory yet.">
+                                Not in inventory
+                              </Hint>
+                            </p>
+                          )}
                           {item.service && (
                             <p className="mt-0.5 text-xs text-[#6f6f6f]">{item.service}</p>
                           )}
@@ -264,7 +281,10 @@ export default function Home() {
                 </a>
               </div>
               <div className="divide-y divide-[#e0e0e0]">
-                {alerts.slice(0, 5).map((alert) => (
+                {alerts
+                  .filter((alert) => !isIntentionalTestCase(alert))
+                  .slice(0, 5)
+                  .map((alert) => (
                   <a key={alert.id} href="/alerts" className="block p-5 hover:bg-[#f4f4f4]">
                     <div className="flex justify-between gap-3">
                       <p className="font-mono text-xs font-semibold text-[#0f62fe]">{alert.cveId}</p>
@@ -290,7 +310,7 @@ export default function Home() {
                     )}
                   </a>
                 ))}
-                {alerts.length === 0 && (
+                {alerts.filter((alert) => !isIntentionalTestCase(alert)).length === 0 && (
                   <p className="p-8 text-center text-sm text-[#525252]">
                     No remediation activity is available.
                   </p>

@@ -451,11 +451,24 @@ def _jira_external_url(base_url: str, external_id: str | None) -> str | None:
     return f"{base}/browse/{external_id}"
 
 
+def _slack_external_url(channel_id: str | None, message_ts: str | None) -> str | None:
+    """Build an app.slack.com archive permalink from channel + message ts."""
+    channel = (channel_id or "").strip()
+    ts = (message_ts or "").strip()
+    if not channel or not ts:
+        return None
+    compact = ts.replace(".", "")
+    if not compact.isdigit():
+        return None
+    return f"https://app.slack.com/archives/{channel}/p{compact}"
+
+
 def _integration_from_deliveries(
     *,
     provider: Literal["slack", "jira"],
     deliveries: list[DeliveryRow],
     jira_base_url: str,
+    slack_channel_id: str = "",
 ) -> FrontendIntegrationDelivery:
     if not deliveries:
         return FrontendIntegrationDelivery(
@@ -491,6 +504,8 @@ def _integration_from_deliveries(
     external_url = None
     if provider == "jira":
         external_url = _jira_external_url(jira_base_url, external_id)
+    elif provider == "slack" and latest.delivered:
+        external_url = _slack_external_url(slack_channel_id, external_id)
     return FrontendIntegrationDelivery(
         provider=provider,
         status=status,
@@ -511,6 +526,7 @@ def _frontend_alert(
     job: JobRow | None = None,
     pr_info: dict[str, Any] | None = None,
     jira_base_url: str,
+    slack_channel_id: str = "",
     now_iso: str,
     simulated: bool,
 ) -> FrontendAlert:
@@ -606,6 +622,7 @@ def _frontend_alert(
             provider="slack",
             deliveries=slack_rows,
             jira_base_url=jira_base_url,
+            slack_channel_id=slack_channel_id,
         ),
         jiraDelivery=_integration_from_deliveries(
             provider="jira",
@@ -728,6 +745,7 @@ def frontend_alerts(operations: OperationsDependency) -> FrontendAlerts:
                 job=job,
                 pr_info=pr_info,
                 jira_base_url=jira_base_url,
+                slack_channel_id=operations.settings.slack_channel_id,
                 now_iso=now_iso,
                 simulated=simulated,
             )

@@ -14,6 +14,7 @@ import {
   X,
 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
+import { Hint } from "@/components/hint";
 import { isDemoMode } from "@/lib/api/config";
 import { fetchAlertActivity } from "@/lib/api/alerts";
 import { fetchHiddenThreats } from "@/lib/api/hidden-threats";
@@ -144,6 +145,20 @@ function ThreatDetails({
             </span>
           ) : null}
           <p className="mt-5 text-xl font-light leading-8">{threat.description}</p>
+          {threat.modelRank !== null && (
+            <div className="mt-5 border border-[#e0e0e0] bg-[#f4f4f4] p-4">
+              <p className="text-xs font-semibold uppercase tracking-[.08em] text-[#525252]">
+                Model rank vs traditional CVSS
+              </p>
+              <p className="mt-2 text-sm leading-6 text-[#161616]">
+                Vigil model rank: <span className="font-medium">#{threat.modelRank}</span>
+                {threat.rankingScore !== null ? ` · relative score ${threat.rankingScore}` : ""}.
+                {threat.cvss === null
+                  ? " Traditional CVSS is not in this prediction artifact yet — Vigil still surfaces the finding from ranked evidence and inventory context."
+                  : ` Traditional CVSS is ${threat.cvss.toFixed(1)}; Vigil ranking is an independent prioritization signal, not a replacement CVSS score.`}
+              </p>
+            </div>
+          )}
           {rankedHigher && (
             <div className="mt-5 flex gap-3 border border-[#a6c8ff] bg-[#edf5ff] p-4">
               <CheckCircle2 className="mt-0.5 shrink-0 text-[#0f62fe]" size={18} />
@@ -180,7 +195,9 @@ function ThreatDetails({
               </div>
             </>
           )}
-          {(alert?.prUrl || isValidExternalUrl(alert?.jiraUrl ?? null)) && (
+          {(alert?.prUrl ||
+            isValidExternalUrl(alert?.jiraUrl ?? null) ||
+            isValidExternalUrl(alert?.slackDelivery?.externalUrl ?? null)) && (
             <>
               <h3 className="mt-8 text-xs font-semibold uppercase tracking-[.08em] text-[#525252]">
                 Remediation links
@@ -212,10 +229,35 @@ function ThreatDetails({
                     <ExternalLink size={14} />
                   </a>
                 )}
+                {alert && isValidExternalUrl(alert.slackDelivery?.externalUrl ?? null) && (
+                  <a
+                    href={alert.slackDelivery?.externalUrl ?? undefined}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-2 text-sm text-[#0f62fe] hover:underline"
+                  >
+                    Open Slack notification
+                    <ExternalLink size={14} />
+                  </a>
+                )}
               </div>
             </>
           )}
-          {!alert && (
+          {alert ? (
+            <a
+              href="/alerts"
+              className="mt-8 inline-flex h-11 items-center bg-[#0f62fe] px-5 text-sm font-medium text-white hover:bg-[#0043ce]"
+            >
+              Open remediation workflow
+            </a>
+          ) : threat.affectedProduct ? (
+            <a
+              href="/alerts"
+              className="mt-8 inline-flex h-11 items-center border border-[#0f62fe] px-5 text-sm font-medium text-[#0f62fe] hover:bg-[#edf5ff]"
+            >
+              Triage now in Remediation Center
+            </a>
+          ) : (
             <p className="mt-8 text-sm leading-6 text-[#525252]">
               Not matched to an inventory asset yet — no remediation workflow has been opened for
               this CVE.
@@ -409,12 +451,43 @@ export default function HiddenThreatsPage() {
                         )}
                       </td>
                       <td className="px-4 py-4 text-sm">
-                        <p>{item.affectedProduct ?? "Not in inventory"}</p>
+                        {item.affectedProduct ? (
+                          <p>{item.affectedProduct}</p>
+                        ) : (
+                          <Hint label="Ranked by the model, but not yet correlated to a company asset in the demo inventory.">
+                            Not in inventory
+                          </Hint>
+                        )}
                         {item.affectedService && (
                           <p className="mt-0.5 text-xs text-[#6f6f6f]">{item.affectedService}</p>
                         )}
                       </td>
-                      <td className="px-4 py-4 text-sm">{alert?.lifecycle ?? "Watchlist"}</td>
+                      <td className="px-4 py-4 text-sm">
+                        {alert ? (
+                          <div className="space-y-2">
+                            <p>{alert.lifecycle}</p>
+                            <a
+                              href="/alerts"
+                              onClick={(event) => event.stopPropagation()}
+                              className="inline-flex text-xs font-medium text-[#0f62fe] hover:underline"
+                            >
+                              Open remediation
+                            </a>
+                          </div>
+                        ) : item.affectedProduct ? (
+                          <a
+                            href="/alerts"
+                            onClick={(event) => event.stopPropagation()}
+                            className="inline-flex text-xs font-medium text-[#0f62fe] hover:underline"
+                          >
+                            Triage now
+                          </a>
+                        ) : (
+                          <Hint label="No inventory match yet, so Vigil keeps this on the watchlist instead of opening Slack/Jira/PR workflows.">
+                            Watchlist
+                          </Hint>
+                        )}
+                      </td>
                       <td className="px-4 py-4">
                         <ChevronRight size={18} className="text-[#6f6f6f]" />
                       </td>
