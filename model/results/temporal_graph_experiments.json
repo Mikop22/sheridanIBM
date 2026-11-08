@@ -1,0 +1,2119 @@
+{
+  "protocol": {
+    "tier": "Tier A numeric columns plus causal txt_temp_tfidf_prob. Raw assigner id is not a categorical feature.",
+    "train_2025_eval": "published in 2024",
+    "test_2025_eval": "published in 2025, features frozen at snapshot_month",
+    "vocab_selection": "fit 2024-01..2024-08, choose vocabulary on 2024-09..2024-12 by hits@25 then PR-AUC, seed 0",
+    "seeds": [
+      0,
+      1,
+      2
+    ],
+    "stable_hit": "positive CVE in the top 25 for at least 2 of 3 seeds",
+    "smoothing": 20.0,
+    "high_df_fraction": 0.02,
+    "half_life_months": 12.0,
+    "selected_vocabulary": "closed",
+    "selected_beats_2024h2_baseline_by_1_hit": false,
+    "positives": {
+      "2024_h1": 39,
+      "2024_h2": 28,
+      "2025": 55
+    }
+  },
+  "experiment_1_coverage": {
+    "2024": {
+      "closed": {
+        "positives": {
+          "rows": 67,
+          "matched": 37,
+          "matched_frac": 0.5522,
+          "matched_with_prior_kev": 36
+        },
+        "negatives": {
+          "rows": 39801,
+          "matched": 8972,
+          "matched_frac": 0.2254
+        },
+        "positive_slices": {
+          "other": {
+            "rows": 26,
+            "matched": 13,
+            "matched_frac": 0.5
+          },
+          "vdb": {
+            "rows": 7,
+            "matched": 1,
+            "matched_frac": 0.1429
+          },
+          "enterprise": {
+            "rows": 25,
+            "matched": 20,
+            "matched_frac": 0.8
+          },
+          "mitre": {
+            "rows": 9,
+            "matched": 3,
+            "matched_frac": 0.3333
+          }
+        },
+        "positive_slices_prior_kev": {
+          "enterprise": {
+            "matched": 20,
+            "matched_with_prior_kev": 20,
+            "rows": 25
+          },
+          "mitre": {
+            "matched": 3,
+            "matched_with_prior_kev": 3,
+            "rows": 9
+          },
+          "other": {
+            "matched": 13,
+            "matched_with_prior_kev": 12,
+            "rows": 26
+          },
+          "vdb": {
+            "matched": 1,
+            "matched_with_prior_kev": 1,
+            "rows": 7
+          }
+        }
+      },
+      "open2": {
+        "positives": {
+          "rows": 67,
+          "matched": 65,
+          "matched_frac": 0.9701,
+          "matched_with_prior_kev": 59
+        },
+        "negatives": {
+          "rows": 39801,
+          "matched": 37754,
+          "matched_frac": 0.9486
+        },
+        "positive_slices": {
+          "other": {
+            "rows": 26,
+            "matched": 24,
+            "matched_frac": 0.9231
+          },
+          "vdb": {
+            "rows": 7,
+            "matched": 7,
+            "matched_frac": 1.0
+          },
+          "enterprise": {
+            "rows": 25,
+            "matched": 25,
+            "matched_frac": 1.0
+          },
+          "mitre": {
+            "rows": 9,
+            "matched": 9,
+            "matched_frac": 1.0
+          }
+        },
+        "positive_slices_prior_kev": {
+          "enterprise": {
+            "matched": 25,
+            "matched_with_prior_kev": 24,
+            "rows": 25
+          },
+          "mitre": {
+            "matched": 9,
+            "matched_with_prior_kev": 8,
+            "rows": 9
+          },
+          "other": {
+            "matched": 24,
+            "matched_with_prior_kev": 23,
+            "rows": 26
+          },
+          "vdb": {
+            "matched": 7,
+            "matched_with_prior_kev": 4,
+            "rows": 7
+          }
+        }
+      },
+      "open5": {
+        "positives": {
+          "rows": 67,
+          "matched": 63,
+          "matched_frac": 0.9403,
+          "matched_with_prior_kev": 59
+        },
+        "negatives": {
+          "rows": 39801,
+          "matched": 37365,
+          "matched_frac": 0.9388
+        },
+        "positive_slices": {
+          "other": {
+            "rows": 26,
+            "matched": 23,
+            "matched_frac": 0.8846
+          },
+          "vdb": {
+            "rows": 7,
+            "matched": 6,
+            "matched_frac": 0.8571
+          },
+          "enterprise": {
+            "rows": 25,
+            "matched": 25,
+            "matched_frac": 1.0
+          },
+          "mitre": {
+            "rows": 9,
+            "matched": 9,
+            "matched_frac": 1.0
+          }
+        },
+        "positive_slices_prior_kev": {
+          "enterprise": {
+            "matched": 25,
+            "matched_with_prior_kev": 24,
+            "rows": 25
+          },
+          "mitre": {
+            "matched": 9,
+            "matched_with_prior_kev": 8,
+            "rows": 9
+          },
+          "other": {
+            "matched": 23,
+            "matched_with_prior_kev": 23,
+            "rows": 26
+          },
+          "vdb": {
+            "matched": 6,
+            "matched_with_prior_kev": 4,
+            "rows": 7
+          }
+        }
+      }
+    },
+    "2025": {
+      "closed": {
+        "positives": {
+          "rows": 55,
+          "matched": 17,
+          "matched_frac": 0.3091,
+          "matched_with_prior_kev": 17
+        },
+        "negatives": {
+          "rows": 42507,
+          "matched": 9053,
+          "matched_frac": 0.213
+        },
+        "positive_slices": {
+          "enterprise": {
+            "rows": 11,
+            "matched": 7,
+            "matched_frac": 0.6364
+          },
+          "other": {
+            "rows": 21,
+            "matched": 8,
+            "matched_frac": 0.381
+          },
+          "mitre": {
+            "rows": 11,
+            "matched": 2,
+            "matched_frac": 0.1818
+          },
+          "vdb": {
+            "rows": 12,
+            "matched": 0,
+            "matched_frac": 0.0
+          }
+        },
+        "positive_slices_prior_kev": {
+          "enterprise": {
+            "matched": 7,
+            "matched_with_prior_kev": 7,
+            "rows": 11
+          },
+          "mitre": {
+            "matched": 2,
+            "matched_with_prior_kev": 2,
+            "rows": 11
+          },
+          "other": {
+            "matched": 8,
+            "matched_with_prior_kev": 8,
+            "rows": 21
+          },
+          "vdb": {
+            "matched": 0,
+            "matched_with_prior_kev": 0,
+            "rows": 12
+          }
+        }
+      },
+      "open2": {
+        "positives": {
+          "rows": 55,
+          "matched": 52,
+          "matched_frac": 0.9455,
+          "matched_with_prior_kev": 42
+        },
+        "negatives": {
+          "rows": 42507,
+          "matched": 40532,
+          "matched_frac": 0.9535
+        },
+        "positive_slices": {
+          "enterprise": {
+            "rows": 11,
+            "matched": 11,
+            "matched_frac": 1.0
+          },
+          "other": {
+            "rows": 21,
+            "matched": 21,
+            "matched_frac": 1.0
+          },
+          "mitre": {
+            "rows": 11,
+            "matched": 8,
+            "matched_frac": 0.7273
+          },
+          "vdb": {
+            "rows": 12,
+            "matched": 12,
+            "matched_frac": 1.0
+          }
+        },
+        "positive_slices_prior_kev": {
+          "enterprise": {
+            "matched": 11,
+            "matched_with_prior_kev": 10,
+            "rows": 11
+          },
+          "mitre": {
+            "matched": 8,
+            "matched_with_prior_kev": 7,
+            "rows": 11
+          },
+          "other": {
+            "matched": 21,
+            "matched_with_prior_kev": 19,
+            "rows": 21
+          },
+          "vdb": {
+            "matched": 12,
+            "matched_with_prior_kev": 6,
+            "rows": 12
+          }
+        }
+      },
+      "open5": {
+        "positives": {
+          "rows": 55,
+          "matched": 50,
+          "matched_frac": 0.9091,
+          "matched_with_prior_kev": 43
+        },
+        "negatives": {
+          "rows": 42507,
+          "matched": 40176,
+          "matched_frac": 0.9452
+        },
+        "positive_slices": {
+          "enterprise": {
+            "rows": 11,
+            "matched": 11,
+            "matched_frac": 1.0
+          },
+          "other": {
+            "rows": 21,
+            "matched": 21,
+            "matched_frac": 1.0
+          },
+          "mitre": {
+            "rows": 11,
+            "matched": 7,
+            "matched_frac": 0.6364
+          },
+          "vdb": {
+            "rows": 12,
+            "matched": 11,
+            "matched_frac": 0.9167
+          }
+        },
+        "positive_slices_prior_kev": {
+          "enterprise": {
+            "matched": 11,
+            "matched_with_prior_kev": 10,
+            "rows": 11
+          },
+          "mitre": {
+            "matched": 7,
+            "matched_with_prior_kev": 7,
+            "rows": 11
+          },
+          "other": {
+            "matched": 21,
+            "matched_with_prior_kev": 20,
+            "rows": 21
+          },
+          "vdb": {
+            "matched": 11,
+            "matched_with_prior_kev": 6,
+            "rows": 12
+          }
+        }
+      }
+    }
+  },
+  "experiment_4_recency_mass": {
+    "closed_frac_rows": 0.1593,
+    "closed_frac_positives": 0.2,
+    "open2_frac_rows": 0.1853,
+    "open2_frac_positives": 0.2364,
+    "open5_frac_rows": 0.1943,
+    "open5_frac_positives": 0.2545
+  },
+  "experiment_2_h2_selection_seed0": {
+    "baseline": {
+      "mean_pr_auc": 0.1351,
+      "mean_roc_auc": 0.9092,
+      "mean_hits@25": 7.0,
+      "mean_prec@25": 0.28,
+      "mean_hits@100": 10.0,
+      "mean_prec@100": 0.1,
+      "hits@25_by_seed": [
+        7
+      ],
+      "pr_auc_by_seed": [
+        0.1351
+      ],
+      "stable_top25_positives": [],
+      "stable_hits@25": 0,
+      "wordpress_in_top250_by_seed": [
+        1
+      ],
+      "n_train": 26331,
+      "n_train_pos": 39,
+      "n_test": 13537,
+      "n_test_pos": 28,
+      "hits@25": 7,
+      "pr_auc": 0.1351
+    },
+    "closed": {
+      "mean_pr_auc": 0.127,
+      "mean_roc_auc": 0.8998,
+      "mean_hits@25": 6.0,
+      "mean_prec@25": 0.24,
+      "mean_hits@100": 10.0,
+      "mean_prec@100": 0.1,
+      "hits@25_by_seed": [
+        6
+      ],
+      "pr_auc_by_seed": [
+        0.127
+      ],
+      "stable_top25_positives": [],
+      "stable_hits@25": 0,
+      "wordpress_in_top250_by_seed": [
+        1
+      ],
+      "n_train": 26331,
+      "n_train_pos": 39,
+      "n_test": 13537,
+      "n_test_pos": 28,
+      "hits@25": 6,
+      "pr_auc": 0.127
+    },
+    "open2": {
+      "mean_pr_auc": 0.1377,
+      "mean_roc_auc": 0.9288,
+      "mean_hits@25": 5.0,
+      "mean_prec@25": 0.2,
+      "mean_hits@100": 10.0,
+      "mean_prec@100": 0.1,
+      "hits@25_by_seed": [
+        5
+      ],
+      "pr_auc_by_seed": [
+        0.1377
+      ],
+      "stable_top25_positives": [],
+      "stable_hits@25": 0,
+      "wordpress_in_top250_by_seed": [
+        0
+      ],
+      "n_train": 26331,
+      "n_train_pos": 39,
+      "n_test": 13537,
+      "n_test_pos": 28,
+      "hits@25": 5,
+      "pr_auc": 0.1377
+    },
+    "open5": {
+      "mean_pr_auc": 0.1384,
+      "mean_roc_auc": 0.9263,
+      "mean_hits@25": 5.0,
+      "mean_prec@25": 0.2,
+      "mean_hits@100": 9.0,
+      "mean_prec@100": 0.09,
+      "hits@25_by_seed": [
+        5
+      ],
+      "pr_auc_by_seed": [
+        0.1384
+      ],
+      "stable_top25_positives": [],
+      "stable_hits@25": 0,
+      "wordpress_in_top250_by_seed": [
+        0
+      ],
+      "n_train": 26331,
+      "n_train_pos": 39,
+      "n_test": 13537,
+      "n_test_pos": 28,
+      "hits@25": 5,
+      "pr_auc": 0.1384
+    }
+  },
+  "experiment_2025": {
+    "baseline_tier_a": {
+      "mean_pr_auc": 0.0647,
+      "mean_roc_auc": 0.9138,
+      "mean_hits@25": 3.6667,
+      "mean_prec@25": 0.1467,
+      "mean_hits@100": 12.0,
+      "mean_prec@100": 0.12,
+      "hits@25_by_seed": [
+        3,
+        4,
+        4
+      ],
+      "pr_auc_by_seed": [
+        0.065,
+        0.0648,
+        0.0644
+      ],
+      "stable_top25_positives": [
+        "CVE-2025-11371",
+        "CVE-2025-20281",
+        "CVE-2025-3248",
+        "CVE-2025-5777"
+      ],
+      "stable_hits@25": 4,
+      "wordpress_in_top250_by_seed": [
+        0,
+        0,
+        0
+      ],
+      "n_train": 39868,
+      "n_train_pos": 67,
+      "n_test": 42562,
+      "n_test_pos": 55
+    },
+    "onehop_closed": {
+      "mean_pr_auc": 0.0741,
+      "mean_roc_auc": 0.9159,
+      "mean_hits@25": 6.3333,
+      "mean_prec@25": 0.2533,
+      "mean_hits@100": 11.6667,
+      "mean_prec@100": 0.1167,
+      "hits@25_by_seed": [
+        7,
+        6,
+        6
+      ],
+      "pr_auc_by_seed": [
+        0.0755,
+        0.0716,
+        0.0751
+      ],
+      "stable_top25_positives": [
+        "CVE-2025-11371",
+        "CVE-2025-20281",
+        "CVE-2025-3248",
+        "CVE-2025-34028",
+        "CVE-2025-4008",
+        "CVE-2025-5777"
+      ],
+      "stable_hits@25": 6,
+      "wordpress_in_top250_by_seed": [
+        0,
+        0,
+        0
+      ],
+      "n_train": 39868,
+      "n_train_pos": 67,
+      "n_test": 42562,
+      "n_test_pos": 55
+    },
+    "onehop_open2": {
+      "mean_pr_auc": 0.0737,
+      "mean_roc_auc": 0.9152,
+      "mean_hits@25": 5.6667,
+      "mean_prec@25": 0.2267,
+      "mean_hits@100": 12.0,
+      "mean_prec@100": 0.12,
+      "hits@25_by_seed": [
+        6,
+        6,
+        5
+      ],
+      "pr_auc_by_seed": [
+        0.0785,
+        0.0753,
+        0.0674
+      ],
+      "stable_top25_positives": [
+        "CVE-2025-2746",
+        "CVE-2025-2747",
+        "CVE-2025-3248",
+        "CVE-2025-34028",
+        "CVE-2025-5777"
+      ],
+      "stable_hits@25": 5,
+      "wordpress_in_top250_by_seed": [
+        0,
+        0,
+        0
+      ],
+      "n_train": 39868,
+      "n_train_pos": 67,
+      "n_test": 42562,
+      "n_test_pos": 55
+    },
+    "onehop_open5": {
+      "mean_pr_auc": 0.0687,
+      "mean_roc_auc": 0.9156,
+      "mean_hits@25": 3.6667,
+      "mean_prec@25": 0.1467,
+      "mean_hits@100": 12.0,
+      "mean_prec@100": 0.12,
+      "hits@25_by_seed": [
+        5,
+        3,
+        3
+      ],
+      "pr_auc_by_seed": [
+        0.0706,
+        0.0676,
+        0.068
+      ],
+      "stable_top25_positives": [
+        "CVE-2025-2746",
+        "CVE-2025-3248",
+        "CVE-2025-34028",
+        "CVE-2025-5777"
+      ],
+      "stable_hits@25": 4,
+      "wordpress_in_top250_by_seed": [
+        0,
+        0,
+        0
+      ],
+      "n_train": 39868,
+      "n_train_pos": 67,
+      "n_test": 42562,
+      "n_test_pos": 55
+    },
+    "recency": {
+      "mean_pr_auc": 0.0769,
+      "mean_roc_auc": 0.9153,
+      "mean_hits@25": 6.3333,
+      "mean_prec@25": 0.2533,
+      "mean_hits@100": 12.0,
+      "mean_prec@100": 0.12,
+      "hits@25_by_seed": [
+        7,
+        6,
+        6
+      ],
+      "pr_auc_by_seed": [
+        0.0773,
+        0.0787,
+        0.0748
+      ],
+      "stable_top25_positives": [
+        "CVE-2025-11371",
+        "CVE-2025-20281",
+        "CVE-2025-2746",
+        "CVE-2025-3248",
+        "CVE-2025-34028",
+        "CVE-2025-5777"
+      ],
+      "stable_hits@25": 6,
+      "wordpress_in_top250_by_seed": [
+        0,
+        0,
+        0
+      ],
+      "n_train": 39868,
+      "n_train_pos": 67,
+      "n_test": 42562,
+      "n_test_pos": 55
+    },
+    "sibling": {
+      "mean_pr_auc": 0.0794,
+      "mean_roc_auc": 0.9185,
+      "mean_hits@25": 7.0,
+      "mean_prec@25": 0.28,
+      "mean_hits@100": 11.6667,
+      "mean_prec@100": 0.1167,
+      "hits@25_by_seed": [
+        7,
+        8,
+        6
+      ],
+      "pr_auc_by_seed": [
+        0.0798,
+        0.0804,
+        0.078
+      ],
+      "stable_top25_positives": [
+        "CVE-2025-11371",
+        "CVE-2025-20281",
+        "CVE-2025-2746",
+        "CVE-2025-3248",
+        "CVE-2025-34028",
+        "CVE-2025-4008",
+        "CVE-2025-5777"
+      ],
+      "stable_hits@25": 7,
+      "wordpress_in_top250_by_seed": [
+        0,
+        0,
+        0
+      ],
+      "n_train": 39868,
+      "n_train_pos": 67,
+      "n_test": 42562,
+      "n_test_pos": 55
+    },
+    "within_month": {
+      "mean_pr_auc": 0.0714,
+      "mean_roc_auc": 0.9166,
+      "mean_hits@25": 6.0,
+      "mean_prec@25": 0.24,
+      "mean_hits@100": 12.3333,
+      "mean_prec@100": 0.1233,
+      "hits@25_by_seed": [
+        6,
+        6,
+        6
+      ],
+      "pr_auc_by_seed": [
+        0.0712,
+        0.0695,
+        0.0735
+      ],
+      "stable_top25_positives": [
+        "CVE-2025-11371",
+        "CVE-2025-20281",
+        "CVE-2025-2746",
+        "CVE-2025-3248",
+        "CVE-2025-34028",
+        "CVE-2025-5777"
+      ],
+      "stable_hits@25": 6,
+      "wordpress_in_top250_by_seed": [
+        0,
+        0,
+        0
+      ],
+      "n_train": 39868,
+      "n_train_pos": 67,
+      "n_test": 42562,
+      "n_test_pos": 55
+    },
+    "onehop_recency_sibling_wm": {
+      "mean_pr_auc": 0.0721,
+      "mean_roc_auc": 0.9152,
+      "mean_hits@25": 4.6667,
+      "mean_prec@25": 0.1867,
+      "mean_hits@100": 12.0,
+      "mean_prec@100": 0.12,
+      "hits@25_by_seed": [
+        5,
+        5,
+        4
+      ],
+      "pr_auc_by_seed": [
+        0.0726,
+        0.0747,
+        0.0691
+      ],
+      "stable_top25_positives": [
+        "CVE-2025-11371",
+        "CVE-2025-20281",
+        "CVE-2025-3248",
+        "CVE-2025-34028",
+        "CVE-2025-5777"
+      ],
+      "stable_hits@25": 5,
+      "wordpress_in_top250_by_seed": [
+        0,
+        0,
+        0
+      ],
+      "n_train": 39868,
+      "n_train_pos": 67,
+      "n_test": 42562,
+      "n_test_pos": 55
+    },
+    "knn": {
+      "mean_pr_auc": 0.0749,
+      "mean_roc_auc": 0.9174,
+      "mean_hits@25": 6.3333,
+      "mean_prec@25": 0.2533,
+      "mean_hits@100": 12.3333,
+      "mean_prec@100": 0.1233,
+      "hits@25_by_seed": [
+        6,
+        7,
+        6
+      ],
+      "pr_auc_by_seed": [
+        0.072,
+        0.0744,
+        0.0782
+      ],
+      "stable_top25_positives": [
+        "CVE-2025-11371",
+        "CVE-2025-20281",
+        "CVE-2025-2746",
+        "CVE-2025-3248",
+        "CVE-2025-34028",
+        "CVE-2025-4008",
+        "CVE-2025-5777"
+      ],
+      "stable_hits@25": 7,
+      "wordpress_in_top250_by_seed": [
+        0,
+        0,
+        0
+      ],
+      "n_train": 39868,
+      "n_train_pos": 67,
+      "n_test": 42562,
+      "n_test_pos": 55
+    },
+    "leak_cpe_timecut": {
+      "mean_pr_auc": 0.0826,
+      "mean_roc_auc": 0.9388,
+      "mean_hits@25": 4.3333,
+      "mean_prec@25": 0.1733,
+      "mean_hits@100": 15.0,
+      "mean_prec@100": 0.15,
+      "hits@25_by_seed": [
+        4,
+        4,
+        5
+      ],
+      "pr_auc_by_seed": [
+        0.0819,
+        0.0829,
+        0.0831
+      ],
+      "stable_top25_positives": [
+        "CVE-2025-11371",
+        "CVE-2025-20281",
+        "CVE-2025-2775",
+        "CVE-2025-5777"
+      ],
+      "stable_hits@25": 4,
+      "wordpress_in_top250_by_seed": [
+        0,
+        0,
+        0
+      ],
+      "n_train": 39868,
+      "n_train_pos": 67,
+      "n_test": 42562,
+      "n_test_pos": 55
+    },
+    "leak_cpe_dirty": {
+      "mean_pr_auc": 0.1028,
+      "mean_roc_auc": 0.9555,
+      "mean_hits@25": 6.0,
+      "mean_prec@25": 0.24,
+      "mean_hits@100": 15.6667,
+      "mean_prec@100": 0.1567,
+      "hits@25_by_seed": [
+        7,
+        6,
+        5
+      ],
+      "pr_auc_by_seed": [
+        0.1065,
+        0.0986,
+        0.1032
+      ],
+      "stable_top25_positives": [
+        "CVE-2025-11371",
+        "CVE-2025-20281",
+        "CVE-2025-2746",
+        "CVE-2025-2775",
+        "CVE-2025-2776",
+        "CVE-2025-5777"
+      ],
+      "stable_hits@25": 6,
+      "wordpress_in_top250_by_seed": [
+        0,
+        0,
+        0
+      ],
+      "n_train": 39868,
+      "n_train_pos": 67,
+      "n_test": 42562,
+      "n_test_pos": 55
+    },
+    "leak_ref_domain_frozen": {
+      "mean_pr_auc": 0.0885,
+      "mean_roc_auc": 0.9346,
+      "mean_hits@25": 5.0,
+      "mean_prec@25": 0.2,
+      "mean_hits@100": 12.6667,
+      "mean_prec@100": 0.1267,
+      "hits@25_by_seed": [
+        4,
+        5,
+        6
+      ],
+      "pr_auc_by_seed": [
+        0.0876,
+        0.0866,
+        0.0914
+      ],
+      "stable_top25_positives": [
+        "CVE-2025-11371",
+        "CVE-2025-20281",
+        "CVE-2025-3248",
+        "CVE-2025-5777",
+        "CVE-2025-61757"
+      ],
+      "stable_hits@25": 5,
+      "wordpress_in_top250_by_seed": [
+        0,
+        0,
+        1
+      ],
+      "n_train": 39868,
+      "n_train_pos": 67,
+      "n_test": 42562,
+      "n_test_pos": 55
+    },
+    "leak_product_dirty": {
+      "mean_pr_auc": 0.074,
+      "mean_roc_auc": 0.9149,
+      "mean_hits@25": 7.3333,
+      "mean_prec@25": 0.2933,
+      "mean_hits@100": 12.0,
+      "mean_prec@100": 0.12,
+      "hits@25_by_seed": [
+        8,
+        7,
+        7
+      ],
+      "pr_auc_by_seed": [
+        0.0769,
+        0.0726,
+        0.0726
+      ],
+      "stable_top25_positives": [
+        "CVE-2025-11371",
+        "CVE-2025-20281",
+        "CVE-2025-2746",
+        "CVE-2025-2747",
+        "CVE-2025-3248",
+        "CVE-2025-4008",
+        "CVE-2025-5777"
+      ],
+      "stable_hits@25": 7,
+      "wordpress_in_top250_by_seed": [
+        0,
+        0,
+        0
+      ],
+      "n_train": 39868,
+      "n_train_pos": 67,
+      "n_test": 42562,
+      "n_test_pos": 55
+    },
+    "assigner_prior_only": {
+      "mean_pr_auc": 0.0054,
+      "mean_roc_auc": 0.7741,
+      "mean_hits@25": 0.0,
+      "mean_prec@25": 0.0,
+      "mean_hits@100": 0.0,
+      "mean_prec@100": 0.0,
+      "hits@25_by_seed": [
+        0,
+        0,
+        0
+      ],
+      "pr_auc_by_seed": [
+        0.0054,
+        0.0054,
+        0.0054
+      ],
+      "stable_top25_positives": [],
+      "stable_hits@25": 0,
+      "wordpress_in_top250_by_seed": [
+        0,
+        0,
+        0
+      ],
+      "n_train": 39868,
+      "n_train_pos": 67,
+      "n_test": 42562,
+      "n_test_pos": 55
+    },
+    "product_rate_only": {
+      "mean_pr_auc": 0.0052,
+      "mean_roc_auc": 0.543,
+      "mean_hits@25": 1.0,
+      "mean_prec@25": 0.04,
+      "mean_hits@100": 2.0,
+      "mean_prec@100": 0.02,
+      "hits@25_by_seed": [
+        1,
+        1,
+        1
+      ],
+      "pr_auc_by_seed": [
+        0.0048,
+        0.0051,
+        0.0056
+      ],
+      "stable_top25_positives": [
+        "CVE-2025-9242"
+      ],
+      "stable_hits@25": 1,
+      "wordpress_in_top250_by_seed": [
+        1,
+        1,
+        1
+      ],
+      "n_train": 39868,
+      "n_train_pos": 67,
+      "n_test": 42562,
+      "n_test_pos": 55
+    },
+    "assigner_plus_product": {
+      "mean_pr_auc": 0.005,
+      "mean_roc_auc": 0.7383,
+      "mean_hits@25": 0.0,
+      "mean_prec@25": 0.0,
+      "mean_hits@100": 2.0,
+      "mean_prec@100": 0.02,
+      "hits@25_by_seed": [
+        0,
+        0,
+        0
+      ],
+      "pr_auc_by_seed": [
+        0.005,
+        0.005,
+        0.0051
+      ],
+      "stable_top25_positives": [],
+      "stable_hits@25": 0,
+      "wordpress_in_top250_by_seed": [
+        0,
+        0,
+        0
+      ],
+      "n_train": 39868,
+      "n_train_pos": 67,
+      "n_test": 42562,
+      "n_test_pos": 55
+    }
+  },
+  "importances_seed0": {
+    "onehop_closed": [
+      {
+        "feature": "txt_temp_tfidf_prob",
+        "split_count": 384
+      },
+      {
+        "feature": "sig_epss_pct_rank",
+        "split_count": 284
+      },
+      {
+        "feature": "txt_desc_len_log",
+        "split_count": 225
+      },
+      {
+        "feature": "time_same_day_cves_log",
+        "split_count": 208
+      },
+      {
+        "feature": "g_closed_rate",
+        "split_count": 208
+      },
+      {
+        "feature": "cna_hist_cves_log",
+        "split_count": 201
+      },
+      {
+        "feature": "txt_desc_words_log",
+        "split_count": 198
+      },
+      {
+        "feature": "cna_kev_prior_rate",
+        "split_count": 185
+      },
+      {
+        "feature": "g_closed_support",
+        "split_count": 172
+      },
+      {
+        "feature": "time_same_day_assigner_log",
+        "split_count": 170
+      },
+      {
+        "feature": "time_days_to_snap_end",
+        "split_count": 157
+      },
+      {
+        "feature": "time_cve_id_seq_log",
+        "split_count": 153
+      }
+    ],
+    "recency": [
+      {
+        "feature": "txt_temp_tfidf_prob",
+        "split_count": 371
+      },
+      {
+        "feature": "sig_epss_pct_rank",
+        "split_count": 271
+      },
+      {
+        "feature": "cna_kev_prior_rate",
+        "split_count": 221
+      },
+      {
+        "feature": "txt_desc_len_log",
+        "split_count": 208
+      },
+      {
+        "feature": "time_same_day_assigner_log",
+        "split_count": 179
+      },
+      {
+        "feature": "cna_hist_cves_log",
+        "split_count": 178
+      },
+      {
+        "feature": "g_closed_rate",
+        "split_count": 177
+      },
+      {
+        "feature": "time_same_day_cves_log",
+        "split_count": 175
+      },
+      {
+        "feature": "txt_desc_words_log",
+        "split_count": 175
+      },
+      {
+        "feature": "time_cve_id_seq_log",
+        "split_count": 161
+      },
+      {
+        "feature": "time_days_to_snap_end",
+        "split_count": 140
+      },
+      {
+        "feature": "cna_hist_kevs_log",
+        "split_count": 139
+      }
+    ],
+    "sibling": [
+      {
+        "feature": "txt_temp_tfidf_prob",
+        "split_count": 357
+      },
+      {
+        "feature": "sig_epss_pct_rank",
+        "split_count": 271
+      },
+      {
+        "feature": "txt_desc_len_log",
+        "split_count": 223
+      },
+      {
+        "feature": "g_closed_rate",
+        "split_count": 199
+      },
+      {
+        "feature": "cna_kev_prior_rate",
+        "split_count": 188
+      },
+      {
+        "feature": "cna_hist_cves_log",
+        "split_count": 188
+      },
+      {
+        "feature": "txt_desc_words_log",
+        "split_count": 186
+      },
+      {
+        "feature": "time_same_day_cves_log",
+        "split_count": 169
+      },
+      {
+        "feature": "time_same_day_assigner_log",
+        "split_count": 168
+      },
+      {
+        "feature": "cna_hist_kevs_log",
+        "split_count": 152
+      },
+      {
+        "feature": "time_days_to_snap_end",
+        "split_count": 151
+      },
+      {
+        "feature": "g_closed_support",
+        "split_count": 150
+      }
+    ],
+    "leak_cpe_dirty": [
+      {
+        "feature": "g_cpe_dirty_rate",
+        "split_count": 383
+      },
+      {
+        "feature": "txt_temp_tfidf_prob",
+        "split_count": 308
+      },
+      {
+        "feature": "cna_kev_prior_rate",
+        "split_count": 274
+      },
+      {
+        "feature": "sig_epss_pct_rank",
+        "split_count": 235
+      },
+      {
+        "feature": "txt_desc_len_log",
+        "split_count": 202
+      },
+      {
+        "feature": "txt_desc_words_log",
+        "split_count": 196
+      },
+      {
+        "feature": "cna_hist_cves_log",
+        "split_count": 195
+      },
+      {
+        "feature": "cna_hist_kevs_log",
+        "split_count": 192
+      },
+      {
+        "feature": "time_cve_id_seq_log",
+        "split_count": 186
+      },
+      {
+        "feature": "time_same_day_assigner_log",
+        "split_count": 173
+      },
+      {
+        "feature": "time_days_to_snap_end",
+        "split_count": 157
+      },
+      {
+        "feature": "time_same_day_cves_log",
+        "split_count": 155
+      }
+    ],
+    "leak_product_dirty": [
+      {
+        "feature": "txt_temp_tfidf_prob",
+        "split_count": 355
+      },
+      {
+        "feature": "sig_epss_pct_rank",
+        "split_count": 288
+      },
+      {
+        "feature": "txt_desc_len_log",
+        "split_count": 217
+      },
+      {
+        "feature": "cna_kev_prior_rate",
+        "split_count": 204
+      },
+      {
+        "feature": "txt_desc_words_log",
+        "split_count": 182
+      },
+      {
+        "feature": "cna_hist_cves_log",
+        "split_count": 182
+      },
+      {
+        "feature": "time_same_day_assigner_log",
+        "split_count": 175
+      },
+      {
+        "feature": "time_same_day_cves_log",
+        "split_count": 171
+      },
+      {
+        "feature": "time_days_to_snap_end",
+        "split_count": 170
+      },
+      {
+        "feature": "g_dirty_closed_rate",
+        "split_count": 170
+      },
+      {
+        "feature": "g_closed_support",
+        "split_count": 164
+      },
+      {
+        "feature": "cna_hist_kevs_log",
+        "split_count": 163
+      }
+    ]
+  },
+  "deltas_vs_baseline_stable_top25": {
+    "onehop_closed": {
+      "gained": [
+        "CVE-2025-34028",
+        "CVE-2025-4008"
+      ],
+      "lost": [],
+      "gained_n": 2,
+      "lost_n": 0,
+      "net_stable_hits": 2,
+      "gained_detail": [
+        {
+          "cve_id": "CVE-2025-34028",
+          "slice": "vdb",
+          "assigner": "disclosure@vulncheck.com",
+          "published": "2025-04-22",
+          "best_token": "",
+          "rate": 0.00473,
+          "support": 0,
+          "fallback": 1,
+          "sibling_rate": 0.00473,
+          "recent90": 0
+        },
+        {
+          "cve_id": "CVE-2025-4008",
+          "slice": "other",
+          "assigner": "research@onekey.com",
+          "published": "2025-05-21",
+          "best_token": "",
+          "rate": 0.00471,
+          "support": 0,
+          "fallback": 1,
+          "sibling_rate": 0.00471,
+          "recent90": 0
+        }
+      ],
+      "lost_detail": [],
+      "gained_uninformative_assigner": [],
+      "lost_uninformative_assigner": []
+    },
+    "onehop_open2": {
+      "gained": [
+        "CVE-2025-2746",
+        "CVE-2025-2747",
+        "CVE-2025-34028"
+      ],
+      "lost": [
+        "CVE-2025-11371",
+        "CVE-2025-20281"
+      ],
+      "gained_n": 3,
+      "lost_n": 2,
+      "net_stable_hits": 1,
+      "gained_detail": [
+        {
+          "cve_id": "CVE-2025-2746",
+          "slice": "vdb",
+          "assigner": "disclosure@vulncheck.com",
+          "published": "2025-03-24",
+          "best_token": "",
+          "rate": 0.00468,
+          "support": 0,
+          "fallback": 1,
+          "sibling_rate": 0.00468,
+          "recent90": 0
+        },
+        {
+          "cve_id": "CVE-2025-2747",
+          "slice": "vdb",
+          "assigner": "disclosure@vulncheck.com",
+          "published": "2025-03-24",
+          "best_token": "",
+          "rate": 0.00468,
+          "support": 0,
+          "fallback": 1,
+          "sibling_rate": 0.00468,
+          "recent90": 0
+        },
+        {
+          "cve_id": "CVE-2025-34028",
+          "slice": "vdb",
+          "assigner": "disclosure@vulncheck.com",
+          "published": "2025-04-22",
+          "best_token": "",
+          "rate": 0.00473,
+          "support": 0,
+          "fallback": 1,
+          "sibling_rate": 0.00473,
+          "recent90": 0
+        }
+      ],
+      "lost_detail": [
+        {
+          "cve_id": "CVE-2025-11371",
+          "slice": "other",
+          "assigner": "5dacb0b8-2277-4717-899c-254586fe4912",
+          "published": "2025-10-09",
+          "best_token": "",
+          "rate": 0.00472,
+          "support": 0,
+          "fallback": 1,
+          "sibling_rate": 0.00472,
+          "recent90": 0
+        },
+        {
+          "cve_id": "CVE-2025-20281",
+          "slice": "enterprise",
+          "assigner": "psirt@cisco.com",
+          "published": "2025-06-25",
+          "best_token": "",
+          "rate": 0.00473,
+          "support": 0,
+          "fallback": 1,
+          "sibling_rate": 0.00473,
+          "recent90": 0
+        }
+      ],
+      "gained_uninformative_assigner": [],
+      "lost_uninformative_assigner": [
+        "CVE-2025-11371"
+      ]
+    },
+    "onehop_open5": {
+      "gained": [
+        "CVE-2025-2746",
+        "CVE-2025-34028"
+      ],
+      "lost": [
+        "CVE-2025-11371",
+        "CVE-2025-20281"
+      ],
+      "gained_n": 2,
+      "lost_n": 2,
+      "net_stable_hits": 0,
+      "gained_detail": [
+        {
+          "cve_id": "CVE-2025-2746",
+          "slice": "vdb",
+          "assigner": "disclosure@vulncheck.com",
+          "published": "2025-03-24",
+          "best_token": "",
+          "rate": 0.00468,
+          "support": 0,
+          "fallback": 1,
+          "sibling_rate": 0.00468,
+          "recent90": 0
+        },
+        {
+          "cve_id": "CVE-2025-34028",
+          "slice": "vdb",
+          "assigner": "disclosure@vulncheck.com",
+          "published": "2025-04-22",
+          "best_token": "",
+          "rate": 0.00473,
+          "support": 0,
+          "fallback": 1,
+          "sibling_rate": 0.00473,
+          "recent90": 0
+        }
+      ],
+      "lost_detail": [
+        {
+          "cve_id": "CVE-2025-11371",
+          "slice": "other",
+          "assigner": "5dacb0b8-2277-4717-899c-254586fe4912",
+          "published": "2025-10-09",
+          "best_token": "",
+          "rate": 0.00472,
+          "support": 0,
+          "fallback": 1,
+          "sibling_rate": 0.00472,
+          "recent90": 0
+        },
+        {
+          "cve_id": "CVE-2025-20281",
+          "slice": "enterprise",
+          "assigner": "psirt@cisco.com",
+          "published": "2025-06-25",
+          "best_token": "",
+          "rate": 0.00473,
+          "support": 0,
+          "fallback": 1,
+          "sibling_rate": 0.00473,
+          "recent90": 0
+        }
+      ],
+      "gained_uninformative_assigner": [],
+      "lost_uninformative_assigner": [
+        "CVE-2025-11371"
+      ]
+    },
+    "recency": {
+      "gained": [
+        "CVE-2025-2746",
+        "CVE-2025-34028"
+      ],
+      "lost": [],
+      "gained_n": 2,
+      "lost_n": 0,
+      "net_stable_hits": 2,
+      "gained_detail": [
+        {
+          "cve_id": "CVE-2025-2746",
+          "slice": "vdb",
+          "assigner": "disclosure@vulncheck.com",
+          "published": "2025-03-24",
+          "best_token": "",
+          "rate": 0.00468,
+          "support": 0,
+          "fallback": 1,
+          "sibling_rate": 0.00468,
+          "recent90": 0
+        },
+        {
+          "cve_id": "CVE-2025-34028",
+          "slice": "vdb",
+          "assigner": "disclosure@vulncheck.com",
+          "published": "2025-04-22",
+          "best_token": "",
+          "rate": 0.00473,
+          "support": 0,
+          "fallback": 1,
+          "sibling_rate": 0.00473,
+          "recent90": 0
+        }
+      ],
+      "lost_detail": [],
+      "gained_uninformative_assigner": [],
+      "lost_uninformative_assigner": []
+    },
+    "sibling": {
+      "gained": [
+        "CVE-2025-2746",
+        "CVE-2025-34028",
+        "CVE-2025-4008"
+      ],
+      "lost": [],
+      "gained_n": 3,
+      "lost_n": 0,
+      "net_stable_hits": 3,
+      "gained_detail": [
+        {
+          "cve_id": "CVE-2025-2746",
+          "slice": "vdb",
+          "assigner": "disclosure@vulncheck.com",
+          "published": "2025-03-24",
+          "best_token": "",
+          "rate": 0.00468,
+          "support": 0,
+          "fallback": 1,
+          "sibling_rate": 0.00468,
+          "recent90": 0
+        },
+        {
+          "cve_id": "CVE-2025-34028",
+          "slice": "vdb",
+          "assigner": "disclosure@vulncheck.com",
+          "published": "2025-04-22",
+          "best_token": "",
+          "rate": 0.00473,
+          "support": 0,
+          "fallback": 1,
+          "sibling_rate": 0.00473,
+          "recent90": 0
+        },
+        {
+          "cve_id": "CVE-2025-4008",
+          "slice": "other",
+          "assigner": "research@onekey.com",
+          "published": "2025-05-21",
+          "best_token": "",
+          "rate": 0.00471,
+          "support": 0,
+          "fallback": 1,
+          "sibling_rate": 0.00471,
+          "recent90": 0
+        }
+      ],
+      "lost_detail": [],
+      "gained_uninformative_assigner": [],
+      "lost_uninformative_assigner": []
+    },
+    "within_month": {
+      "gained": [
+        "CVE-2025-2746",
+        "CVE-2025-34028"
+      ],
+      "lost": [],
+      "gained_n": 2,
+      "lost_n": 0,
+      "net_stable_hits": 2,
+      "gained_detail": [
+        {
+          "cve_id": "CVE-2025-2746",
+          "slice": "vdb",
+          "assigner": "disclosure@vulncheck.com",
+          "published": "2025-03-24",
+          "best_token": "",
+          "rate": 0.00468,
+          "support": 0,
+          "fallback": 1,
+          "sibling_rate": 0.00468,
+          "recent90": 0
+        },
+        {
+          "cve_id": "CVE-2025-34028",
+          "slice": "vdb",
+          "assigner": "disclosure@vulncheck.com",
+          "published": "2025-04-22",
+          "best_token": "",
+          "rate": 0.00473,
+          "support": 0,
+          "fallback": 1,
+          "sibling_rate": 0.00473,
+          "recent90": 0
+        }
+      ],
+      "lost_detail": [],
+      "gained_uninformative_assigner": [],
+      "lost_uninformative_assigner": []
+    },
+    "onehop_recency_sibling_wm": {
+      "gained": [
+        "CVE-2025-34028"
+      ],
+      "lost": [],
+      "gained_n": 1,
+      "lost_n": 0,
+      "net_stable_hits": 1,
+      "gained_detail": [
+        {
+          "cve_id": "CVE-2025-34028",
+          "slice": "vdb",
+          "assigner": "disclosure@vulncheck.com",
+          "published": "2025-04-22",
+          "best_token": "",
+          "rate": 0.00473,
+          "support": 0,
+          "fallback": 1,
+          "sibling_rate": 0.00473,
+          "recent90": 0
+        }
+      ],
+      "lost_detail": [],
+      "gained_uninformative_assigner": [],
+      "lost_uninformative_assigner": []
+    },
+    "knn": {
+      "gained": [
+        "CVE-2025-2746",
+        "CVE-2025-34028",
+        "CVE-2025-4008"
+      ],
+      "lost": [],
+      "gained_n": 3,
+      "lost_n": 0,
+      "net_stable_hits": 3,
+      "gained_detail": [
+        {
+          "cve_id": "CVE-2025-2746",
+          "slice": "vdb",
+          "assigner": "disclosure@vulncheck.com",
+          "published": "2025-03-24",
+          "best_token": "",
+          "rate": 0.00468,
+          "support": 0,
+          "fallback": 1,
+          "sibling_rate": 0.00468,
+          "recent90": 0
+        },
+        {
+          "cve_id": "CVE-2025-34028",
+          "slice": "vdb",
+          "assigner": "disclosure@vulncheck.com",
+          "published": "2025-04-22",
+          "best_token": "",
+          "rate": 0.00473,
+          "support": 0,
+          "fallback": 1,
+          "sibling_rate": 0.00473,
+          "recent90": 0
+        },
+        {
+          "cve_id": "CVE-2025-4008",
+          "slice": "other",
+          "assigner": "research@onekey.com",
+          "published": "2025-05-21",
+          "best_token": "",
+          "rate": 0.00471,
+          "support": 0,
+          "fallback": 1,
+          "sibling_rate": 0.00471,
+          "recent90": 0
+        }
+      ],
+      "lost_detail": [],
+      "gained_uninformative_assigner": [],
+      "lost_uninformative_assigner": []
+    },
+    "leak_cpe_timecut": {
+      "gained": [
+        "CVE-2025-2775"
+      ],
+      "lost": [
+        "CVE-2025-3248"
+      ],
+      "gained_n": 1,
+      "lost_n": 1,
+      "net_stable_hits": 0,
+      "gained_detail": [
+        {
+          "cve_id": "CVE-2025-2775",
+          "slice": "vdb",
+          "assigner": "disclosure@vulncheck.com",
+          "published": "2025-05-07",
+          "best_token": "",
+          "rate": 0.00471,
+          "support": 0,
+          "fallback": 1,
+          "sibling_rate": 0.00471,
+          "recent90": 0
+        }
+      ],
+      "lost_detail": [
+        {
+          "cve_id": "CVE-2025-3248",
+          "slice": "vdb",
+          "assigner": "disclosure@vulncheck.com",
+          "published": "2025-04-07",
+          "best_token": "",
+          "rate": 0.00473,
+          "support": 0,
+          "fallback": 1,
+          "sibling_rate": 0.00473,
+          "recent90": 0
+        }
+      ],
+      "gained_uninformative_assigner": [],
+      "lost_uninformative_assigner": []
+    },
+    "leak_cpe_dirty": {
+      "gained": [
+        "CVE-2025-2746",
+        "CVE-2025-2775",
+        "CVE-2025-2776"
+      ],
+      "lost": [
+        "CVE-2025-3248"
+      ],
+      "gained_n": 3,
+      "lost_n": 1,
+      "net_stable_hits": 2,
+      "gained_detail": [
+        {
+          "cve_id": "CVE-2025-2746",
+          "slice": "vdb",
+          "assigner": "disclosure@vulncheck.com",
+          "published": "2025-03-24",
+          "best_token": "",
+          "rate": 0.00468,
+          "support": 0,
+          "fallback": 1,
+          "sibling_rate": 0.00468,
+          "recent90": 0
+        },
+        {
+          "cve_id": "CVE-2025-2775",
+          "slice": "vdb",
+          "assigner": "disclosure@vulncheck.com",
+          "published": "2025-05-07",
+          "best_token": "",
+          "rate": 0.00471,
+          "support": 0,
+          "fallback": 1,
+          "sibling_rate": 0.00471,
+          "recent90": 0
+        },
+        {
+          "cve_id": "CVE-2025-2776",
+          "slice": "vdb",
+          "assigner": "disclosure@vulncheck.com",
+          "published": "2025-05-07",
+          "best_token": "",
+          "rate": 0.00471,
+          "support": 0,
+          "fallback": 1,
+          "sibling_rate": 0.00471,
+          "recent90": 0
+        }
+      ],
+      "lost_detail": [
+        {
+          "cve_id": "CVE-2025-3248",
+          "slice": "vdb",
+          "assigner": "disclosure@vulncheck.com",
+          "published": "2025-04-07",
+          "best_token": "",
+          "rate": 0.00473,
+          "support": 0,
+          "fallback": 1,
+          "sibling_rate": 0.00473,
+          "recent90": 0
+        }
+      ],
+      "gained_uninformative_assigner": [],
+      "lost_uninformative_assigner": []
+    },
+    "leak_ref_domain_frozen": {
+      "gained": [
+        "CVE-2025-61757"
+      ],
+      "lost": [],
+      "gained_n": 1,
+      "lost_n": 0,
+      "net_stable_hits": 1,
+      "gained_detail": [
+        {
+          "cve_id": "CVE-2025-61757",
+          "slice": "enterprise",
+          "assigner": "secalert_us@oracle.com",
+          "published": "2025-10-21",
+          "best_token": "",
+          "rate": 0.00472,
+          "support": 0,
+          "fallback": 1,
+          "sibling_rate": 0.00472,
+          "recent90": 0
+        }
+      ],
+      "lost_detail": [],
+      "gained_uninformative_assigner": [],
+      "lost_uninformative_assigner": []
+    },
+    "leak_product_dirty": {
+      "gained": [
+        "CVE-2025-2746",
+        "CVE-2025-2747",
+        "CVE-2025-4008"
+      ],
+      "lost": [],
+      "gained_n": 3,
+      "lost_n": 0,
+      "net_stable_hits": 3,
+      "gained_detail": [
+        {
+          "cve_id": "CVE-2025-2746",
+          "slice": "vdb",
+          "assigner": "disclosure@vulncheck.com",
+          "published": "2025-03-24",
+          "best_token": "",
+          "rate": 0.00468,
+          "support": 0,
+          "fallback": 1,
+          "sibling_rate": 0.00468,
+          "recent90": 0
+        },
+        {
+          "cve_id": "CVE-2025-2747",
+          "slice": "vdb",
+          "assigner": "disclosure@vulncheck.com",
+          "published": "2025-03-24",
+          "best_token": "",
+          "rate": 0.00468,
+          "support": 0,
+          "fallback": 1,
+          "sibling_rate": 0.00468,
+          "recent90": 0
+        },
+        {
+          "cve_id": "CVE-2025-4008",
+          "slice": "other",
+          "assigner": "research@onekey.com",
+          "published": "2025-05-21",
+          "best_token": "",
+          "rate": 0.00471,
+          "support": 0,
+          "fallback": 1,
+          "sibling_rate": 0.00471,
+          "recent90": 0
+        }
+      ],
+      "lost_detail": [],
+      "gained_uninformative_assigner": [],
+      "lost_uninformative_assigner": []
+    },
+    "assigner_prior_only": {
+      "gained": [],
+      "lost": [
+        "CVE-2025-11371",
+        "CVE-2025-20281",
+        "CVE-2025-3248",
+        "CVE-2025-5777"
+      ],
+      "gained_n": 0,
+      "lost_n": 4,
+      "net_stable_hits": -4,
+      "gained_detail": [],
+      "lost_detail": [
+        {
+          "cve_id": "CVE-2025-11371",
+          "slice": "other",
+          "assigner": "5dacb0b8-2277-4717-899c-254586fe4912",
+          "published": "2025-10-09",
+          "best_token": "",
+          "rate": 0.00472,
+          "support": 0,
+          "fallback": 1,
+          "sibling_rate": 0.00472,
+          "recent90": 0
+        },
+        {
+          "cve_id": "CVE-2025-20281",
+          "slice": "enterprise",
+          "assigner": "psirt@cisco.com",
+          "published": "2025-06-25",
+          "best_token": "",
+          "rate": 0.00473,
+          "support": 0,
+          "fallback": 1,
+          "sibling_rate": 0.00473,
+          "recent90": 0
+        },
+        {
+          "cve_id": "CVE-2025-3248",
+          "slice": "vdb",
+          "assigner": "disclosure@vulncheck.com",
+          "published": "2025-04-07",
+          "best_token": "",
+          "rate": 0.00473,
+          "support": 0,
+          "fallback": 1,
+          "sibling_rate": 0.00473,
+          "recent90": 0
+        },
+        {
+          "cve_id": "CVE-2025-5777",
+          "slice": "enterprise",
+          "assigner": "secure@citrix.com",
+          "published": "2025-06-17",
+          "best_token": "netscaler",
+          "rate": 0.05346,
+          "support": 94,
+          "fallback": 0,
+          "sibling_rate": 0.0275,
+          "recent90": 0
+        }
+      ],
+      "gained_uninformative_assigner": [],
+      "lost_uninformative_assigner": [
+        "CVE-2025-11371"
+      ]
+    },
+    "product_rate_only": {
+      "gained": [
+        "CVE-2025-9242"
+      ],
+      "lost": [
+        "CVE-2025-11371",
+        "CVE-2025-20281",
+        "CVE-2025-3248",
+        "CVE-2025-5777"
+      ],
+      "gained_n": 1,
+      "lost_n": 4,
+      "net_stable_hits": -3,
+      "gained_detail": [
+        {
+          "cve_id": "CVE-2025-9242",
+          "slice": "other",
+          "assigner": "5d1c2695-1a31-4499-88ae-e847036fd7e3",
+          "published": "2025-09-17",
+          "best_token": "watchguard",
+          "rate": 0.02252,
+          "support": 73,
+          "fallback": 0,
+          "sibling_rate": 0.00474,
+          "recent90": 0
+        }
+      ],
+      "lost_detail": [
+        {
+          "cve_id": "CVE-2025-11371",
+          "slice": "other",
+          "assigner": "5dacb0b8-2277-4717-899c-254586fe4912",
+          "published": "2025-10-09",
+          "best_token": "",
+          "rate": 0.00472,
+          "support": 0,
+          "fallback": 1,
+          "sibling_rate": 0.00472,
+          "recent90": 0
+        },
+        {
+          "cve_id": "CVE-2025-20281",
+          "slice": "enterprise",
+          "assigner": "psirt@cisco.com",
+          "published": "2025-06-25",
+          "best_token": "",
+          "rate": 0.00473,
+          "support": 0,
+          "fallback": 1,
+          "sibling_rate": 0.00473,
+          "recent90": 0
+        },
+        {
+          "cve_id": "CVE-2025-3248",
+          "slice": "vdb",
+          "assigner": "disclosure@vulncheck.com",
+          "published": "2025-04-07",
+          "best_token": "",
+          "rate": 0.00473,
+          "support": 0,
+          "fallback": 1,
+          "sibling_rate": 0.00473,
+          "recent90": 0
+        },
+        {
+          "cve_id": "CVE-2025-5777",
+          "slice": "enterprise",
+          "assigner": "secure@citrix.com",
+          "published": "2025-06-17",
+          "best_token": "netscaler",
+          "rate": 0.05346,
+          "support": 94,
+          "fallback": 0,
+          "sibling_rate": 0.0275,
+          "recent90": 0
+        }
+      ],
+      "gained_uninformative_assigner": [],
+      "lost_uninformative_assigner": [
+        "CVE-2025-11371"
+      ]
+    },
+    "assigner_plus_product": {
+      "gained": [],
+      "lost": [
+        "CVE-2025-11371",
+        "CVE-2025-20281",
+        "CVE-2025-3248",
+        "CVE-2025-5777"
+      ],
+      "gained_n": 0,
+      "lost_n": 4,
+      "net_stable_hits": -4,
+      "gained_detail": [],
+      "lost_detail": [
+        {
+          "cve_id": "CVE-2025-11371",
+          "slice": "other",
+          "assigner": "5dacb0b8-2277-4717-899c-254586fe4912",
+          "published": "2025-10-09",
+          "best_token": "",
+          "rate": 0.00472,
+          "support": 0,
+          "fallback": 1,
+          "sibling_rate": 0.00472,
+          "recent90": 0
+        },
+        {
+          "cve_id": "CVE-2025-20281",
+          "slice": "enterprise",
+          "assigner": "psirt@cisco.com",
+          "published": "2025-06-25",
+          "best_token": "",
+          "rate": 0.00473,
+          "support": 0,
+          "fallback": 1,
+          "sibling_rate": 0.00473,
+          "recent90": 0
+        },
+        {
+          "cve_id": "CVE-2025-3248",
+          "slice": "vdb",
+          "assigner": "disclosure@vulncheck.com",
+          "published": "2025-04-07",
+          "best_token": "",
+          "rate": 0.00473,
+          "support": 0,
+          "fallback": 1,
+          "sibling_rate": 0.00473,
+          "recent90": 0
+        },
+        {
+          "cve_id": "CVE-2025-5777",
+          "slice": "enterprise",
+          "assigner": "secure@citrix.com",
+          "published": "2025-06-17",
+          "best_token": "netscaler",
+          "rate": 0.05346,
+          "support": 94,
+          "fallback": 0,
+          "sibling_rate": 0.0275,
+          "recent90": 0
+        }
+      ],
+      "gained_uninformative_assigner": [],
+      "lost_uninformative_assigner": [
+        "CVE-2025-11371"
+      ]
+    }
+  },
+  "experiment_3_spearman_product_vs_assigner": {
+    "all_2025": {
+      "correlation": 0.2134,
+      "pvalue": 0.0
+    },
+    "uninformative_assigner_2025": {
+      "correlation": 0.228,
+      "pvalue": 1.5002800424361248e-08,
+      "rows": 603
+    }
+  },
+  "experiment_5_low_support": {
+    "onehop": {
+      "positives_low_support": 0,
+      "low_support_positives_in_top25": 0,
+      "mean_rank_low_support_positives": null
+    },
+    "sibling": {
+      "positives_low_support": 0,
+      "low_support_positives_in_top25": 0,
+      "mean_rank_low_support_positives": null
+    }
+  },
+  "experiment_8_neural_gate": {
+    "trained": false,
+    "reason": "Sibling stable top-25 hits do not beat the one-hop rate by 2. A message-passing layer is not trained.",
+    "onehop_stable_hits@25": 6,
+    "sibling_stable_hits@25": 7
+  },
+  "runtime_seconds": 125.8
+}
