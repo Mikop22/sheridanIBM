@@ -1,0 +1,9 @@
+__pycache__/
+*.py[cod]
+*$py.class
+catboost_info/
+.DS_Store
+/tmp/
+*.zip
+features_train_2024_2025.csv
+features_scoreboard_2026.csv
