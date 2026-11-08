@@ -56,24 +56,6 @@ function MetricCard({
   );
 }
 
-function RankingScore({ value, kind }: { value: number | null; kind: "relative" | "unknown" }) {
-  if (value === null) return <span className="text-sm text-[#6f6f6f]">Unavailable</span>;
-  const pct = Math.max(4, Math.min(100, value * 100));
-  return (
-    <div className="min-w-[100px]">
-      <div className="mb-1.5 flex items-center justify-between gap-2 text-xs">
-        <span className="font-semibold tabular-nums">{value.toFixed(4)}</span>
-        <span className="text-[10px] uppercase tracking-wider text-[#6f6f6f]">
-          {kind === "relative" ? "relative" : "score"}
-        </span>
-      </div>
-      <div className="h-1 bg-[#f4f4f4]">
-        <div className="h-full bg-[#0f62fe]" style={{ width: `${pct}%` }} />
-      </div>
-    </div>
-  );
-}
-
 export default function Home() {
   const demo = isDemoMode();
   const [vulnerabilities, setVulnerabilities] = useState<Vulnerability[]>([]);
@@ -186,10 +168,7 @@ export default function Home() {
         <>
           <section aria-labelledby="posture-heading">
             <div className="mb-5">
-              <p className="text-xs font-semibold uppercase tracking-[.1em] text-[#0f62fe]">
-                Current posture
-              </p>
-              <h1 id="posture-heading" className="mt-2 text-2xl font-light">
+              <h1 id="posture-heading" className="text-2xl font-light">
                 What needs attention now
               </h1>
             </div>
@@ -210,7 +189,7 @@ export default function Home() {
             <div className="border border-[#e0e0e0]">
               <div className="flex items-end justify-between border-b border-[#e0e0e0] p-5">
                 <div>
-                  <h2 className="text-lg font-medium">Prioritized findings</h2>
+                  <h2 className="text-xl font-light">Prioritized findings</h2>
                   <p className="mt-1 text-xs text-[#6f6f6f]">
                     Top model-ranked CVEs with vulnerability descriptions and matched assets
                   </p>
@@ -220,14 +199,13 @@ export default function Home() {
                 </a>
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[680px] text-left">
+                <table className="w-full min-w-[640px] text-left">
                   <thead>
                     <tr className="bg-[#f4f4f4] text-[11px] font-semibold uppercase text-[#525252]">
-                      <th className="px-4 py-3">Rank</th>
+                      <th className="w-20 px-4 py-3">Rank</th>
                       <th className="px-4 py-3">Finding & description</th>
                       <th className="px-4 py-3">Affected asset</th>
-                      <th className="px-4 py-3">Ranking score</th>
-                      <th className="px-4 py-3">Snapshot</th>
+                      <th className="w-28 px-4 py-3">Snapshot</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -245,7 +223,7 @@ export default function Home() {
                           >
                             {item.id}
                           </a>
-                          <p className="mt-1 max-w-[420px] text-sm leading-5 text-[#161616] line-clamp-2">
+                          <p className="mt-1 max-w-[580px] text-sm leading-5 text-[#161616] line-clamp-2">
                             {item.title}
                           </p>
                         </td>
@@ -254,9 +232,6 @@ export default function Home() {
                           {item.service && (
                             <p className="mt-0.5 text-xs text-[#6f6f6f]">{item.service}</p>
                           )}
-                        </td>
-                        <td className="px-4 py-4 align-top">
-                          <RankingScore value={item.rankingScore} kind={item.rankingScoreKind} />
                         </td>
                         <td className="px-4 py-4 align-top text-sm tabular-nums text-[#525252]">
                           {item.snapshotMonth ?? "—"}
@@ -276,7 +251,7 @@ export default function Home() {
             <div className="border border-[#e0e0e0]">
               <div className="flex items-end justify-between border-b border-[#e0e0e0] p-5">
                 <div>
-                  <h2 className="text-lg font-medium">Recent remediation activity</h2>
+                  <h2 className="text-xl font-light">Recent remediation activity</h2>
                   <p className="mt-1 text-xs text-[#6f6f6f]">
                     Provider and analyst workflow updates
                   </p>
