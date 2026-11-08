@@ -53,6 +53,7 @@ class PredictionArtifactRecord:
     published: date
     snapshot_month: str
     component_scores: dict[str, float]
+    description: str | None = None
 
 
 @dataclass(frozen=True)
@@ -117,10 +118,13 @@ def load_prediction_artifact(
             published=published,
             snapshot_month=snapshot_month,
             scores=scores,
+            description=description,
             artifact_id=artifact_id,
             rank=rank,
         )
-        for rank, (cve_id, published, snapshot_month, scores) in enumerate(parsed, start=1)
+        for rank, (cve_id, published, snapshot_month, scores, description) in enumerate(
+            parsed, start=1
+        )
     )
     return PredictionArtifact(
         artifact_id=artifact_id,
@@ -156,7 +160,9 @@ def _csv_rows(content: bytes) -> list[dict[str, Any]]:
     return list(reader)
 
 
-def _parse_row(row: dict[str, Any], index: int) -> tuple[str, date, str, dict[str, float]]:
+def _parse_row(
+    row: dict[str, Any], index: int
+) -> tuple[str, date, str, dict[str, float], str | None]:
     missing = [column for column in REQUIRED_COLUMNS if column not in row]
     if missing:
         raise PredictionArtifactError(
@@ -202,7 +208,17 @@ def _parse_row(row: dict[str, Any], index: int) -> tuple[str, date, str, dict[st
                 f"prediction row {index} has an out-of-range {column} value"
             )
         scores[column] = value
-    return cve_id, published, snapshot_month, scores
+    description = _optional_description(row.get("description"), index)
+    return cve_id, published, snapshot_month, scores, description
+
+
+def _optional_description(raw: Any, index: int) -> str | None:
+    if raw is None:
+        return None
+    if isinstance(raw, bool) or not isinstance(raw, (str, int, float)):
+        raise PredictionArtifactError(f"prediction row {index} has an invalid description value")
+    text = str(raw).strip()
+    return text or None
 
 
 def _to_record(
@@ -211,6 +227,7 @@ def _to_record(
     published: date,
     snapshot_month: str,
     scores: dict[str, float],
+    description: str | None,
     artifact_id: str,
     rank: int,
 ) -> PredictionArtifactRecord:
@@ -258,6 +275,7 @@ def _to_record(
                     "artifact_id": artifact_id,
                     "published": published.isoformat(),
                     "snapshot_month": snapshot_month,
+                    **({"description": description} if description else {}),
                     **scores,
                 },
             )
@@ -268,4 +286,5 @@ def _to_record(
         published=published,
         snapshot_month=snapshot_month,
         component_scores=dict(scores),
+        description=description,
     )

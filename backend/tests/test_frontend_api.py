@@ -31,12 +31,14 @@ def test_frontend_threats_use_real_artifact_and_live_collections(
     assert priority[0]["modelRank"] == 1
     assert priority[0]["rankingScore"] == 0.317252
     assert priority[0]["predictedRisk"] is None
+    assert "ShareFile" in (priority[0]["description"] or "")
     assert priority[0]["affectedAsset"] == {
         "id": "file-gateway",
         "name": "File gateway",
         "service": "Progress ShareFile Storage Zones Controller",
     }
     assert "synthetic" in " ".join(priority[0]["missingInformation"]).lower()
+    assert "vulnerability description" not in priority[0]["missingInformation"]
 
     assert vulnerabilities.status_code == 200
     payload = vulnerabilities.json()
@@ -46,7 +48,8 @@ def test_frontend_threats_use_real_artifact_and_live_collections(
     assert first["modelRank"] == 1
     assert first["rankingScore"] == 0.317252
     assert first["rankingScoreKind"] == "relative"
-    assert first["description"] is None
+    assert first["description"]
+    assert "ShareFile" in first["description"]
     assert first["cvss"] is None
     assert first["epss"] is None
     assert first["predictedRisk"] is None
@@ -148,7 +151,7 @@ def test_frontend_detail_finds_real_prediction_case_insensitively(client: TestCl
 
     assert response.status_code == 200
     assert response.json()["vulnerability"]["cveId"] == "CVE-2026-2699"
-    assert response.json()["vulnerability"]["description"] is None
+    assert "ShareFile" in (response.json()["vulnerability"]["description"] or "")
 
 
 def test_frontend_detail_returns_not_found_for_unknown_cve(client: TestClient) -> None:

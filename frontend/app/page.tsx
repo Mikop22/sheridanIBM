@@ -269,7 +269,9 @@ export default function Home() {
                       </td>
                       <td className="px-4 py-4">
                         <p className="font-mono text-xs font-semibold text-[#0f62fe]">{item.id}</p>
-                        <p className="mt-1 max-w-[360px] text-sm font-medium">{item.title}</p>
+                        <p className="mt-1 max-w-[420px] text-sm leading-5 text-[#525252] line-clamp-2">
+                          {item.title}
+                        </p>
                       </td>
                       <td className="hidden px-4 py-4 lg:table-cell">
                         <p className="text-sm">{item.asset ?? "No inventory match"}</p>

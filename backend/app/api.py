@@ -270,11 +270,12 @@ def _frontend_vulnerability(
     )
     inventory = asset_for(prediction.vulnerability.vulnerability_id)
     missing = [
-        "vulnerability description",
         "CVSS score",
         "EPSS score",
         "feature contribution values",
     ]
+    if not record.description:
+        missing.insert(0, "vulnerability description")
     affected: FrontendAffectedAsset | None = None
     if inventory is None:
         missing.append("affected asset associations")
@@ -297,6 +298,7 @@ def _frontend_vulnerability(
         )
     return FrontendVulnerability(
         cveId=prediction.vulnerability.vulnerability_id,
+        description=record.description,
         snapshotMonth=record.snapshot_month,
         modelRank=prediction.rank,
         rankingScore=prediction.score,
