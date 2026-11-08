@@ -4,6 +4,7 @@ import {
   findingKeyForScenario,
   type SimulationStepResponse,
 } from "@/lib/api/simulations";
+import { proxyBackendJson } from "@/lib/api/upstream";
 
 const STAGE_LABELS: Record<number, string> = {
   1: "Threat detected",
@@ -29,6 +30,20 @@ export async function POST(request: Request) {
       { status: 400 },
     );
   }
+
+  const upstream = await proxyBackendJson(
+    "/api/simulations/step",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ scenarioId, stage }),
+    },
+    25000,
+  );
+  if (upstream) {
+    return NextResponse.json(upstream);
+  }
+
   const scenario =
     DEFAULT_SCENARIOS.find((item) => item.id === scenarioId) ?? DEFAULT_SCENARIOS[0];
   const findingKey = findingKeyForScenario(scenario.id);

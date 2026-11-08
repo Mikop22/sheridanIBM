@@ -7,7 +7,7 @@
       "predictionHorizonDays": null,
       "inventoryMatches": 3,
       "topModelRank": 1,
-      "draftPullRequests": 2
+      "draftPullRequests": 3
     },
     "priorityVulnerabilities": [
       {
@@ -6675,7 +6675,7 @@
         }
       }
     ],
-    "generatedAt": "2026-11-08T15:46:57.181821Z",
+    "generatedAt": "2026-11-08T16:23:57.096122Z",
     "source": "live"
   },
   "vulnerabilities": {
@@ -13366,7 +13366,7 @@
           "attemptedAt": "2026-11-08",
           "deliveredAt": "2026-11-08",
           "externalId": "1794121756.127739",
-          "externalUrl": "https://app.slack.com/archives/C0CFUT3FHDY/p1794121756127739",
+          "externalUrl": null,
           "errorCode": null,
           "errorMessage": null
         },
@@ -13469,7 +13469,7 @@
           "attemptedAt": "2026-11-08",
           "deliveredAt": "2026-11-08",
           "externalId": "1794152788.468349",
-          "externalUrl": "https://app.slack.com/archives/C0CFUT3FHDY/p1794152788468349",
+          "externalUrl": null,
           "errorCode": null,
           "errorMessage": null
         },
@@ -13590,7 +13590,7 @@
           "attemptedAt": "2026-11-08",
           "deliveredAt": "2026-11-08",
           "externalId": "1794121760.364719",
-          "externalUrl": "https://app.slack.com/archives/C0CFUT3FHDY/p1794121760364719",
+          "externalUrl": null,
           "errorCode": null,
           "errorMessage": null
         },
