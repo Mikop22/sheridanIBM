@@ -1,317 +1,53 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import {
-  AlertCircle,
-  ChevronsUp,
-  Download,
-  Layers3,
-  LoaderCircle,
-  RotateCcw,
-  Search,
-  Server,
-  ShieldCheck,
-  Trophy,
-} from "lucide-react";
+import { useEffect, useState } from "react";
+import { AlertCircle, GitPullRequest, LoaderCircle, RotateCcw, ShieldAlert, Siren, Wrench } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { isDemoMode } from "@/lib/api/config";
+import { fetchAlertActivity } from "@/lib/api/alerts";
 import { fetchVulnerabilityOverview } from "@/lib/api/vulnerabilities";
-import type { OverviewSummary, Vulnerability } from "@/lib/types/vulnerability";
+import type { VulnerabilityAlert } from "@/lib/types/alert";
+import type { OverviewSummary, Priority, Vulnerability } from "@/lib/types/vulnerability";
 
-function RankingScore({ value, kind }: { value: number | null; kind: "relative" | "unknown" }) {
-  if (value === null) return <span className="text-sm text-[#6f6f6f]">Not provided</span>;
-  const pct = Math.max(4, Math.min(100, value * 100));
-  return (
-    <div className="min-w-[104px]">
-      <div className="mb-1.5 flex items-center justify-between gap-2 text-xs">
-        <span className="font-semibold tabular-nums">{value.toFixed(4)}</span>
-        <span className="text-[10px] uppercase tracking-wider text-[#6f6f6f]">
-          {kind === "relative" ? "relative" : "score"}
-        </span>
-      </div>
-      <div className="h-1 bg-[#f4f4f4]">
-        <div className="h-full bg-[#0f62fe]" style={{ width: `${pct}%` }} />
-      </div>
-    </div>
-  );
+const priorityStyles: Record<Priority, string> = { Critical: "bg-[#da1e28] text-white", High: "bg-[#ff832b] text-[#161616]", Medium: "bg-[#f1c21b] text-[#161616]", Low: "bg-[#525252] text-white", Unknown: "bg-[#f4f4f4] text-[#525252]" };
+const formatTime = (value: string) => new Intl.DateTimeFormat("en-CA", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(new Date(value));
+
+function MetricCard({ label, value, detail, icon: Icon, tone = "text-[#0f62fe]" }: { label: string; value: number | null; detail: string; icon: typeof ShieldAlert; tone?: string }) {
+  return <article className="glass-stat p-5"><div className="flex justify-between gap-4"><p className="text-sm text-[#525252]">{label}</p><Icon size={19} className={tone} /></div><p className="mt-7 text-3xl font-light">{value === null ? <span className="text-lg text-[#6f6f6f]">Unavailable</span> : value.toLocaleString()}</p><p className="mt-2 text-xs text-[#6f6f6f]">{detail}</p></article>;
 }
 
 export default function Home() {
   const demo = isDemoMode();
-  const [query, setQuery] = useState("");
-  const [matchFilter, setMatchFilter] = useState<"All" | "Matched" | "Unmatched">("All");
   const [vulnerabilities, setVulnerabilities] = useState<Vulnerability[]>([]);
+  const [alerts, setAlerts] = useState<VulnerabilityAlert[]>([]);
   const [summary, setSummary] = useState<OverviewSummary | null>(null);
   const [source, setSource] = useState<"simulated" | "api" | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [requestKey, setRequestKey] = useState(0);
 
-  useEffect(() => {
-    let cancelled = false;
-    fetchVulnerabilityOverview()
-      .then((data) => {
-        if (!cancelled) {
-          setVulnerabilities(data.vulnerabilities);
-          setSummary(data.summary);
-          setSource(data.source);
-        }
-      })
-      .catch((cause) => {
-        if (!cancelled) {
-          setError(cause instanceof Error ? cause.message : "Overview data could not be loaded.");
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [requestKey]);
+  useEffect(() => { let cancelled = false; Promise.all([fetchVulnerabilityOverview(), fetchAlertActivity()]).then(([overview, activity]) => { if (!cancelled) { setVulnerabilities(overview.vulnerabilities); setSummary(overview.summary); setSource(overview.source); setAlerts(activity.alerts); } }).catch((cause) => { if (!cancelled) setError(cause instanceof Error ? cause.message : "Overview data could not be loaded."); }).finally(() => { if (!cancelled) setLoading(false); }); return () => { cancelled = true; }; }, [requestKey]);
 
-  const filtered = useMemo(
-    () =>
-      vulnerabilities
-        .filter((item) =>
-          `${item.id} ${item.title} ${item.asset ?? ""} ${item.service ?? ""} ${item.snapshotMonth ?? ""}`
-            .toLowerCase()
-            .includes(query.toLowerCase()),
-        )
-        .filter((item) => {
-          if (matchFilter === "Matched") return item.asset !== null;
-          if (matchFilter === "Unmatched") return item.asset === null;
-          return true;
-        })
-        .sort((a, b) => {
-          if (a.modelRank === null && b.modelRank === null) return a.id.localeCompare(b.id);
-          if (a.modelRank === null) return 1;
-          if (b.modelRank === null) return -1;
-          return a.modelRank - b.modelRank;
-        }),
-    [query, matchFilter, vulnerabilities],
-  );
-
+  const noLiveAdapterData = source === "api" && vulnerabilities.length === 0 && alerts.length === 0;
+  const actionable = noLiveAdapterData ? null : vulnerabilities.length;
+  const urgent = noLiveAdapterData ? summary?.criticalPriority ?? null : vulnerabilities.filter((item) => item.priority === "Critical" || item.priority === "High").length;
+  const inProgress = noLiveAdapterData ? null : alerts.filter((alert) => alert.lifecycle === "Investigating").length;
   const metrics = [
-    {
-      label: "Ranked vulnerabilities",
-      value: summary?.totalVulnerabilities,
-      change: "Member 1 artifact rows",
-      icon: ShieldCheck,
-      tone: "blue",
-    },
-    {
-      label: "Inventory matches",
-      value: summary?.inventoryMatches,
-      change: "Synthetic demo inventory",
-      icon: Server,
-      tone: "orange",
-    },
-    {
-      label: "Top model rank",
-      value: summary?.topModelRank,
-      change: "Highest SignalZero priority",
-      icon: Trophy,
-      tone: "red",
-    },
-    {
-      label: "Score semantics",
-      value: null,
-      display: "Relative",
-      change: "Not an exploitation probability",
-      icon: Layers3,
-      tone: "purple",
-    },
-  ] as const;
+    { label: "Actionable vulnerabilities & prioritized findings", value: actionable, detail: demo ? "" : "Current backend collection", icon: ShieldAlert, tone: "text-[#0f62fe]" },
+    { label: "Urgent findings", value: urgent, detail: "", icon: Siren, tone: "text-[#da1e28]" },
+    { label: "Remediations in progress", value: inProgress, detail: "", icon: Wrench, tone: "text-[#8a3ffc]" },
+    { label: "Draft pull requests awaiting review", value: null, detail: "", icon: GitPullRequest, tone: "text-[#525252]" },
+  ];
 
-  return (
-    <AppShell
-      title="Vulnerability overview"
-      subtitle="Global environment · Continuous monitoring"
-      breadcrumb="Overview"
-    >
-      <section className="flex flex-col justify-between gap-5 md:flex-row md:items-end">
-        <div>
-          <h1 className="text-3xl font-light tracking-tight sm:text-4xl">
-            Good afternoon, <span className="text-[#525252]">Analyst.</span>
-          </h1>
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-[#525252]">
-            SignalZero ranks CVEs with a relative ensemble score. CVSS, EPSS, and Critical/High labels
-            are not invented here when the artifact does not supply them.
-          </p>
-        </div>
-        <button className="inline-flex h-10 items-center justify-center gap-2 bg-[#0f62fe] px-4 text-sm font-medium text-white hover:bg-[#0353e9]">
-          <Download size={16} />
-          Export report
-        </button>
+  return <AppShell title="Overview" subtitle="Predict, prioritize, and move evidence toward human-reviewed remediation" breadcrumb="Overview">
+    {loading && <div className="grid min-h-[360px] place-items-center"><div className="text-center"><LoaderCircle className="mx-auto animate-spin text-[#0f62fe]" /><p className="mt-3 text-sm text-[#525252]">Loading environment overview…</p></div></div>}
+    {!loading && error && <div className="mt-8 grid min-h-[280px] place-items-center border border-[#e0e0e0] p-6 text-center"><div><AlertCircle className="mx-auto text-[#da1e28]" /><p className="mt-3 font-medium">Overview unavailable</p><p className="mt-2 max-w-lg text-sm text-[#525252]">{error}</p><button onClick={() => { setLoading(true); setError(null); setRequestKey((value) => value + 1); }} className="mt-5 inline-flex h-10 items-center gap-2 bg-[#0f62fe] px-4 text-sm text-white"><RotateCcw size={15} />Retry</button></div></div>}
+    {!loading && !error && <>
+      <section aria-labelledby="posture-heading"><div className="mb-5"><p className="text-xs font-semibold uppercase tracking-[.1em] text-[#0f62fe]">Current posture</p><h1 id="posture-heading" className="mt-2 text-2xl font-light">What needs attention now</h1></div><div className="glass-stats grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{metrics.map((metric) => <MetricCard key={metric.label} {...metric} />)}</div>{noLiveAdapterData && <p className="mt-3 border-l-4 border-[#8d8d8d] bg-[#f4f4f4] p-4 text-sm text-[#525252]">The live backend is connected, but real prediction, asset, and alert adapters are not configured. No demo totals have been substituted.</p>}</section>
+      <section className="mt-10 grid gap-8 xl:grid-cols-[1.5fr_.8fr]">
+        <div className="border border-[#e0e0e0]"><div className="flex items-end justify-between border-b border-[#e0e0e0] p-5"><div><h2 className="text-lg font-medium">Prioritized findings</h2><p className="mt-1 text-xs text-[#6f6f6f]">Compact view of the current ranking snapshot</p></div><a href="/hidden-threats" className="text-sm text-[#0f62fe] hover:underline">View all</a></div><div className="overflow-x-auto"><table className="w-full min-w-[680px] text-left"><thead><tr className="bg-[#f4f4f4] text-[11px] font-semibold uppercase text-[#525252]"><th className="px-5 py-3">Finding</th><th className="px-4 py-3">Asset</th><th className="px-4 py-3">CVSS</th><th className="px-4 py-3">EPSS</th><th className="px-4 py-3">Priority</th></tr></thead><tbody>{vulnerabilities.slice(0, 5).map((item) => <tr key={item.id} className="border-t border-[#e0e0e0]"><td className="px-5 py-4"><a href={`/hidden-threats?finding=${encodeURIComponent(item.id)}`} className="font-mono text-xs font-semibold text-[#0f62fe] hover:underline">{item.id}</a><p className="mt-1 max-w-[330px] text-sm">{item.title}</p></td><td className="px-4 py-4 text-sm">{item.asset ?? "Unknown"}</td><td className="px-4 py-4 text-sm">{item.cvss === null ? "Unknown" : item.cvss.toFixed(1)}</td><td className="px-4 py-4 text-sm">{item.epss === null ? "Unknown" : `${Math.round(item.epss * 100)}%`}</td><td className="px-4 py-4"><span className={`px-2.5 py-1 text-xs font-semibold ${priorityStyles[item.priority]}`}>{item.priority}</span></td></tr>)}</tbody></table>{vulnerabilities.length === 0 && <p className="px-5 py-14 text-center text-sm text-[#525252]">No findings are available from the current data source.</p>}</div></div>
+        <div className="border border-[#e0e0e0]"><div className="flex items-end justify-between border-b border-[#e0e0e0] p-5"><div><h2 className="text-lg font-medium">Recent remediation activity</h2><p className="mt-1 text-xs text-[#6f6f6f]">Provider and analyst workflow updates</p></div><a href="/alerts" className="text-sm text-[#0f62fe] hover:underline">Open center</a></div><div className="divide-y divide-[#e0e0e0]">{alerts.slice(0, 5).map((alert) => <a key={alert.id} href="/alerts" className="block p-5 hover:bg-[#f4f4f4]"><div className="flex justify-between gap-3"><p className="font-mono text-xs font-semibold text-[#0f62fe]">{alert.cveId}</p><p className="text-xs text-[#6f6f6f]">{formatTime(alert.timestamp)}</p></div><p className="mt-2 text-sm font-medium">{alert.assetName}</p><p className="mt-1 text-xs text-[#525252]">{alert.lifecycle} · Slack {alert.slackStatus} · Jira {alert.jiraStatus}</p>{alert.simulated && <p className="mt-2 text-[10px] font-semibold uppercase tracking-[.08em] text-[#6f6f6f]">Simulated record</p>}</a>)}{alerts.length === 0 && <p className="p-8 text-center text-sm text-[#525252]">No remediation activity is available.</p>}</div></div>
       </section>
-
-      <section className="mt-8 grid gap-px bg-[#e0e0e0] sm:grid-cols-2 xl:grid-cols-4">
-        {metrics.map(({ label, value, change, icon: Icon, tone, ...rest }) => {
-          const display = "display" in rest ? rest.display : null;
-          return (
-            <article key={label} className="bg-white p-5">
-              <div className="flex justify-between">
-                <p className="text-sm text-[#525252]">{label}</p>
-                <Icon
-                  size={19}
-                  className={
-                    tone === "red"
-                      ? "text-[#fa4d56]"
-                      : tone === "orange"
-                        ? "text-[#ff832b]"
-                        : tone === "purple"
-                          ? "text-[#8a3ffc]"
-                          : "text-[#0f62fe]"
-                  }
-                />
-              </div>
-              <p className="mt-6 text-3xl font-light">
-                {display !== null ? (
-                  display
-                ) : value === null || value === undefined ? (
-                  <span className="text-lg text-[#6f6f6f]">Not available</span>
-                ) : (
-                  value.toLocaleString()
-                )}
-              </p>
-              <p className="mt-2 text-xs text-[#6f6f6f]">{change}</p>
-            </article>
-          );
-        })}
-      </section>
-
-      <section className="mt-5 overflow-hidden border border-[#e0e0e0]">
-        <div className="flex flex-col gap-4 border-b border-[#e0e0e0] p-5 xl:flex-row xl:items-center xl:justify-between">
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-lg font-medium">Model-ranked vulnerabilities</h2>
-              <span className="border border-[#525252] px-2 py-0.5 text-[10px] font-semibold uppercase text-[#0043ce]">
-                {demo ? "Demo data" : "Live API"}
-              </span>
-            </div>
-            <p className="mt-1 text-xs text-[#6f6f6f]">
-              Ordered by SignalZero model rank · Ranking score is relative, not calibrated risk
-            </p>
-          </div>
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <label className="relative min-w-[280px]">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6f6f6f]" />
-              <input
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search CVE, asset, or product…"
-                className="h-10 w-full border-b border-[#8d8d8d] bg-[#f4f4f4] pl-10 pr-3 text-sm outline-none focus:border-[#0f62fe]"
-              />
-            </label>
-            <select
-              value={matchFilter}
-              onChange={(event) => setMatchFilter(event.target.value as "All" | "Matched" | "Unmatched")}
-              className="h-10 border-b border-[#8d8d8d] bg-[#f4f4f4] px-3 text-sm"
-            >
-              <option value="All">All inventory states</option>
-              <option value="Matched">Inventory matched</option>
-              <option value="Unmatched">No inventory match</option>
-            </select>
-          </div>
-        </div>
-
-        {loading && (
-          <div className="grid min-h-[280px] place-items-center">
-            <div className="text-center">
-              <LoaderCircle className="mx-auto animate-spin text-[#0f62fe]" />
-              <p className="mt-3 text-sm text-[#525252]">Loading vulnerability overview…</p>
-            </div>
-          </div>
-        )}
-
-        {!loading && error && (
-          <div className="grid min-h-[280px] place-items-center p-6 text-center">
-            <div>
-              <AlertCircle className="mx-auto text-[#da1e28]" />
-              <p className="mt-3 font-medium">Overview unavailable</p>
-              <p className="mt-2 max-w-lg text-sm text-[#525252]">{error}</p>
-              <button
-                onClick={() => {
-                  setLoading(true);
-                  setError(null);
-                  setRequestKey((value) => value + 1);
-                }}
-                className="mt-5 inline-flex h-10 items-center gap-2 bg-[#0f62fe] px-4 text-sm text-white"
-              >
-                <RotateCcw size={15} />
-                Retry
-              </button>
-            </div>
-          </div>
-        )}
-
-        {!loading && !error && (
-          <>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[860px] text-left">
-                <thead>
-                  <tr className="bg-[#f4f4f4] text-[11px] font-semibold uppercase text-[#525252]">
-                    <th className="px-5 py-3">Model rank</th>
-                    <th className="px-4 py-3">Vulnerability</th>
-                    <th className="hidden px-4 py-3 lg:table-cell">Affected asset</th>
-                    <th className="px-4 py-3">Ranking score</th>
-                    <th className="hidden px-4 py-3 sm:table-cell">Snapshot</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.map((item) => (
-                    <tr key={item.id} className="border-t border-[#e0e0e0] hover:bg-[#f4f4f4]">
-                      <td className="px-5 py-4">
-                        <span className="text-lg font-light tabular-nums text-[#0f62fe]">
-                          {item.modelRank ?? "—"}
-                        </span>
-                      </td>
-                      <td className="px-4 py-4">
-                        <p className="font-mono text-xs font-semibold text-[#0f62fe]">{item.id}</p>
-                        <p className="mt-1 max-w-[420px] text-sm leading-5 text-[#525252] line-clamp-2">
-                          {item.title}
-                        </p>
-                      </td>
-                      <td className="hidden px-4 py-4 lg:table-cell">
-                        <p className="text-sm">{item.asset ?? "No inventory match"}</p>
-                        <p className="mt-1 text-xs text-[#6f6f6f]">{item.service ?? "—"}</p>
-                      </td>
-                      <td className="px-4 py-4">
-                        <RankingScore value={item.rankingScore} kind={item.rankingScoreKind} />
-                      </td>
-                      <td className="hidden px-4 py-4 text-sm tabular-nums text-[#525252] sm:table-cell">
-                        {item.snapshotMonth ?? "Not provided"}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            {filtered.length === 0 && (
-              <div className="px-5 py-14 text-center">
-                <Search className="mx-auto text-[#6f6f6f]" />
-                <p className="mt-3 text-sm text-[#525252]">No vulnerabilities match your search.</p>
-              </div>
-            )}
-            <div className="flex justify-between border-t border-[#e0e0e0] px-5 py-3 text-xs text-[#6f6f6f]">
-              <span>
-                Showing {filtered.length} of {vulnerabilities.length} ranked findings
-              </span>
-              <span className="hidden items-center gap-1 text-[#0f62fe] sm:flex">
-                <ChevronsUp size={14} />
-                Lowest model rank first
-              </span>
-            </div>
-          </>
-        )}
-      </section>
-
-      {(source === "simulated" || (source === null && demo)) && (
-        <p className="mt-4 text-center text-[11px] text-[#6f6f6f]">
-          Demo environment · Vulnerability fixtures are simulated for interface development.
-        </p>
-      )}
-    </AppShell>
-  );
+    </>}
+  </AppShell>;
 }
