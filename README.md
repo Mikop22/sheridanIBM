@@ -1,9 +1,3 @@
-# sheridanIBM — Vulnerability Exploitation (CISA KEV) Prediction Pipeline
-
-End-to-end feature engineering, leakage diagnostics, model exploration, and the **locked-in v1 multi-modal stacking ensemble** (`src/ensemble_v1.py`) for predicting which newly published vulnerabilities in `scoreboard_2026.csv` (`72,670` CVEs) will be exploited in the wild and added to **CISA's Known Exploited Vulnerabilities (KEV)** catalog.
-
----
-
 ## 1. Repository Structure
 
 ```text
