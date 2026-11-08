@@ -10,5 +10,6 @@ export interface VulnerabilityAlert {
   id: string; cveId: string; assetId: string; assetName: string; priority: AlertPriority; triggerReason: string; timestamp: string;
   slackStatus: DeliveryStatus; jiraStatus: JiraStatus; slackDelivery?: IntegrationDeliveryResultContract; jiraDelivery?: IntegrationDeliveryResultContract;
   jiraKey: string | null; jiraUrl: string | null; lifecycle: AlertLifecycle; occurrenceCount: number; evidence: string[]; history: AlertActivityEvent[]; dedupeKey: string; simulated: boolean;
+  repository?: string | null; ownerTeam?: string | null; prUrl?: string | null; prNumber?: number | null; prTitle?: string | null; prBranch?: string | null; checksPassed?: boolean | null;
 }
 export interface AlertActivityResponse { alerts: VulnerabilityAlert[]; source: "simulated" | "api"; }

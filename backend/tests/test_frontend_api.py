@@ -22,6 +22,7 @@ def test_frontend_threats_include_synthetic_asset_decisions_and_inventory(
         "predictionHorizonDays": None,
         "inventoryMatches": 5,
         "topModelRank": 1,
+        "draftPullRequests": None,
     }
     assert overview_body["source"] == "live"
     assert overview_body["generatedAt"]
@@ -172,6 +173,19 @@ def test_frontend_alerts_populate_after_judge_script(client: TestClient) -> None
         assert first["jiraDelivery"]["status"] == "simulated-not-sent"
     if first["slackDelivery"]["status"] != "not-attempted":
         assert first["slackDelivery"]["status"] == "simulated-not-sent"
+
+    recorded = client.post(
+        "/v1/operations/remediations/CVE-2026-22739/pull-request",
+        json={"pr_url": "https://github.com/Mikop22/securitydemo/pull/1", "checks_passed": True},
+    )
+    assert recorded.status_code == 200
+    overview_after = client.get("/api/overview").json()
+    assert overview_after["summary"]["draftPullRequests"] == 1
+    alerts_after = client.get("/api/alerts").json()["alerts"]
+    portal_alert = next(item for item in alerts_after if item["assetId"] == "customer-portal")
+    assert portal_alert["prUrl"] == "https://github.com/Mikop22/securitydemo/pull/1"
+    assert portal_alert["prNumber"] == 1
+    assert portal_alert["repository"] == "Mikop22/securitydemo"
 
 
 def test_frontend_alerts_populate_after_kev_step(client: TestClient) -> None:

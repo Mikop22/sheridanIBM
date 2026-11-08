@@ -1,7 +1,12 @@
 from __future__ import annotations
 
+import json
+import re
+import time
 from datetime import UTC, datetime
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
+from urllib.error import URLError
+from urllib.request import Request as UrlRequest, urlopen
 
 from fastapi import APIRouter, Depends, Request, Response, status
 
@@ -48,8 +53,9 @@ from app.operations.models import (
     RankingsResponse,
     ReadinessResponse,
 )
+from app.operations.remediation import REPOSITORY as SECURITYDEMO_REPO, branch_for_route
 from app.operations.service import OperationsService
-from app.operations.store import DeliveryRow, FindingRow
+from app.operations.store import DeliveryRow, FindingRow, JobRow
 from app.repositories import PredictionRepository
 from app.services.asset_correlation import AssetCorrelationService
 from app.services.escalation import EscalationEvaluator
@@ -75,6 +81,82 @@ _PRIORITY_MAP: dict[str, Literal["Critical", "High", "Medium"]] = {
     "investigate": "Medium",
 }
 _SYNTHETIC_INVENTORY_LABEL = "SignalZero demo inventory (synthetic)"
+_PR_NUMBER_RE = re.compile(r"/pull/(\d+)(?:$|[/?#])")
+_GITHUB_PR_CACHE: dict[str, tuple[float, dict[str, dict[str, Any]]]] = {}
+_GITHUB_PR_TTL_SECONDS = 30.0
+
+
+def _pr_number_from_url(url: str | None) -> int | None:
+    if not url:
+        return None
+    match = _PR_NUMBER_RE.search(url)
+    return int(match.group(1)) if match else None
+
+
+def _fetch_live_github_prs(repo: str, token: str) -> dict[str, dict[str, Any]]:
+    now = time.monotonic()
+    cached = _GITHUB_PR_CACHE.get(repo)
+    if cached is not None and (now - cached[0]) < _GITHUB_PR_TTL_SECONDS:
+        return dict(cached[1])
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "User-Agent": "Vigil-Security-Operations",
+    }
+    if token.strip():
+        headers["Authorization"] = f"Bearer {token.strip()}"
+    url = f"https://api.github.com/repos/{repo}/pulls?state=open"
+    result: dict[str, dict[str, Any]] = {}
+    try:
+        req = UrlRequest(url, headers=headers)
+        with urlopen(req, timeout=3.0) as resp:  # noqa: S310
+            payload = json.loads(resp.read().decode("utf-8"))
+        if isinstance(payload, list):
+            for item in payload:
+                if not isinstance(item, dict):
+                    continue
+                head = item.get("head")
+                branch = head.get("ref") if isinstance(head, dict) else None
+                html_url = item.get("html_url")
+                if isinstance(branch, str) and branch and isinstance(html_url, str) and html_url:
+                    result[branch] = {
+                        "url": html_url,
+                        "number": item.get("number") if isinstance(item.get("number"), int) else _pr_number_from_url(html_url),
+                        "title": item.get("title") if isinstance(item.get("title"), str) else None,
+                        "branch": branch,
+                        "draft": bool(item.get("draft", True)),
+                        "updated_at": item.get("updated_at") if isinstance(item.get("updated_at"), str) else None,
+                    }
+        _GITHUB_PR_CACHE[repo] = (now, result)
+    except (URLError, TimeoutError, ValueError, OSError):
+        if cached is not None:
+            return dict(cached[1])
+    return result
+
+
+def _resolve_securitydemo_prs(operations: OperationsService) -> dict[str, dict[str, Any]]:
+    prs: dict[str, dict[str, Any]] = {}
+    if operations.settings.operations_delivery == "live":
+        prs.update(
+            _fetch_live_github_prs(
+                SECURITYDEMO_REPO,
+                operations.settings.github_token,
+            )
+        )
+    for job in operations.store.list_jobs():
+        if job.pr_url:
+            existing = prs.get(job.branch, {})
+            prs[job.branch] = {
+                "url": job.pr_url,
+                "number": existing.get("number") or _pr_number_from_url(job.pr_url),
+                "title": existing.get("title"),
+                "branch": job.branch,
+                "draft": existing.get("draft", True),
+                "checks_passed": job.checks_passed,
+                "updated_at": existing.get("updated_at"),
+            }
+        elif job.branch in prs and job.checks_passed is not None:
+            prs[job.branch]["checks_passed"] = job.checks_passed
+    return prs
 
 
 def get_repository(request: Request) -> PredictionRepository:
@@ -530,6 +612,8 @@ def _frontend_alert(
     finding: FindingRow,
     deliveries: list[DeliveryRow],
     *,
+    job: JobRow | None = None,
+    pr_info: dict[str, Any] | None = None,
     jira_base_url: str,
     now_iso: str,
     simulated: bool,
@@ -571,6 +655,37 @@ def _frontend_alert(
                 kind=kind,
             )
         )
+    pr_url = (pr_info.get("url") if pr_info else None) or (job.pr_url if job else None)
+    pr_number = (pr_info.get("number") if pr_info else None) or _pr_number_from_url(pr_url)
+    pr_title = pr_info.get("title") if pr_info else None
+    pr_branch = (job.branch if job else None) or (pr_info.get("branch") if pr_info else None)
+    checks_passed = (
+        job.checks_passed
+        if (job is not None and job.checks_passed is not None)
+        else (pr_info.get("checks_passed") if pr_info else None)
+    )
+    if pr_url and checks_passed is None:
+        checks_passed = True
+    repository = (job.repository if job else None) or (asset.repository if asset else None)
+    owner_team = asset.owner if asset else (finding.team if finding.team != "unknown" else None)
+    if pr_url:
+        pr_ts = (
+            pr_info.get("updated_at")
+            if (pr_info and pr_info.get("updated_at"))
+            else updated_at
+        )
+        history.append(
+            FrontendAlertHistoryEvent(
+                timestamp=pr_ts,
+                label="Draft GitHub PR opened",
+                detail=(
+                    f"{pr_title} ({pr_url})"
+                    if pr_title
+                    else f"Draft pull request opened in {repository or SECURITYDEMO_REPO}: {pr_url}"
+                ),
+                kind="status",
+            )
+        )
     evidence = [
         f"Finding level: {finding.level}",
         f"Remediation route: {finding.route}",
@@ -578,6 +693,8 @@ def _frontend_alert(
     ]
     if asset is not None:
         evidence.insert(0, asset.note)
+    if pr_url:
+        evidence.append(f"Draft PR awaiting review: {pr_url}")
     return FrontendAlert(
         alertId=finding.finding_key,
         cveId=finding.cve_id,
@@ -599,12 +716,19 @@ def _frontend_alert(
             deliveries=jira_rows,
             jira_base_url=jira_base_url,
         ),
-        lifecycle="Investigating" if finding.review_notified else "Open",
+        lifecycle="Investigating" if (finding.review_notified or bool(pr_url)) else "Open",
         occurrenceCount=1,
         evidence=evidence,
         history=history,
         dedupeKey=finding.finding_key,
         simulated=simulated,
+        repository=repository,
+        ownerTeam=owner_team,
+        prUrl=pr_url,
+        prNumber=pr_number,
+        prTitle=pr_title,
+        prBranch=pr_branch,
+        checksPassed=checks_passed,
     )
 
 
@@ -628,6 +752,7 @@ def frontend_overview(
     artifact: ArtifactDependency,
     correlations: CorrelationDependency,
     evaluator: EscalationDependency,
+    operations: OperationsDependency,
 ) -> FrontendOverview:
     """Dashboard totals from the prediction artifact and demo inventory matches."""
     ranked = sorted(artifact.records, key=lambda item: item.prediction.rank)
@@ -635,6 +760,10 @@ def frontend_overview(
         _frontend_vulnerability(record, artifact, correlations, evaluator) for record in ranked
     ]
     inventory_matches = sum(1 for item in priority if item.affectedAsset is not None)
+    prs_by_branch = _resolve_securitydemo_prs(operations)
+    draft_prs: int | None = None
+    if operations.settings.operations_delivery == "live" or prs_by_branch:
+        draft_prs = len(prs_by_branch)
     return FrontendOverview(
         summary=FrontendOverviewSummary(
             totalVulnerabilities=len(artifact.records),
@@ -644,6 +773,7 @@ def frontend_overview(
             predictionHorizonDays=None,
             inventoryMatches=inventory_matches,
             topModelRank=ranked[0].prediction.rank if ranked else None,
+            draftPullRequests=draft_prs,
         ),
         priorityVulnerabilities=priority,
         generatedAt=datetime.now(UTC),
@@ -767,24 +897,38 @@ def frontend_alerts(
     by_finding: dict[str, list[DeliveryRow]] = {}
     for row in deliveries:
         by_finding.setdefault(row.finding_key, []).append(row)
+    jobs_by_finding = {job.finding_key: job for job in store.list_jobs()}
+    prs_by_branch = _resolve_securitydemo_prs(operations)
     now_iso = datetime.now(UTC).isoformat()
     jira_base_url = operations.settings.jira_base_url
     # Inventory is always synthetic; "simulated" tracks delivery mode so live
     # Slack/Jira runs are not labeled as demo banners.
     simulated = operations.settings.operations_delivery != "live"
-    return FrontendAlerts(
-        alerts=[
+    alerts: list[FrontendAlert] = []
+    for finding in findings:
+        job = jobs_by_finding.get(finding.finding_key)
+        branch = (
+            job.branch
+            if job is not None
+            else (
+                branch_for_route(finding.route)
+                if finding.route in {"dependency_upgrade", "code_patch"}
+                else None
+            )
+        )
+        pr_info = prs_by_branch.get(branch) if branch else None
+        alerts.append(
             _frontend_alert(
                 finding,
                 by_finding.get(finding.finding_key, []),
+                job=job,
+                pr_info=pr_info,
                 jira_base_url=jira_base_url,
                 now_iso=now_iso,
                 simulated=simulated,
             )
-            for finding in findings
-        ],
-        decisions=decisions,
-    )
+        )
+    return FrontendAlerts(alerts=alerts, decisions=decisions)
 
 
 def _operations(request: Request) -> OperationsService:
