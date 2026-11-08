@@ -71,6 +71,27 @@ PORTAL = DemoAsset(
     ),
 )
 
+PORTAL_LOADER = DemoAsset(
+    asset_id="customer-portal-config-loader",
+    name="Customer Portal config loader",
+    owner="Portal",
+    team="portal",
+    criticality="high",
+    repository="Mikop22/securitydemo",
+    product="portal.config_loader.resolve_config_path",
+    installed_version="unsafe-join",
+    fixed_version="contained-resolve",
+    advisory_id="LOCAL-PROFILE-TRAVERSAL",
+    route="code_patch",
+    cve_id="CVE-2026-22739",
+    source="https://github.com/advisories/GHSA-3qwq-q9vm-5j42",
+    scripted_dispatch=True,
+    note=(
+        "Synthetic inventory. First-party Python helper reproduces unsafe profile path "
+        "joins under portal/configs. Evidence is advisory/LOCAL-PROFILE-TRAVERSAL.md."
+    ),
+)
+
 SHAREFILE = DemoAsset(
     asset_id="file-gateway",
     name="File gateway",
@@ -92,10 +113,19 @@ SHAREFILE = DemoAsset(
     ),
 )
 
-ASSETS = (LOADMASTER, PORTAL, SHAREFILE)
-BY_CVE = {asset.cve_id: asset for asset in ASSETS}
+ASSETS = (LOADMASTER, PORTAL, PORTAL_LOADER, SHAREFILE)
+BY_CVE = {
+    asset.cve_id: asset
+    for asset in ASSETS
+    if asset.asset_id != "customer-portal-config-loader"
+}
+BY_ASSET = {asset.asset_id: asset for asset in ASSETS}
 KEV_ADDED_ON = "2026-08-07"
 
 
 def asset_for(cve_id: str) -> DemoAsset | None:
     return BY_CVE.get(cve_id)
+
+
+def asset_by_id(asset_id: str) -> DemoAsset | None:
+    return BY_ASSET.get(asset_id)

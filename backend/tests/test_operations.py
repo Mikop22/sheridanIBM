@@ -81,7 +81,13 @@ def test_judge_script_records_side_effects_without_calling_the_network(
     assert first.status_code == 200
     report = first.json()
     kinds = [item["kind"] for item in report["deliveries"]]
-    assert kinds == ["jira_create", "jira_update", "slack_urgent", "jira_create"]
+    assert kinds == [
+        "jira_create",
+        "jira_update",
+        "slack_urgent",
+        "jira_create",
+        "jira_create",
+    ]
     assert all(
         item["mode"] == "recording" and item["delivered"] is False for item in report["deliveries"]
     )
@@ -91,25 +97,33 @@ def test_judge_script_records_side_effects_without_calling_the_network(
     july = next(step for step in report["steps"] if step["step"] == "july")
     assert july["actions"] == ["UPSERT_JIRA"]
     assert "NOTIFY_SLACK_URGENT" not in july["actions"]
-    findings = {item["cve_id"]: item for item in report["findings"]}
-    assert findings["CVE-2026-8037"]["level"] == "escalate"
-    assert findings["CVE-2026-8037"]["jira_issue_key"] == "REC-CVE-2026-8037"
-    assert findings["CVE-2026-22739"]["level"] == "act"
-    assert findings["CVE-2026-22739"]["jira_issue_key"] == "REC-CVE-2026-22739"
+    findings = {item["finding_key"]: item for item in report["findings"]}
+    assert findings["CVE-2026-8037::edge-load-balancer"]["level"] == "escalate"
+    assert findings["CVE-2026-8037::edge-load-balancer"]["jira_issue_key"] == (
+        "REC-CVE-2026-8037-edge-load-balancer"
+    )
+    assert findings["CVE-2026-22739::customer-portal"]["level"] == "act"
+    assert findings["CVE-2026-22739::customer-portal-config-loader"]["level"] == "act"
     assert report["undispatched"][0]["cve_id"] == "CVE-2026-2699"
     assert report["undispatched"][0]["dispatch"] is False
     assert not any("CVE-2026-2699" in item["finding_key"] for item in report["deliveries"])
-    job = report["jobs"][0]
-    assert job["status"] == "blocked_pending_credentials"
-    assert job["branch"] == "signalzero/cve-2026-22739"
-    assert "Do not upgrade to 5.0.2" in job["task"]
-    assert "Do not merge" in job["task"]
-    assert "does not prove the path traversal is closed" in job["task"]
+    jobs = {item["finding_key"]: item for item in report["jobs"]}
+    dependency_job = jobs["CVE-2026-22739::customer-portal"]
+    assert dependency_job["status"] == "blocked_pending_credentials"
+    assert dependency_job["branch"] == "signalzero/cve-2026-22739"
+    assert "Do not upgrade to 5.0.2" in dependency_job["task"]
+    assert "Do not merge" in dependency_job["task"]
+    assert "does not prove the path traversal is closed" in dependency_job["task"]
+    code_job = jobs["CVE-2026-22739::customer-portal-config-loader"]
+    assert code_job["branch"] == "signalzero/cve-2026-22739-code"
+    assert "Rewrite resolve_config_path" in code_job["task"]
+    assert "Do not change pom.xml" in code_job["task"]
+    assert "check_code_fix.py" in code_job["task"]
 
     replay = second.json()
     assert replay["deliveries"] == report["deliveries"]
     assert all(step["suppressed"] for step in replay["steps"])
-    assert len(replay["jobs"]) == 1
+    assert len(replay["jobs"]) == 2
     assert readiness.json()["live_calls_enabled"] is False
     missing = readiness.json()["missing"]
     assert "GH_TOKEN" in missing
@@ -247,6 +261,23 @@ def test_seed_repository_check_fails_on_the_vulnerable_pin() -> None:
     assert "4.3.2" in completed.stderr
     pom = (REPO_ROOT / "demo" / "securitydemo" / "pom.xml").read_text(encoding="utf-8")
     assert "<version>4.3.1</version>" in pom
+
+
+def test_seed_repository_code_fix_fails_before_the_loader_is_rewritten() -> None:
+    script = REPO_ROOT / "demo" / "securitydemo" / "check_code_fix.py"
+    completed = subprocess.run(
+        [sys.executable, str(script)],
+        cwd=script.parent,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert completed.returncode != 0
+    assert "portal/configs" in completed.stderr
+    loader = (
+        REPO_ROOT / "demo" / "securitydemo" / "portal" / "config_loader.py"
+    ).read_text(encoding="utf-8")
+    assert "Intentionally unsafe join" in loader
 
 
 def test_live_jira_client_posts_the_v3_payload(monkeypatch) -> None:

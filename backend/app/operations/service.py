@@ -7,7 +7,14 @@ from urllib.parse import urlsplit
 from app.config import Settings
 from app.operations.delivery import Delivery, Outbound, build_delivery
 from app.operations.errors import OperationsRequestError
-from app.operations.inventory import ASSETS, KEV_ADDED_ON, SHAREFILE, DemoAsset, asset_for
+from app.operations.inventory import (
+    ASSETS,
+    KEV_ADDED_ON,
+    SHAREFILE,
+    DemoAsset,
+    asset_by_id,
+    asset_for,
+)
 from app.operations.models import (
     DeliveryView,
     FindingView,
@@ -21,10 +28,10 @@ from app.operations.models import (
 )
 from app.operations.policy import decide, notification_allowed
 from app.operations.rankings import SCOREBOARD_ROWS, RankingCatalog, RankingRow, format_score
-from app.operations.remediation import BRANCH, REPOSITORY, agent_task
+from app.operations.remediation import REPOSITORY, branch_for_route, task_for_route
 from app.operations.store import EventRow, FindingRow, JobRow, OperationsStore, today_utc
 
-STEP_ORDER = ("july", "kev", "portal", "replay")
+STEP_ORDER = ("july", "kev", "portal", "codefix", "replay")
 
 
 class OperationsService:
@@ -113,18 +120,32 @@ class OperationsService:
         parsed = urlsplit(pr_url)
         if parsed.scheme != "https" or parsed.hostname != "github.com":
             raise OperationsRequestError("pr_url must be an https://github.com pull request URL")
-        asset = asset_for(cve_id)
-        if asset is None or asset.route != "dependency_upgrade":
+        candidates = [
+            row
+            for row in self._store.list_findings()
+            if row.cve_id == cve_id and row.route in {"dependency_upgrade", "code_patch"}
+        ]
+        open_jobs = []
+        for row in candidates:
+            job = self._store.get_job(row.finding_key)
+            if job is not None and job.pr_url is None:
+                open_jobs.append((row, job))
+        if not open_jobs:
+            # Fall back to the most recent remediated finding for updates.
+            paired = []
+            for row in candidates:
+                job = self._store.get_job(row.finding_key)
+                if job is not None:
+                    paired.append((row, job))
+            if not paired:
+                raise OperationsRequestError(f"{cve_id} has no queued remediation finding")
+            finding, job = paired[-1]
+        else:
+            finding, job = open_jobs[0]
+        asset = asset_by_id(finding.asset_id)
+        if asset is None or asset.route not in {"dependency_upgrade", "code_patch"}:
             raise OperationsRequestError(f"{cve_id} has no code-remediation job")
-        finding_key = _key(asset)
-        job = self._store.get_job(finding_key)
-        if job is None:
-            raise OperationsRequestError(
-                "Queue the remediation job before recording a pull request."
-            )
-        finding = self._store.get_finding(finding_key)
-        if finding is None:
-            raise OperationsRequestError("The finding record is missing.")
+        finding_key = finding.finding_key
         self._store.save_job(
             JobRow(
                 finding_key=finding_key,
@@ -194,21 +215,24 @@ class OperationsService:
 
     def _run_step(self, name: str) -> list[StepView]:
         if name == "july":
-            return [self._apply("july", "CVE-2026-8037", urgent=False)]
+            return [self._apply("july", "edge-load-balancer", urgent=False)]
         if name == "kev":
-            return [self._apply("kev", "CVE-2026-8037", urgent=True)]
+            return [self._apply("kev", "edge-load-balancer", urgent=True)]
         if name == "portal":
-            return [self._apply("portal", "CVE-2026-22739", urgent=False)]
+            return [self._apply("portal", "customer-portal", urgent=False)]
+        if name == "codefix":
+            return [self._apply("codefix", "customer-portal-config-loader", urgent=False)]
         return [
-            self._apply("replay", "CVE-2026-8037", urgent=True),
-            self._apply("replay", "CVE-2026-22739", urgent=False),
+            self._apply("replay", "edge-load-balancer", urgent=True),
+            self._apply("replay", "customer-portal", urgent=False),
+            self._apply("replay", "customer-portal-config-loader", urgent=False),
         ]
 
-    def _apply(self, step: str, cve_id: str, *, urgent: bool) -> StepView:
-        ranking = self._rankings.get(cve_id)
-        asset = asset_for(cve_id)
+    def _apply(self, step: str, asset_id: str, *, urgent: bool) -> StepView:
+        asset = asset_by_id(asset_id)
         if asset is None or not asset.scripted_dispatch:
-            raise OperationsRequestError(f"{cve_id} is not dispatched by the judge script")
+            raise OperationsRequestError(f"{asset_id} is not dispatched by the judge script")
+        ranking = self._rankings.get(asset.cve_id)
         finding_key = _key(asset)
         prior = self._store.get_finding(finding_key)
         decision = decide(
@@ -274,9 +298,13 @@ class OperationsService:
                 JobRow(
                     finding_key=finding_key,
                     status=_job_status(self._settings),
-                    branch=BRANCH,
+                    branch=branch_for_route(asset.route),
                     repository=REPOSITORY,
-                    task=agent_task(ranking_score=ranking.ranking_score, rank=ranking.rank),
+                    task=task_for_route(
+                        asset.route,
+                        ranking_score=ranking.ranking_score,
+                        rank=ranking.rank,
+                    ),
                     pr_url=None,
                     checks_passed=None,
                 )
@@ -438,6 +466,13 @@ def _jira_body(step: str, ranking: RankingRow, asset: DemoAsset, urgent: bool) -
             base + f" CISA KEV added this CVE on {KEV_ADDED_ON}, after snapshot "
             f"{ranking.snapshot_month}. No code change is proposed; the asset is an appliance."
         )
+    if asset.route == "code_patch":
+        return (
+            base + f" Local evidence {asset.advisory_id} requires rewriting "
+            "portal/config_loader.py so profile paths stay under portal/configs. "
+            "A coding agent may open a draft pull request. Passing tests do not prove a "
+            "remote Spring server is patched. Nothing is merged from this record."
+        )
     return (
         base + f" Verified fixed version on this line is {asset.fixed_version} "
         f"({asset.advisory_id}). 5.0.2 is out of scope. "
@@ -463,11 +498,21 @@ def _review_text(
     pr_url: str,
     checks_passed: bool,
 ) -> str:
+    if asset.route == "code_patch":
+        change = (
+            f"Draft PR rewrites {asset.product} so profile paths stay under portal/configs."
+        )
+        caveat = "Passing tests do not prove a remote Spring server is patched."
+    else:
+        change = (
+            f"Draft PR bumps {asset.product} {asset.installed_version} to {asset.fixed_version}."
+        )
+        caveat = "A passing check does not prove the vulnerability is closed."
     return (
         f"Fix ready for review: {ranking.cve_id} in {asset.name}. "
-        f"Draft PR bumps {asset.product} {asset.installed_version} to {asset.fixed_version}. "
+        f"{change} "
         f"Checks passed: {checks_passed}. "
-        "A passing check does not prove the vulnerability is closed. "
+        f"{caveat} "
         f"Jira: {issue_key}. PR: {pr_url}."
     )
 

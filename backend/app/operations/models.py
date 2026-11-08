@@ -101,7 +101,7 @@ class JudgeScriptReport(ApiModel):
 
 
 class JudgeScriptRequest(ApiModel):
-    through: Literal["july", "kev", "portal", "replay"] = "replay"
+    through: Literal["july", "kev", "portal", "codefix", "replay"] = "replay"
 
 
 class PullRequestRecord(ApiModel):

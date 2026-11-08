@@ -2,11 +2,19 @@ from __future__ import annotations
 
 from app.operations.rankings import format_score
 
-BRANCH = "signalzero/cve-2026-22739"
 REPOSITORY = "Mikop22/securitydemo"
+DEPENDENCY_BRANCH = "signalzero/cve-2026-22739"
+CODE_BRANCH = "signalzero/cve-2026-22739-code"
+
+# Backwards-compatible alias used by older call sites.
+BRANCH = DEPENDENCY_BRANCH
 
 
 def agent_task(*, ranking_score: float, rank: int) -> str:
+    return dependency_agent_task(ranking_score=ranking_score, rank=rank)
+
+
+def dependency_agent_task(*, ranking_score: float, rank: int) -> str:
     score = format_score(ranking_score)
     return (
         "In Mikop22/securitydemo, CVE-2026-22739 affects "
@@ -15,11 +23,44 @@ def agent_task(*, ranking_score: float, rank: int) -> str:
         "Do not upgrade to 5.0.2. "
         "Change only the dependency pin to 4.3.2. "
         "Do not edit the advisory or check_version.py. "
-        f"check_version.py must exit 0. "
-        f"Commit on branch {BRANCH}. "
+        "check_version.py must exit 0. "
+        f"Commit on branch {DEPENDENCY_BRANCH}. "
         "Open a draft pull request. Do not merge. "
         f"The v1 ensemble ranking score is {score}, rank {rank} of 72670. "
         "Describe that number as a ranking score, not an exploitation probability. "
         "State that a passing check does not prove the path traversal is closed. "
         "If Entire is enabled, leave it enabled and include the checkpoint id in the pull request."
     )
+
+
+def code_agent_task(*, ranking_score: float, rank: int) -> str:
+    score = format_score(ranking_score)
+    return (
+        "In Mikop22/securitydemo, CVE-2026-22739 / GHSA-3qwq-q9vm-5j42 is the ranking signal. "
+        "Customer Portal also has a first-party bug in portal/config_loader.py: "
+        "resolve_config_path joins a caller-supplied profile into a filesystem path "
+        "without proving the result stays under portal/configs. "
+        "Read advisory/LOCAL-PROFILE-TRAVERSAL.md and portal/tests/test_config_loader.py. "
+        "Rewrite resolve_config_path (and only the loader helpers you must touch) so that "
+        "absolute paths, parent segments, and null bytes are rejected, "
+        "resolved paths stay inside the config root, and profiles default and prod still load. "
+        "Do not delete or weaken the tests. Do not change pom.xml in this pull request. "
+        "python3 check_code_fix.py must exit 0. "
+        f"Commit on branch {CODE_BRANCH}. Open a draft pull request. Do not merge. "
+        f"The v1 ensemble ranking score is {score}, rank {rank} of 72670. "
+        "Describe that number as a ranking score, not an exploitation probability. "
+        "State that passing tests do not prove a remote Spring server is patched. "
+        "If Entire is enabled, leave it enabled and include the checkpoint id in the pull request."
+    )
+
+
+def branch_for_route(route: str) -> str:
+    if route == "code_patch":
+        return CODE_BRANCH
+    return DEPENDENCY_BRANCH
+
+
+def task_for_route(route: str, *, ranking_score: float, rank: int) -> str:
+    if route == "code_patch":
+        return code_agent_task(ranking_score=ranking_score, rank=rank)
+    return dependency_agent_task(ranking_score=ranking_score, rank=rank)

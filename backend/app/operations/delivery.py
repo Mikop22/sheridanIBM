@@ -48,8 +48,7 @@ class Delivery(Protocol):
 
 
 def local_issue_key(finding_key: str) -> str:
-    cve_id = finding_key.split("::", 1)[0]
-    return f"REC-{cve_id}"
+    return "REC-" + finding_key.replace("::", "-").replace("_", "-")
 
 
 class RecordingDelivery:

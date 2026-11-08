@@ -1,0 +1,2 @@
+DEMO_ONLY_SECRET: not-for-profile-loading
+This file must remain unreadable through resolve_config_path.

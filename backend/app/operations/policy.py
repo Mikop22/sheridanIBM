@@ -92,5 +92,9 @@ def decide(
         reason=reason,
         upsert_jira=level in {"act", "escalate"},
         notify_urgent=level == "escalate",
-        queue_remediation=level == "act" and route == "dependency_upgrade" and fix_verified,
+        queue_remediation=(
+            level == "act"
+            and route in {"dependency_upgrade", "code_patch"}
+            and fix_verified
+        ),
     )
