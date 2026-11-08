@@ -42,6 +42,13 @@ from app.domain.frontend_contracts import (
 )
 from app.event_repository import SecurityEventRepository
 from app.operations.inventory import ASSETS, DemoAsset, asset_by_id, asset_for
+from app.operations.live_simulation import (
+    ScenarioCatalogItem,
+    SimulationStepRequest,
+    SimulationStepResponse,
+    execute_simulation_step,
+    list_scenarios,
+)
 from app.operations.models import (
     JudgeScriptReport,
     JudgeScriptRequest,
@@ -883,4 +890,49 @@ def operations_record_pull_request(
     cve_id: str, body: PullRequestRecord, request: Request
 ) -> JudgeScriptReport:
     return _operations(request).record_pull_request(cve_id, body.pr_url, body.checks_passed)
+
+
+@router.get(
+    "/api/simulations/scenarios",
+    response_model=list[ScenarioCatalogItem],
+    tags=["frontend"],
+)
+def frontend_simulation_scenarios() -> list[ScenarioCatalogItem]:
+    return list_scenarios()
+
+
+@router.post(
+    "/api/simulations/step",
+    response_model=SimulationStepResponse,
+    tags=["frontend"],
+)
+def frontend_simulation_step(
+    body: SimulationStepRequest,
+    operations: OperationsDependency,
+) -> SimulationStepResponse:
+    if body.stage in {5, 6}:
+        _GITHUB_PR_CACHE.clear()
+    try:
+        result = execute_simulation_step(
+            operations,
+            scenario_id=body.scenarioId,
+            stage=body.stage,
+        )
+    except ValueError as exc:
+        raise APIError(
+            status_code=400,
+            code="invalid_simulation_request",
+            message=str(exc),
+        ) from exc
+    if body.stage == 6 and result.commitSha and result.prNumber:
+        branch = (
+            "signalzero/cve-2026-22739-code"
+            if body.scenarioId == "code_patch"
+            else "signalzero/cve-2026-22739"
+        )
+        if result.commitUrl:
+            _KNOWN_BRANCH_SHAS[branch] = result.commitUrl.rsplit("/", 1)[-1]
+        _GITHUB_PR_CACHE.clear()
+    return result
+
 

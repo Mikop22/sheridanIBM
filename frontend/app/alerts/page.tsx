@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   AlertCircle,
   BellRing,
   Check,
+  ChevronDown,
   ChevronRight,
   CircleHelp,
   Clock3,
@@ -13,12 +14,19 @@ import {
   Play,
   RefreshCw,
   RotateCcw,
-  Sparkles,
+  Terminal,
   X,
   XCircle,
 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { fetchAlertActivity } from "@/lib/api/alerts";
+import {
+  DEFAULT_SCENARIOS,
+  executeSimulationStage,
+  fetchSimulationScenarios,
+  type ScenarioCatalogItem,
+  type SimulationStepResponse,
+} from "@/lib/api/simulations";
 import type {
   AlertLifecycle,
   AlertPriority,
@@ -183,11 +191,15 @@ const PIPELINE_STAGE_LABELS = [
 function WorkflowStrip({
   alert,
   activeStage = null,
+  activeFindingKey = null,
 }: {
   alert: VulnerabilityAlert;
   activeStage?: number | null;
+  activeFindingKey?: string | null;
 }) {
-  const testCase = isIntentionalTestCase(alert);
+  const isTargetRow =
+    activeStage !== null &&
+    (activeFindingKey === null || alert.id === activeFindingKey || alert.dedupeKey === activeFindingKey);
   return (
     <div className="flex items-center gap-1" aria-label="Eight-stage remediation workflow">
       {workflowFor(alert).map((stage, index) => {
@@ -203,14 +215,16 @@ function WorkflowStrip({
                   ? "bg-[#a6c8ff]"
                   : "bg-[#c6c6c6]";
 
-        if (activeStage !== null && !testCase) {
+        if (isTargetRow && activeStage !== null) {
           if (stageNum < activeStage) {
             colorClass =
               stage.status === "Manual path"
                 ? "bg-[#a6c8ff]"
-                : stage.status === "Failed"
-                  ? "bg-[#da1e28]"
-                  : "bg-[#24a148]";
+                : stage.status === "Unavailable"
+                  ? "bg-[#c6c6c6]"
+                  : stage.status === "Failed"
+                    ? "bg-[#da1e28]"
+                    : "bg-[#24a148]";
           } else if (stageNum === activeStage) {
             colorClass = "bg-[#0f62fe] animate-pulse ring-2 ring-[#0f62fe]/40";
           } else {
@@ -222,9 +236,7 @@ function WorkflowStrip({
           <span
             key={stage.label}
             title={`${stageNum}. ${stage.label}: ${
-              activeStage !== null && !testCase && stageNum === activeStage
-                ? "Running"
-                : stage.status
+              isTargetRow && stageNum === activeStage ? "Running" : stage.status
             }`}
             className={`h-2.5 w-5 transition-colors duration-200 ${colorClass}`}
           />
@@ -495,46 +507,54 @@ export default function AlertsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [requestKey, setRequestKey] = useState(0);
+  const [scenarios, setScenarios] = useState<ScenarioCatalogItem[]>(DEFAULT_SCENARIOS);
+  const [selectedScenarioId, setSelectedScenarioId] = useState<string>(DEFAULT_SCENARIOS[0].id);
+  const [labOpen, setLabOpen] = useState(false);
   const [simStage, setSimStage] = useState<number | null>(null);
+  const [activeFindingKey, setActiveFindingKey] = useState<string | null>(null);
+  const [simLogs, setSimLogs] = useState<SimulationStepResponse[]>([]);
+  const [simError, setSimError] = useState<string | null>(null);
   const [simCompleted, setSimCompleted] = useState(false);
-  const simTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
-    return () => {
-      if (simTimerRef.current !== null) {
-        window.clearInterval(simTimerRef.current);
+    let cancelled = false;
+    fetchSimulationScenarios().then((items) => {
+      if (!cancelled && items.length > 0) {
+        setScenarios(items);
       }
+    });
+    return () => {
+      cancelled = true;
     };
   }, []);
 
-  function runLivePipelineSimulation() {
+  async function runLiveScenario(scenarioId = selectedScenarioId) {
     if (simStage !== null) return;
-    if (simTimerRef.current !== null) {
-      window.clearInterval(simTimerRef.current);
-    }
+    setSimError(null);
     setSimCompleted(false);
+    setSimLogs([]);
     setSimStage(1);
-    let current = 1;
-    simTimerRef.current = window.setInterval(() => {
-      current += 1;
-      if (current <= 8) {
-        setSimStage(current);
-      } else {
-        if (simTimerRef.current !== null) {
-          window.clearInterval(simTimerRef.current);
-          simTimerRef.current = null;
+    setActiveFindingKey(null);
+
+    try {
+      for (let stage = 1; stage <= 8; stage += 1) {
+        setSimStage(stage);
+        const stepResult = await executeSimulationStage(scenarioId, stage);
+        setActiveFindingKey(stepResult.findingKey);
+        setSimLogs((prev) => [...prev, stepResult]);
+        if (stage === 3 || stage === 4 || stage === 6 || stage === 7 || stage === 8) {
+          const refreshed = await fetchAlertActivity();
+          setAlerts(refreshed.alerts);
         }
-        setSimStage(null);
-        setSimCompleted(true);
-        fetchAlertActivity()
-          .then((response) => {
-            setAlerts(response.alerts);
-          })
-          .catch(() => {
-            // Keep existing rows if refresh fails
-          });
       }
-    }, 550);
+      setSimStage(null);
+      setSimCompleted(true);
+    } catch (cause) {
+      setSimStage(null);
+      setSimError(
+        cause instanceof Error ? cause.message : "Live pipeline execution encountered an error.",
+      );
+    }
   }
 
   useEffect(() => {
@@ -587,6 +607,9 @@ export default function AlertsPage() {
     ).length,
   };
 
+  const selectedScenario =
+    scenarios.find((item) => item.id === selectedScenarioId) ?? scenarios[0];
+
   function retry() {
     setLoading(true);
     setError(null);
@@ -617,23 +640,10 @@ export default function AlertsPage() {
       </section>
       <section className="mt-8 border border-[#e0e0e0]">
         <div className="flex flex-col gap-3 border-b border-[#e0e0e0] p-5 md:flex-row md:items-center md:justify-between">
-          <div className="flex flex-wrap items-center gap-3">
+          <div>
             <h2 className="text-xl font-light">Remediation workflows</h2>
-            <button
-              type="button"
-              onClick={runLivePipelineSimulation}
-              disabled={simStage !== null}
-              className="inline-flex h-10 items-center gap-2 bg-[#0f62fe] px-4 text-xs font-medium text-white transition-colors hover:bg-[#0043ce] disabled:cursor-wait disabled:bg-[#8d8d8d]"
-            >
-              {simStage !== null ? (
-                <LoaderCircle size={14} className="animate-spin" />
-              ) : (
-                <Play size={14} />
-              )}
-              Simulate live CVE pipeline
-            </button>
           </div>
-          <div className="grid gap-2 sm:grid-cols-3">
+          <div className="flex flex-wrap items-center gap-2">
             <select
               aria-label="Filter by priority"
               value={priority}
@@ -669,40 +679,177 @@ export default function AlertsPage() {
               <option value="Pending">Slack: Pending</option>
               <option value="Not attempted">Slack: Not attempted</option>
             </select>
-          </div>
-        </div>
-        {simStage !== null && (
-          <div
-            role="status"
-            aria-live="polite"
-            className="flex items-center justify-between border-b border-[#a6c8ff] bg-[#edf5ff] px-5 py-3 text-xs font-medium text-[#0043ce]"
-          >
-            <span className="inline-flex items-center gap-2">
-              <Sparkles size={14} className=" text-[#0f62fe]" />
-              Running stage {simStage}/8: {PIPELINE_STAGE_LABELS[simStage - 1]}…
-            </span>
-            <span className="font-mono text-[11px]">
-              {Math.round((simStage / 8) * 100)}%
-            </span>
-          </div>
-        )}
-        {simStage === null && simCompleted && (
-          <div
-            role="status"
-            aria-live="polite"
-            className="flex items-center justify-between border-b border-[#a7f0ba] bg-[#defbe6] px-5 py-2.5 text-xs font-medium text-[#0e6027]"
-          >
-            <span className="inline-flex items-center gap-2">
-              <Check size={14} />
-              8-stage remediation pipeline verified — Slack, Jira, Entire checkpoint &amp; draft GitHub PRs synchronized.
-            </span>
             <button
               type="button"
-              onClick={() => setSimCompleted(false)}
-              className="text-[11px] underline"
+              onClick={() => setLabOpen((current) => !current)}
+              aria-expanded={labOpen}
+              className={`inline-flex h-10 items-center gap-1.5 border px-3 text-xs transition-colors ${
+                labOpen
+                  ? "border-[#0f62fe] bg-[#edf5ff] font-medium text-[#0043ce]"
+                  : "border-[#e0e0e0] bg-white text-[#525252] hover:bg-[#f4f4f4]"
+              }`}
             >
-              Dismiss
+              <Terminal size={13} />
+              Scenario lab
+              <ChevronDown
+                size={13}
+                className={`transition-transform ${labOpen ? "rotate-180" : ""}`}
+              />
             </button>
+          </div>
+        </div>
+        {labOpen && (
+          <div className="border-b border-[#e0e0e0] bg-[#f4f4f4]/70 p-5">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div className="max-w-2xl">
+                <p className="text-[11px] font-semibold uppercase tracking-[.08em] text-[#525252]">
+                  Live vulnerability scenario runner
+                </p>
+                <p className="mt-1 text-xs text-[#525252]">
+                  Select a vulnerability category to execute the real 8-stage backend pipeline
+                  (Slack CLI, Jira REST API v3, Entire CLI v0.13.1 checkpoint, GitHub PR update, and
+                  verification script).
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => void runLiveScenario(selectedScenario.id)}
+                disabled={simStage !== null}
+                className="inline-flex h-10 shrink-0 items-center gap-2 bg-[#0f62fe] px-4 text-xs font-medium text-white transition-colors hover:bg-[#0043ce] disabled:cursor-wait disabled:bg-[#8d8d8d]"
+              >
+                {simStage !== null ? (
+                  <LoaderCircle size={14} className="animate-spin" />
+                ) : (
+                  <Play size={14} />
+                )}
+                {simStage !== null
+                  ? `Executing stage ${simStage}/8…`
+                  : `Execute: ${selectedScenario.category}`}
+              </button>
+            </div>
+            <div className="mt-4 grid gap-2.5 md:grid-cols-2 xl:grid-cols-4">
+              {scenarios.map((scenario) => {
+                const active = scenario.id === selectedScenario.id;
+                return (
+                  <button
+                    key={scenario.id}
+                    type="button"
+                    disabled={simStage !== null}
+                    onClick={() => setSelectedScenarioId(scenario.id)}
+                    className={`flex flex-col justify-between border p-3.5 text-left transition-colors ${
+                      active
+                        ? "border-[#0f62fe] bg-white ring-1 ring-[#0f62fe]"
+                        : "border-[#e0e0e0] bg-white hover:bg-[#f4f4f4]"
+                    }`}
+                  >
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase tracking-[.08em] text-[#0f62fe]">
+                        {scenario.category}
+                      </p>
+                      <p className="mt-1 font-mono text-xs font-semibold text-[#161616]">
+                        {scenario.cveId} → {scenario.assetName}
+                      </p>
+                      <p className="mt-1.5 text-xs leading-5 text-[#525252]">{scenario.summary}</p>
+                    </div>
+                    <p className="mt-3 border-t border-[#e0e0e0] pt-2 font-mono text-[10px] text-[#6f6f6f]">
+                      {scenario.routeLabel}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+            {(simStage !== null || simLogs.length > 0 || simError) && (
+              <div className="mt-4 border border-[#e0e0e0] bg-white p-4">
+                <div className="flex items-center justify-between border-b border-[#e0e0e0] pb-2.5">
+                  <p className="text-xs font-semibold uppercase tracking-[.06em] text-[#525252]">
+                    Live backend execution log · {selectedScenario.category}
+                  </p>
+                  {simStage !== null ? (
+                    <span className="inline-flex items-center gap-1.5 font-mono text-xs text-[#0f62fe]">
+                      <LoaderCircle size={12} className="animate-spin" />
+                      Stage {simStage}/8: {PIPELINE_STAGE_LABELS[simStage - 1]}
+                    </span>
+                  ) : simCompleted ? (
+                    <span className="inline-flex items-center gap-1 text-xs font-medium text-[#198038]">
+                      <Check size={13} />
+                      Completed all 8 stages
+                    </span>
+                  ) : null}
+                </div>
+                {simError && (
+                  <p className="mt-3 border-l-4 border-[#da1e28] bg-[#fff1f1] p-2.5 text-xs text-[#a2191f]">
+                    {simError}
+                  </p>
+                )}
+                <ol className="mt-2 divide-y divide-[#e0e0e0] text-xs">
+                  {simLogs.map((entry) => (
+                    <li
+                      key={`${entry.stage}-${entry.stageLabel}`}
+                      className="flex flex-wrap items-center justify-between gap-2 py-2"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <span className="font-mono text-[11px] text-[#6f6f6f]">
+                          {entry.stage}/8
+                        </span>
+                        <span className="font-medium text-[#161616]">{entry.stageLabel}:</span>
+                        <span className="text-[#525252]">{entry.detail}</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        {entry.entireCheckpointId && (
+                          <span className="bg-[#f6f2ff] px-2 py-0.5 font-mono text-[11px] font-medium text-[#491d8b]">
+                            Entire-Checkpoint: {entry.entireCheckpointId}
+                          </span>
+                        )}
+                        {entry.commitUrl && entry.commitSha && (
+                          <a
+                            href={entry.commitUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1 font-mono text-[11px] text-[#0f62fe] hover:underline"
+                          >
+                            {entry.commitSha}
+                            <ExternalLink size={10} />
+                          </a>
+                        )}
+                        {entry.prUrl && (
+                          <a
+                            href={entry.prUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1 font-mono text-[11px] text-[#0f62fe] hover:underline"
+                          >
+                            PR #{entry.prNumber}
+                            <ExternalLink size={10} />
+                          </a>
+                        )}
+                        {entry.jiraUrl && entry.jiraKey && (
+                          <a
+                            href={entry.jiraUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1 font-mono text-[11px] text-[#0f62fe] hover:underline"
+                          >
+                            {entry.jiraKey}
+                            <ExternalLink size={10} />
+                          </a>
+                        )}
+                        {entry.slackUrl && (
+                          <a
+                            href={entry.slackUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1 text-[11px] text-[#0f62fe] hover:underline"
+                          >
+                            Slack
+                            <ExternalLink size={10} />
+                          </a>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            )}
           </div>
         )}
         {loading && (
@@ -790,7 +937,11 @@ export default function AlertsPage() {
                         </span>
                       </td>
                       <td className="px-4 py-4">
-                        <WorkflowStrip alert={alert} activeStage={simStage} />
+                        <WorkflowStrip
+                          alert={alert}
+                          activeStage={simStage}
+                          activeFindingKey={activeFindingKey}
+                        />
                         <p className="mt-2 max-w-[240px] text-xs text-[#6f6f6f]">
                           {alert.triggerReason}
                         </p>
