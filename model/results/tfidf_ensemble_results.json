@@ -1,0 +1,508 @@
+{
+  "cv_5fold": {
+    "1. Tabular LogReg Only (102 feats, NO TF-IDF)": {
+      "roc_auc": 0.9233,
+      "pr_auc": 0.1049,
+      "brier": 0.00148,
+      "max_f1": 0.2123,
+      "f1_precision": 0.1824,
+      "f1_recall": 0.2541,
+      "best_threshold": 0.0919,
+      "hits@50": 11,
+      "prec@50": 0.22,
+      "rec@50": 0.0902,
+      "hits@100": 19,
+      "prec@100": 0.19,
+      "rec@100": 0.1557,
+      "hits@250": 36,
+      "prec@250": 0.144,
+      "rec@250": 0.2951,
+      "hits@500": 50,
+      "prec@500": 0.1,
+      "rec@500": 0.4098
+    },
+    "2. Tabular RF Only (102 feats, NO TF-IDF)": {
+      "roc_auc": 0.9485,
+      "pr_auc": 0.1429,
+      "brier": 0.00136,
+      "max_f1": 0.2398,
+      "f1_precision": 0.1741,
+      "f1_recall": 0.3852,
+      "best_threshold": 0.0676,
+      "hits@50": 18,
+      "prec@50": 0.36,
+      "rec@50": 0.1475,
+      "hits@100": 24,
+      "prec@100": 0.24,
+      "rec@100": 0.1967,
+      "hits@250": 43,
+      "prec@250": 0.172,
+      "rec@250": 0.3525,
+      "hits@500": 63,
+      "prec@500": 0.126,
+      "rec@500": 0.5164
+    },
+    "3. Tabular Ensemble (LR + RF, NO TF-IDF)": {
+      "roc_auc": 0.9517,
+      "pr_auc": 0.1339,
+      "brier": 0.00138,
+      "max_f1": 0.2452,
+      "f1_precision": 0.2021,
+      "f1_recall": 0.3115,
+      "best_threshold": 0.078,
+      "hits@50": 12,
+      "prec@50": 0.24,
+      "rec@50": 0.0984,
+      "hits@100": 21,
+      "prec@100": 0.21,
+      "rec@100": 0.1721,
+      "hits@250": 41,
+      "prec@250": 0.164,
+      "rec@250": 0.3361,
+      "hits@500": 66,
+      "prec@500": 0.132,
+      "rec@500": 0.541
+    },
+    "4. Standalone Sparse TF-IDF LogReg (35k n-grams only)": {
+      "roc_auc": 0.9188,
+      "pr_auc": 0.0504,
+      "brier": 0.01631,
+      "max_f1": 0.0946,
+      "f1_precision": 0.0805,
+      "f1_recall": 0.1148,
+      "best_threshold": 0.9008,
+      "hits@50": 5,
+      "prec@50": 0.1,
+      "rec@50": 0.041,
+      "hits@100": 8,
+      "prec@100": 0.08,
+      "rec@100": 0.0656,
+      "hits@250": 15,
+      "prec@250": 0.06,
+      "rec@250": 0.123,
+      "hits@500": 28,
+      "prec@500": 0.056,
+      "rec@500": 0.2295
+    },
+    "5. Joint Sparse LogReg (hstack[102 Tabular, 35k TF-IDF])": {
+      "roc_auc": 0.927,
+      "pr_auc": 0.1227,
+      "brier": 0.00145,
+      "max_f1": 0.2174,
+      "f1_precision": 0.1626,
+      "f1_recall": 0.3279,
+      "best_threshold": 0.0501,
+      "hits@50": 11,
+      "prec@50": 0.22,
+      "rec@50": 0.0902,
+      "hits@100": 18,
+      "prec@100": 0.18,
+      "rec@100": 0.1475,
+      "hits@250": 40,
+      "prec@250": 0.16,
+      "rec@250": 0.3279,
+      "hits@500": 50,
+      "prec@500": 0.1,
+      "rec@500": 0.4098
+    },
+    "6. Random Forest + 32 TruncatedSVD TF-IDF + OOF TF-IDF": {
+      "roc_auc": 0.9445,
+      "pr_auc": 0.1556,
+      "brier": 0.00136,
+      "max_f1": 0.2537,
+      "f1_precision": 0.1982,
+      "f1_recall": 0.3525,
+      "best_threshold": 0.0739,
+      "hits@50": 18,
+      "prec@50": 0.36,
+      "rec@50": 0.1475,
+      "hits@100": 25,
+      "prec@100": 0.25,
+      "rec@100": 0.2049,
+      "hits@250": 43,
+      "prec@250": 0.172,
+      "rec@250": 0.3525,
+      "hits@500": 60,
+      "prec@500": 0.12,
+      "rec@500": 0.4918
+    },
+    "7. Stacked LogReg (102 Tabular + OOF TF-IDF feature)": {
+      "roc_auc": 0.9379,
+      "pr_auc": 0.1265,
+      "brier": 0.00145,
+      "max_f1": 0.2254,
+      "f1_precision": 0.1741,
+      "f1_recall": 0.3197,
+      "best_threshold": 0.0736,
+      "hits@50": 15,
+      "prec@50": 0.3,
+      "rec@50": 0.123,
+      "hits@100": 21,
+      "prec@100": 0.21,
+      "rec@100": 0.1721,
+      "hits@250": 39,
+      "prec@250": 0.156,
+      "rec@250": 0.3197,
+      "hits@500": 57,
+      "prec@500": 0.114,
+      "rec@500": 0.4672
+    },
+    "8. Stacked Random Forest (102 Tabular + OOF TF-IDF feature)": {
+      "roc_auc": 0.9563,
+      "pr_auc": 0.1629,
+      "brier": 0.00135,
+      "max_f1": 0.268,
+      "f1_precision": 0.2228,
+      "f1_recall": 0.3361,
+      "best_threshold": 0.0895,
+      "hits@50": 16,
+      "prec@50": 0.32,
+      "rec@50": 0.1311,
+      "hits@100": 27,
+      "prec@100": 0.27,
+      "rec@100": 0.2213,
+      "hits@250": 45,
+      "prec@250": 0.18,
+      "rec@250": 0.3689,
+      "hits@500": 61,
+      "prec@500": 0.122,
+      "rec@500": 0.5
+    },
+    "9. 3-Way Ensemble (Stacked RF + Stacked LR + Joint TF-IDF LR)": {
+      "roc_auc": 0.9564,
+      "pr_auc": 0.1582,
+      "brier": 0.00135,
+      "max_f1": 0.2509,
+      "f1_precision": 0.2229,
+      "f1_recall": 0.2869,
+      "best_threshold": 0.0934,
+      "hits@50": 14,
+      "prec@50": 0.28,
+      "rec@50": 0.1148,
+      "hits@100": 23,
+      "prec@100": 0.23,
+      "rec@100": 0.1885,
+      "hits@250": 42,
+      "prec@250": 0.168,
+      "rec@250": 0.3443,
+      "hits@500": 66,
+      "prec@500": 0.132,
+      "rec@500": 0.541
+    }
+  },
+  "temporal_2024_to_2025": {
+    "1. Tabular LogReg Only (102 feats, NO TF-IDF)": {
+      "roc_auc": 0.8999,
+      "pr_auc": 0.0889,
+      "brier": 0.00148,
+      "max_f1": 0.1752,
+      "f1_precision": 0.1463,
+      "f1_recall": 0.2182,
+      "best_threshold": 0.1498,
+      "hits@25": 6,
+      "prec@25": 0.24,
+      "rec@25": 0.1091,
+      "hits@50": 8,
+      "prec@50": 0.16,
+      "rec@50": 0.1455,
+      "hits@100": 13,
+      "prec@100": 0.13,
+      "rec@100": 0.2364,
+      "hits@250": 20,
+      "prec@250": 0.08,
+      "rec@250": 0.3636
+    },
+    "2. Tabular RF Only (102 feats, NO TF-IDF)": {
+      "roc_auc": 0.9327,
+      "pr_auc": 0.0917,
+      "brier": 0.00128,
+      "max_f1": 0.1757,
+      "f1_precision": 0.1398,
+      "f1_recall": 0.2364,
+      "best_threshold": 0.1242,
+      "hits@25": 4,
+      "prec@25": 0.16,
+      "rec@25": 0.0727,
+      "hits@50": 7,
+      "prec@50": 0.14,
+      "rec@50": 0.1273,
+      "hits@100": 13,
+      "prec@100": 0.13,
+      "rec@100": 0.2364,
+      "hits@250": 17,
+      "prec@250": 0.068,
+      "rec@250": 0.3091
+    },
+    "3. Tabular Ensemble (LR + RF, NO TF-IDF)": {
+      "roc_auc": 0.9331,
+      "pr_auc": 0.1097,
+      "brier": 0.00128,
+      "max_f1": 0.2059,
+      "f1_precision": 0.1728,
+      "f1_recall": 0.2545,
+      "best_threshold": 0.1257,
+      "hits@25": 6,
+      "prec@25": 0.24,
+      "rec@25": 0.1091,
+      "hits@50": 9,
+      "prec@50": 0.18,
+      "rec@50": 0.1636,
+      "hits@100": 14,
+      "prec@100": 0.14,
+      "rec@100": 0.2545,
+      "hits@250": 21,
+      "prec@250": 0.084,
+      "rec@250": 0.3818
+    },
+    "4. Standalone Sparse TF-IDF LogReg (35k n-grams only)": {
+      "roc_auc": 0.9061,
+      "pr_auc": 0.0257,
+      "brier": 0.01677,
+      "max_f1": 0.069,
+      "f1_precision": 0.0656,
+      "f1_recall": 0.0727,
+      "best_threshold": 0.8771,
+      "hits@25": 2,
+      "prec@25": 0.08,
+      "rec@25": 0.0364,
+      "hits@50": 3,
+      "prec@50": 0.06,
+      "rec@50": 0.0545,
+      "hits@100": 4,
+      "prec@100": 0.04,
+      "rec@100": 0.0727,
+      "hits@250": 9,
+      "prec@250": 0.036,
+      "rec@250": 0.1636
+    },
+    "5. Joint Sparse LogReg (hstack[102 Tabular, 35k TF-IDF])": {
+      "roc_auc": 0.9106,
+      "pr_auc": 0.1143,
+      "brier": 0.00138,
+      "max_f1": 0.1739,
+      "f1_precision": 0.1667,
+      "f1_recall": 0.1818,
+      "best_threshold": 0.1871,
+      "hits@25": 6,
+      "prec@25": 0.24,
+      "rec@25": 0.1091,
+      "hits@50": 8,
+      "prec@50": 0.16,
+      "rec@50": 0.1455,
+      "hits@100": 11,
+      "prec@100": 0.11,
+      "rec@100": 0.2,
+      "hits@250": 18,
+      "prec@250": 0.072,
+      "rec@250": 0.3273
+    },
+    "6. Random Forest + 32 TruncatedSVD TF-IDF + OOF TF-IDF": {
+      "roc_auc": 0.9379,
+      "pr_auc": 0.0777,
+      "brier": 0.00128,
+      "max_f1": 0.1869,
+      "f1_precision": 0.1923,
+      "f1_recall": 0.1818,
+      "best_threshold": 0.1466,
+      "hits@25": 5,
+      "prec@25": 0.2,
+      "rec@25": 0.0909,
+      "hits@50": 8,
+      "prec@50": 0.16,
+      "rec@50": 0.1455,
+      "hits@100": 12,
+      "prec@100": 0.12,
+      "rec@100": 0.2182,
+      "hits@250": 18,
+      "prec@250": 0.072,
+      "rec@250": 0.3273
+    },
+    "7. Stacked LogReg (102 Tabular + OOF TF-IDF feature)": {
+      "roc_auc": 0.9135,
+      "pr_auc": 0.0974,
+      "brier": 0.00141,
+      "max_f1": 0.1982,
+      "f1_precision": 0.1964,
+      "f1_recall": 0.2,
+      "best_threshold": 0.2177,
+      "hits@25": 5,
+      "prec@25": 0.2,
+      "rec@25": 0.0909,
+      "hits@50": 9,
+      "prec@50": 0.18,
+      "rec@50": 0.1636,
+      "hits@100": 13,
+      "prec@100": 0.13,
+      "rec@100": 0.2364,
+      "hits@250": 19,
+      "prec@250": 0.076,
+      "rec@250": 0.3455
+    },
+    "8. Stacked Random Forest (102 Tabular + OOF TF-IDF feature)": {
+      "roc_auc": 0.9373,
+      "pr_auc": 0.0964,
+      "brier": 0.00126,
+      "max_f1": 0.1871,
+      "f1_precision": 0.1548,
+      "f1_recall": 0.2364,
+      "best_threshold": 0.1322,
+      "hits@25": 6,
+      "prec@25": 0.24,
+      "rec@25": 0.1091,
+      "hits@50": 8,
+      "prec@50": 0.16,
+      "rec@50": 0.1455,
+      "hits@100": 14,
+      "prec@100": 0.14,
+      "rec@100": 0.2545,
+      "hits@250": 20,
+      "prec@250": 0.08,
+      "rec@250": 0.3636
+    },
+    "9. 3-Way Ensemble (Stacked RF + Stacked LR + Joint TF-IDF LR)": {
+      "roc_auc": 0.9387,
+      "pr_auc": 0.1259,
+      "brier": 0.00124,
+      "max_f1": 0.2276,
+      "f1_precision": 0.2059,
+      "f1_recall": 0.2545,
+      "best_threshold": 0.1267,
+      "hits@25": 6,
+      "prec@25": 0.24,
+      "rec@25": 0.1091,
+      "hits@50": 9,
+      "prec@50": 0.18,
+      "rec@50": 0.1636,
+      "hits@100": 15,
+      "prec@100": 0.15,
+      "rec@100": 0.2727,
+      "hits@250": 22,
+      "prec@250": 0.088,
+      "rec@250": 0.4
+    }
+  },
+  "top_positive_ngrams": [
+    [
+      "the wild",
+      6.605
+    ],
+    [
+      "wild",
+      6.337
+    ],
+    [
+      "citrix",
+      6.278
+    ],
+    [
+      "asstok_cve_mitre_org cwetok_cwe_78",
+      5.811
+    ],
+    [
+      "aka",
+      5.551
+    ],
+    [
+      "remote",
+      5.539
+    ],
+    [
+      "asstok_secure_microsoft_com",
+      5.503
+    ],
+    [
+      "asstok_security_vmware_com",
+      5.456
+    ],
+    [
+      "qts",
+      5.253
+    ],
+    [
+      "unauthenticated",
+      4.963
+    ],
+    [
+      "remote command",
+      4.89
+    ],
+    [
+      "apache",
+      4.853
+    ],
+    [
+      "vpn",
+      4.838
+    ],
+    [
+      "asstok_psirt_sonicwall_com",
+      4.797
+    ],
+    [
+      "and",
+      4.73
+    ]
+  ],
+  "top_negative_ngrams": [
+    [
+      "azure",
+      -4.389
+    ],
+    [
+      "asstok_vultures_jpcert_or_jp",
+      -3.564
+    ],
+    [
+      "function",
+      -3.54
+    ],
+    [
+      "asstok_ics_cert_hq_dhs_gov",
+      -3.483
+    ],
+    [
+      "from the",
+      -3.445
+    ],
+    [
+      "cwetok_cwe_200",
+      -3.226
+    ],
+    [
+      "cwetok_cwe_79",
+      -3.138
+    ],
+    [
+      "locally",
+      -3.033
+    ],
+    [
+      "issue affects",
+      -2.987
+    ],
+    [
+      "high",
+      -2.975
+    ],
+    [
+      "extension",
+      -2.933
+    ],
+    [
+      "asstok_secure_microsoft_com cwetok_cwe_125",
+      -2.931
+    ],
+    [
+      "from through",
+      -2.929
+    ],
+    [
+      "code via",
+      -2.902
+    ],
+    [
+      "settings",
+      -2.894
+    ]
+  ]
+}
