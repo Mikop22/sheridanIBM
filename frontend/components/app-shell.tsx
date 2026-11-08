@@ -28,7 +28,7 @@ function NavLink({ label, href, active, mobile = false, onNavigate }: { label: s
   );
 }
 
-export function AppShell({ children, title, subtitle, breadcrumb }: AppShellProps) {
+export function AppShell({ children }: AppShellProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const pathname = usePathname();
@@ -37,11 +37,6 @@ export function AppShell({ children, title, subtitle, breadcrumb }: AppShellProp
     <div className="min-h-screen bg-white text-[#161616] selection:bg-[#0f62fe] selection:text-white">
       <header className="sticky top-0 z-40 border-b border-[#e0e0e0] bg-white">
         <div className="flex h-16 items-stretch px-5 sm:px-8 lg:px-12">
-          {/* Full-document anchors are intentional: Vinext RSC client navigation has failed in prior production builds. */}
-          {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
-          <a href="/" draggable={false} className="flex min-w-fit select-none items-center pr-6 text-xl font-medium tracking-tight" onClick={() => setMobileOpen(false)}>
-            <span className="gradient-text font-light tracking-[-0.03em]">Vigil</span>
-          </a>
           <nav className="hidden items-stretch lg:flex" aria-label="Primary navigation">
             {navItems.map(({ label, href }) => <NavLink key={label} label={label} href={href} active={href === "/" ? pathname === "/" : pathname.startsWith(href)} />)}
           </nav>
@@ -63,13 +58,6 @@ export function AppShell({ children, title, subtitle, breadcrumb }: AppShellProp
       </header>
       <main>
         <div className="mx-auto max-w-[1500px] px-5 py-10 sm:px-8 lg:px-12 lg:py-14">
-          <div className="mb-8 border-b border-[#e0e0e0] pb-6">
-            <p className="text-[11px] font-semibold uppercase tracking-[.1em] text-[#0f62fe]">
-              {breadcrumb}
-            </p>
-            <h1 className="mt-2 text-3xl font-light tracking-[-0.02em] text-[#161616]">{title}</h1>
-            <p className="mt-1.5 text-sm text-[#525252]">{subtitle}</p>
-          </div>
           {children}
         </div>
       </main>
