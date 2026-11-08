@@ -197,13 +197,8 @@ export default function Home() {
 
           <section className="mt-10 grid gap-8 xl:grid-cols-[1.55fr_.75fr]">
             <div className="border border-[#e0e0e0]">
-              <div className="flex items-end justify-between border-b border-[#e0e0e0] p-5">
-                <div>
-                  <h2 className="text-xl font-light">Prioritized findings in your estate</h2>
-                  <p className="mt-1 text-xs text-[#6f6f6f]">
-                    Inventory-matched assets first, followed by top watchlist predictions
-                  </p>
-                </div>
+              <div className="flex items-center justify-between border-b border-[#e0e0e0] p-5">
+                <h2 className="text-xl font-light">Prioritized findings in your estate</h2>
                 <a href="/hidden-threats" className="text-sm text-[#0f62fe] hover:underline">
                   Explore all {vulnerabilities.length} in Threat Intelligence
                 </a>

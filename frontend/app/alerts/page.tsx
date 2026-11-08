@@ -497,9 +497,6 @@ export default function AlertsPage() {
         <div className="flex flex-col gap-3 border-b border-[#e0e0e0] p-5 md:flex-row md:items-center md:justify-between">
           <div>
             <h2 className="text-xl font-light">Remediation workflows</h2>
-            <p className="mt-1 text-xs text-[#6f6f6f]">
-              Human-reviewed path from ranked finding to Slack, Jira, and draft PR.
-            </p>
           </div>
           <div className="grid gap-2 sm:grid-cols-3">
             <select
@@ -630,19 +627,21 @@ export default function AlertsPage() {
                         </p>
                       </td>
                       <td className="px-4 py-4">
-                        <DeliveryBadge status={alert.slackStatus} />
-                        {slackLink && (
-                          <a
-                            href={slackLink}
-                            target="_blank"
-                            rel="noreferrer"
-                            onClick={(event) => event.stopPropagation()}
-                            className="mt-1 inline-flex items-center gap-1 text-[11px] text-[#0f62fe] hover:underline"
-                          >
-                            Open message
-                            <ExternalLink size={11} />
-                          </a>
-                        )}
+                        <div className="flex flex-col items-start gap-1">
+                          <DeliveryBadge status={alert.slackStatus} />
+                          {slackLink && (
+                            <a
+                              href={slackLink}
+                              target="_blank"
+                              rel="noreferrer"
+                              onClick={(event) => event.stopPropagation()}
+                              className="inline-flex items-center gap-1 text-[11px] text-[#0f62fe] hover:underline"
+                            >
+                              Open message
+                              <ExternalLink size={11} />
+                            </a>
+                          )}
+                        </div>
                       </td>
                       <td className="px-4 py-4">
                         <p className="text-xs">{alert.jiraStatus}</p>
