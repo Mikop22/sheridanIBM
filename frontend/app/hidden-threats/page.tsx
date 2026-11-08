@@ -232,7 +232,7 @@ function ThreatDetails({
                 Open remediation workflow
               </a>
               <a
-                href={`/alerts?triage=${encodeURIComponent(threat.id)}`}
+                href={`/alerts?triage=${encodeURIComponent(threat.id)}&service=${encodeURIComponent(threat.affectedService ?? "")}&asset=${encodeURIComponent(threat.affectedProduct ?? "")}`}
                 className="inline-flex h-11 items-center border border-[#0f62fe] px-5 text-sm font-medium text-[#0f62fe] hover:bg-[#edf5ff]"
               >
                 Triage now
@@ -240,7 +240,7 @@ function ThreatDetails({
             </div>
           ) : threat.affectedProduct ? (
             <a
-              href={`/alerts?triage=${encodeURIComponent(threat.id)}`}
+              href={`/alerts?triage=${encodeURIComponent(threat.id)}&service=${encodeURIComponent(threat.affectedService ?? "")}&asset=${encodeURIComponent(threat.affectedProduct ?? "")}`}
               className="mt-8 inline-flex h-11 items-center bg-[#0f62fe] px-5 text-sm font-medium text-white hover:bg-[#0043ce]"
             >
               Triage now
@@ -474,7 +474,7 @@ export default function HiddenThreatsPage() {
                                 Open remediation
                               </a>
                               <a
-                                href={`/alerts?triage=${encodeURIComponent(item.id)}`}
+                                href={`/alerts?triage=${encodeURIComponent(item.id)}&service=${encodeURIComponent(item.affectedService ?? "")}&asset=${encodeURIComponent(item.affectedProduct ?? "")}`}
                                 onClick={(event) => event.stopPropagation()}
                                 className="inline-flex text-xs text-[#525252] hover:text-[#0f62fe] hover:underline"
                               >
@@ -484,7 +484,7 @@ export default function HiddenThreatsPage() {
                           </div>
                         ) : item.affectedProduct ? (
                           <a
-                            href={`/alerts?triage=${encodeURIComponent(item.id)}`}
+                            href={`/alerts?triage=${encodeURIComponent(item.id)}&service=${encodeURIComponent(item.affectedService ?? "")}&asset=${encodeURIComponent(item.affectedProduct ?? "")}`}
                             onClick={(event) => event.stopPropagation()}
                             className="inline-flex text-xs font-medium text-[#0f62fe] hover:underline"
                           >

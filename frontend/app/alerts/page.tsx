@@ -24,6 +24,7 @@ import {
   DEFAULT_SCENARIOS,
   executeSimulationStage,
   fetchSimulationScenarios,
+  findingKeyForScenario,
   scenarioIdForCve,
   updateAlertLifecycle,
   type ScenarioCatalogItem,
@@ -204,7 +205,8 @@ function WorkflowStrip({
 }) {
   const isTargetRow =
     activeStage !== null &&
-    (activeFindingKey === null || alert.id === activeFindingKey || alert.dedupeKey === activeFindingKey);
+    activeFindingKey !== null &&
+    (alert.id === activeFindingKey || alert.dedupeKey === activeFindingKey);
   return (
     <div className="flex items-center gap-1" aria-label="Eight-stage remediation workflow">
       {workflowFor(alert).map((stage, index) => {
@@ -573,8 +575,15 @@ export default function AlertsPage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const triageCve = params.get("triage");
-    if (triageCve) {
-      const targetScenarioId = scenarioIdForCve(triageCve);
+    const explicitScenario = params.get("scenario");
+    if (explicitScenario || triageCve) {
+      const targetScenarioId =
+        explicitScenario ??
+        scenarioIdForCve(
+          triageCve ?? "",
+          params.get("service"),
+          params.get("asset"),
+        );
       setSelectedScenarioId(targetScenarioId);
       setLabOpen(true);
       window.history.replaceState({}, "", window.location.pathname);
@@ -588,8 +597,8 @@ export default function AlertsPage() {
     setSimError(null);
     setSimCompleted(false);
     setSimLogs([]);
+    setActiveFindingKey(findingKeyForScenario(scenarioId));
     setSimStage(1);
-    setActiveFindingKey(null);
 
     try {
       for (let stage = 1; stage <= 8; stage += 1) {

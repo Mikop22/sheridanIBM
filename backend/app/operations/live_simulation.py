@@ -589,11 +589,20 @@ def _run_entire_checkpoint(asset: DemoAsset, ranking: RankingRow) -> tuple[str, 
     conv_id = f"signalzero-{asset.route}-{int(datetime.now(UTC).timestamp())}"
     transcript_dir = Path("/home/ubuntu/.cursor/projects/tmp-securitydemo-entire/agent-transcripts")
     transcript_dir.mkdir(parents=True, exist_ok=True)
-    prompt = task_for_route(
-        asset.route,
-        ranking_score=ranking.ranking_score,
-        rank=ranking.rank,
-    )
+    if asset.asset_id == "file-gateway":
+        prompt = (
+            "In Mikop22/securitydemo, CVE-2026-2699 allows unauthenticated access to restricted "
+            "ShareFile Storage Zones Controller (SZC) configuration pages. Update "
+            "gateway/szc_config_guard.py so authorize_szc_request normalizes paths and rejects "
+            "unauthenticated requests to restricted prefixes (/config, /szc/config, "
+            "/admin/storagezones, /cifs/config), and verify python3 check_gateway_fix.py exits 0."
+        )
+    else:
+        prompt = task_for_route(
+            asset.route,
+            ranking_score=ranking.ranking_score,
+            rank=ranking.rank,
+        )
     transcript_file = transcript_dir / f"{conv_id}.jsonl"
     transcript_file.write_text(
         json.dumps(

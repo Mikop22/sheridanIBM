@@ -3,15 +3,13 @@ import type { AlertLifecycle } from "@/lib/types/alert";
 
 export interface ScenarioCatalogItem {
   id: string;
-  category: str_alias;
+  category: string;
   label: string;
   cveId: string;
   assetName: string;
   routeLabel: string;
   summary: string;
 }
-
-type str_alias = string;
 
 export interface SimulationStepResponse {
   scenarioId: string;
@@ -85,11 +83,33 @@ export const DEFAULT_SCENARIOS: ScenarioCatalogItem[] = [
   },
 ];
 
-export function scenarioIdForCve(cveId: string): string {
+const SCENARIO_FINDING_KEYS: Record<string, string> = {
+  gateway_auth: "CVE-2026-2699::file-gateway",
+  code_patch: "CVE-2026-22739::customer-portal-config-loader",
+  dependency_upgrade: "CVE-2026-22739::customer-portal",
+  appliance_kev: "CVE-2026-8037::edge-load-balancer",
+  unmatched_guardrail: "CVE-X::missing-asset",
+};
+
+export function findingKeyForScenario(scenarioId: string): string {
+  return SCENARIO_FINDING_KEYS[scenarioId] ?? "CVE-2026-22739::customer-portal";
+}
+
+export function scenarioIdForCve(
+  cveId: string,
+  affectedService?: string | null,
+  affectedProduct?: string | null,
+): string {
   const normalized = cveId.toUpperCase();
   if (normalized === "CVE-2026-2699") return "gateway_auth";
   if (normalized === "CVE-2026-8037") return "appliance_kev";
-  if (normalized === "CVE-2026-22739") return "code_patch";
+  if (normalized === "CVE-2026-22739") {
+    const context = `${affectedService ?? ""} ${affectedProduct ?? ""}`.toLowerCase();
+    if (context.includes("config_loader") || context.includes("config loader")) {
+      return "code_patch";
+    }
+    return "dependency_upgrade";
+  }
   return "gateway_auth";
 }
 
