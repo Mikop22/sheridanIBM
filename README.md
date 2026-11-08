@@ -1,4 +1,4 @@
-# SignalZero
+# Vigilant
 
 SignalZero is a vulnerability-prioritization and security-workflow prototype built for the
 Sheridan Datathon 2026 IBM challenge. It combines a browser application, a contract-first
@@ -31,11 +31,6 @@ SignalZero separates those concerns:
   recorded human decision;
 - local IBM Granite can help select relevant submitted evidence, but it never produces or changes
   the risk score.
-
-Currently functional are the integrated frontend, live browser-to-FastAPI communication, Zod and
-Pydantic validation, deterministic prediction and event workflows, SQLite event persistence,
-historical-evaluation services with synthetic tests, local Granite inference through Ollama, and
-deterministic explanation fallback.
 
 ## 2. Table of contents
 
@@ -727,25 +722,3 @@ curl.exe -X POST `
 
 Approval records workflow intent only. Nothing is patched or executed.
 
-## 18. Limitations and future integration
-
-- **Member 1 model:** the backend loads generated predictions but does not train or run the model.
-  The tracked summary contains only the top 25 until the full CSV is supplied.
-- **Historical evaluation:** evaluator and leakage controls remain internal; there is no replay API.
-- **Missing enrichment:** the current artifact lacks descriptions, CVSS, EPSS, feature
-  contributions, and asset matches, so the API reports those fields as unknown.
-- **Hidden threats:** the comparison logic exists, but the live page cannot claim findings without
-  comparable real model and baseline ranks.
-- **Prediction durability:** predictions are process-local and disappear on restart by design.
-- **Workflow scope:** SQLite persists minimal event and approval state only; there is no automatic
-  patching, remediation executor, authentication layer, Slack delivery, or Jira delivery service.
-- **Granite hardware:** local latency and availability depend on the presentation machine and its
-  Ollama runtime. Deterministic fallback remains functional without it.
-- **Provider output:** Granite contributes validated source selection, not new vulnerability facts,
-  remediation claims, or risk scores.
-- **Decision Lab:** optional what-if or decision-analysis features are deferred and are not part of
-  the current application.
-
-The next integration milestone should adapt Member 1's confirmed outputs to `Prediction` and
-`HistoricalSnapshot`, update schemas/fixtures/tests together, and preserve every declared score
-scale, cutoff, evidence reference, and uncertainty value.
