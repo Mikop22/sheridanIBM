@@ -238,12 +238,11 @@ coding agent is invoked.
 - [x] `GET /api/overview`
 - [x] `GET /api/vulnerabilities`
 - [x] `GET /api/vulnerabilities/{id}`
-- [x] `/api/replay` removed
 - [x] `GET /api/assets`
 - [x] `GET /api/alerts`
 - [x] Direct unauthenticated loopback access for the local milestone; no browser secret is required
 - [x] Explicit CORS configuration for `http://localhost:3000`
 - [ ] Production environment values and deployment documentation
-- [ ] Server-side Slack/Jira adapters, credentials, retry policy, and provider-confirmed delivery results
+- [x] Server-side Slack/Jira ops delivery via `OPERATIONS_DELIVERY` and credentials in `.env.example` (recording by default; live only when configured)
 
-Slack/Jira mutations, autonomous alert decisions, model training, and prediction execution are intentionally outside this frontend contract.
+Slack/Jira credentials stay server-side. Autonomous alert decisions, model training, and prediction execution remain outside this frontend contract.

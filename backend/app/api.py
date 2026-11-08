@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Request, Response, status
 
@@ -21,6 +21,8 @@ from app.domain.errors import (
 )
 from app.domain.frontend_contracts import (
     FrontendAffectedAsset,
+    FrontendAlert,
+    FrontendAlertHistoryEvent,
     FrontendAlerts,
     FrontendArtifactProvenance,
     FrontendAsset,
@@ -29,13 +31,25 @@ from app.domain.frontend_contracts import (
     FrontendDecisionActivity,
     FrontendDecisionReason,
     FrontendEvidenceIndicator,
+    FrontendIntegrationDelivery,
     FrontendOverview,
+    FrontendOverviewSummary,
     FrontendPersistentDecision,
     FrontendVulnerability,
     FrontendVulnerabilityDetail,
     FrontendVulnerabilityList,
 )
 from app.event_repository import SecurityEventRepository
+from app.operations.inventory import ASSETS, DemoAsset, asset_by_id, asset_for
+from app.operations.models import (
+    JudgeScriptReport,
+    JudgeScriptRequest,
+    PullRequestRecord,
+    RankingsResponse,
+    ReadinessResponse,
+)
+from app.operations.service import OperationsService
+from app.operations.store import DeliveryRow, FindingRow
 from app.repositories import PredictionRepository
 from app.services.asset_correlation import AssetCorrelationService
 from app.services.escalation import EscalationEvaluator
@@ -48,6 +62,19 @@ from app.services.prediction_artifacts import (
 )
 
 router = APIRouter()
+
+_CRITICALITY_MAP: dict[str, Literal["Critical", "High", "Medium", "Low", "Unknown"]] = {
+    "critical": "Critical",
+    "high": "High",
+    "medium": "Medium",
+    "low": "Low",
+}
+_PRIORITY_MAP: dict[str, Literal["Critical", "High", "Medium"]] = {
+    "escalate": "Critical",
+    "act": "High",
+    "investigate": "Medium",
+}
+_SYNTHETIC_INVENTORY_LABEL = "SignalZero demo inventory (synthetic)"
 
 
 def get_repository(request: Request) -> PredictionRepository:
@@ -78,6 +105,10 @@ def get_escalation_evaluator(request: Request) -> EscalationEvaluator:
     return request.app.state.escalation_evaluator
 
 
+def get_operations_service(request: Request) -> OperationsService:
+    return request.app.state.operations_service
+
+
 RepositoryDependency = Annotated[PredictionRepository, Depends(get_repository)]
 ExplanationDependency = Annotated[ExplanationService, Depends(get_explanation_service)]
 EventProcessorDependency = Annotated[SecurityEventProcessor, Depends(get_event_processor)]
@@ -85,6 +116,7 @@ EventRepositoryDependency = Annotated[SecurityEventRepository, Depends(get_event
 ArtifactDependency = Annotated[PredictionArtifact, Depends(get_prediction_artifact)]
 CorrelationDependency = Annotated[AssetCorrelationService, Depends(get_asset_correlations)]
 EscalationDependency = Annotated[EscalationEvaluator, Depends(get_escalation_evaluator)]
+OperationsDependency = Annotated[OperationsService, Depends(get_operations_service)]
 
 
 @router.get(
@@ -203,6 +235,14 @@ def decide_recommendation(
     event_repository: EventRepositoryDependency,
 ) -> RemediationRecommendation:
     return event_repository.decide(recommendation_id, decision)
+
+
+def _frontend_affected_asset(asset: DemoAsset) -> FrontendAffectedAsset:
+    return FrontendAffectedAsset(
+        id=asset.asset_id,
+        name=asset.name,
+        service=asset.product,
+    )
 
 
 def _frontend_vulnerability(
@@ -326,15 +366,33 @@ def _frontend_vulnerability(
         OperationalDecision.URGENT: "action_pending",
     }[operational_decision]
     missing_information = [
-        "vulnerability description",
         "CVSS score",
         "EPSS score",
         "feature contribution values",
     ]
+    if not record.description:
+        missing_information.insert(0, "vulnerability description")
     if aggregate is None:
         missing_information.append("affected asset associations")
+    operations_inventory = asset_for(prediction.vulnerability.vulnerability_id)
+    if operations_inventory is not None:
+        evidence_indicators.append(
+            FrontendEvidenceIndicator(
+                key="operations_inventory_match",
+                label="Operations inventory match",
+                value=operations_inventory.asset_id,
+                status="present",
+                observedAt=None,
+                source="operations.inventory",
+                explanation=(
+                    f"{operations_inventory.note} Association comes from synthetic demo inventory, "
+                    "not a live asset scan."
+                ),
+            )
+        )
     return FrontendVulnerability(
         cveId=prediction.vulnerability.vulnerability_id,
+        description=record.description,
         snapshotMonth=record.snapshot_month,
         modelRank=prediction.rank,
         rankingScore=prediction.score,
@@ -362,6 +420,194 @@ def _frontend_vulnerability(
     )
 
 
+def _business_criticality(
+    value: str,
+) -> Literal["Critical", "High", "Medium", "Low", "Unknown"]:
+    return _CRITICALITY_MAP.get(value.casefold(), "Unknown")
+
+
+def _frontend_asset(asset: DemoAsset) -> FrontendAsset:
+    return FrontendAsset(
+        assetId=asset.asset_id,
+        name=asset.name,
+        vendor=None,
+        product=asset.product,
+        version=asset.installed_version,
+        environment="Unknown",
+        # Inventory has no sourced exposure field; do not invent True/False.
+        internetExposed=None,
+        businessCriticality=_business_criticality(asset.criticality),
+        owner=asset.owner,
+    )
+
+
+def _frontend_asset_match(asset: DemoAsset) -> FrontendAssetMatch:
+    return FrontendAssetMatch(
+        cveId=asset.cve_id,
+        assetId=asset.asset_id,
+        matchStatus="Confirmed",
+        canonicalMatchStatus="confirmed_affected",
+        supportingEvidence=[
+            asset.note,
+            "Inventory is synthetic demo data, not a live asset scan.",
+        ],
+        predictedRisk=None,
+        provenance="internally_consistent_synthetic_scenario_not_external_product_intelligence",
+    )
+
+
+def _alert_priority(level: str) -> Literal["Critical", "High", "Medium"]:
+    return _PRIORITY_MAP.get(level.casefold(), "Medium")
+
+
+def _delivery_timestamp(value: str | None, fallback: str) -> str:
+    if value is None or not value.strip():
+        return fallback
+    return value
+
+
+def _jira_external_url(base_url: str, external_id: str | None) -> str | None:
+    base = base_url.strip().rstrip("/")
+    if not base or not external_id:
+        return None
+    return f"{base}/browse/{external_id}"
+
+
+def _integration_from_deliveries(
+    *,
+    provider: Literal["slack", "jira"],
+    deliveries: list[DeliveryRow],
+    jira_base_url: str,
+) -> FrontendIntegrationDelivery:
+    if not deliveries:
+        return FrontendIntegrationDelivery(
+            provider=provider,
+            status="not-attempted",
+            operation=None,
+            attemptedAt=None,
+            deliveredAt=None,
+            externalId=None,
+            externalUrl=None,
+            errorCode=None,
+            errorMessage=None,
+        )
+    latest = deliveries[-1]
+    status: Literal["not-attempted", "pending", "delivered", "failed", "simulated-not-sent"]
+    if latest.delivered:
+        status = "delivered"
+    elif latest.mode == "blocked":
+        status = "failed"
+    elif latest.mode == "recording":
+        status = "simulated-not-sent"
+    else:
+        status = "pending"
+    operation: Literal["created", "updated", "commented"] | None = None
+    if provider == "jira" and latest.delivered:
+        if latest.kind.endswith("_create") or latest.kind == "jira_create":
+            operation = "created"
+        elif latest.kind.endswith("_update") or latest.kind == "jira_update":
+            operation = "updated"
+        elif "comment" in latest.kind:
+            operation = "commented"
+    external_id = latest.external_id
+    external_url = None
+    if provider == "jira":
+        external_url = _jira_external_url(jira_base_url, external_id)
+    return FrontendIntegrationDelivery(
+        provider=provider,
+        status=status,
+        operation=operation,
+        attemptedAt=latest.created_on,
+        deliveredAt=latest.created_on if latest.delivered else None,
+        externalId=external_id,
+        externalUrl=external_url,
+        errorCode=None if latest.delivered or latest.mode != "blocked" else "delivery_blocked",
+        errorMessage=None if latest.delivered or latest.mode != "blocked" else latest.detail,
+    )
+
+
+def _frontend_alert(
+    finding: FindingRow,
+    deliveries: list[DeliveryRow],
+    *,
+    jira_base_url: str,
+    now_iso: str,
+    simulated: bool,
+) -> FrontendAlert:
+    asset = asset_by_id(finding.asset_id)
+    asset_name = None if asset is None else asset.name
+    slack_rows = [row for row in deliveries if row.kind.startswith("slack_")]
+    jira_rows = [row for row in deliveries if row.kind.startswith("jira_")]
+    timestamps = [row.created_on for row in deliveries if row.created_on]
+    created_at = _delivery_timestamp(timestamps[0] if timestamps else None, now_iso)
+    updated_at = _delivery_timestamp(timestamps[-1] if timestamps else None, now_iso)
+    history: list[FrontendAlertHistoryEvent] = [
+        FrontendAlertHistoryEvent(
+            timestamp=created_at,
+            label="Finding recorded",
+            detail=(
+                f"Policy level {finding.level} for {finding.cve_id} on {finding.asset_id} "
+                f"via route {finding.route}."
+            ),
+            kind="detection",
+        )
+    ]
+    for row in deliveries:
+        kind: Literal["detection", "delivery", "ticket", "status"]
+        if row.kind.startswith("jira_"):
+            kind = "ticket"
+            label = "Jira delivery"
+        elif row.kind.startswith("slack_"):
+            kind = "delivery"
+            label = "Slack delivery"
+        else:
+            kind = "status"
+            label = f"{row.kind} delivery"
+        history.append(
+            FrontendAlertHistoryEvent(
+                timestamp=row.created_on,
+                label=label,
+                detail=row.detail or row.body,
+                kind=kind,
+            )
+        )
+    evidence = [
+        f"Finding level: {finding.level}",
+        f"Remediation route: {finding.route}",
+        "Inventory is synthetic demo data, not a live asset scan.",
+    ]
+    if asset is not None:
+        evidence.insert(0, asset.note)
+    return FrontendAlert(
+        alertId=finding.finding_key,
+        cveId=finding.cve_id,
+        assetId=finding.asset_id,
+        assetName=asset_name,
+        priority=_alert_priority(finding.level),
+        triggerReason=(
+            f"Operations finding at level '{finding.level}' for route '{finding.route}'."
+        ),
+        createdAt=created_at,
+        updatedAt=updated_at,
+        slackDelivery=_integration_from_deliveries(
+            provider="slack",
+            deliveries=slack_rows,
+            jira_base_url=jira_base_url,
+        ),
+        jiraDelivery=_integration_from_deliveries(
+            provider="jira",
+            deliveries=jira_rows,
+            jira_base_url=jira_base_url,
+        ),
+        lifecycle="Investigating" if finding.review_notified else "Open",
+        occurrenceCount=1,
+        evidence=evidence,
+        history=history,
+        dedupeKey=finding.finding_key,
+        simulated=simulated,
+    )
+
+
 @router.get("/api/vulnerabilities", response_model=FrontendVulnerabilityList, tags=["frontend"])
 def frontend_vulnerabilities(
     artifact: ArtifactDependency,
@@ -378,9 +624,30 @@ def frontend_vulnerabilities(
 
 
 @router.get("/api/overview", response_model=FrontendOverview, tags=["frontend"])
-def frontend_overview() -> FrontendOverview:
-    """Return nullable totals instead of inventing dashboard statistics."""
-    return FrontendOverview(generatedAt=datetime.now(UTC))
+def frontend_overview(
+    artifact: ArtifactDependency,
+    correlations: CorrelationDependency,
+    evaluator: EscalationDependency,
+) -> FrontendOverview:
+    """Dashboard totals from the prediction artifact and demo inventory matches."""
+    ranked = sorted(artifact.records, key=lambda item: item.prediction.rank)
+    priority = [
+        _frontend_vulnerability(record, artifact, correlations, evaluator) for record in ranked
+    ]
+    inventory_matches = sum(1 for item in priority if item.affectedAsset is not None)
+    return FrontendOverview(
+        summary=FrontendOverviewSummary(
+            totalVulnerabilities=len(artifact.records),
+            criticalPriority=None,
+            # Do not equate inventory size with internet exposure.
+            exposedAssets=None,
+            predictionHorizonDays=None,
+            inventoryMatches=inventory_matches,
+            topModelRank=ranked[0].prediction.rank if ranked else None,
+        ),
+        priorityVulnerabilities=priority,
+        generatedAt=datetime.now(UTC),
+    )
 
 
 @router.get(
@@ -405,7 +672,7 @@ def frontend_vulnerability_detail(
 
 @router.get("/api/assets", response_model=FrontendAssets, tags=["frontend"])
 def frontend_assets(correlations: CorrelationDependency) -> FrontendAssets:
-    """Return the explicitly labeled synthetic inventory and scenario mappings."""
+    """Return both deterministic escalation and operations demo inventories."""
     inventory = correlations.inventory
     evidence = {item.evidence_id: item.description for item in inventory.evidence}
     status_labels = {
@@ -433,7 +700,8 @@ def frontend_assets(correlations: CorrelationDependency) -> FrontendAssets:
                 componentPackage=asset.component_package,
             )
             for asset in inventory.assets
-        ],
+        ]
+        + [_frontend_asset(asset) for asset in ASSETS],
         matches=[
             FrontendAssetMatch(
                 cveId=mapping.vulnerability_id,
@@ -447,7 +715,8 @@ def frontend_assets(correlations: CorrelationDependency) -> FrontendAssets:
                 provenance=inventory.verification_meaning,
             )
             for mapping in inventory.mappings
-        ],
+        ]
+        + [_frontend_asset_match(asset) for asset in ASSETS],
         organizationLabel=inventory.organization_label,
         synthetic=True,
         provenance=inventory.verification_meaning,
@@ -455,10 +724,12 @@ def frontend_assets(correlations: CorrelationDependency) -> FrontendAssets:
 
 
 @router.get("/api/alerts", response_model=FrontendAlerts, tags=["frontend"])
-def frontend_alerts(event_repository: EventRepositoryDependency) -> FrontendAlerts:
-    """Expose persistent decisions without claiming an external alert was delivered."""
-    return FrontendAlerts(
-        decisions=[
+def frontend_alerts(
+    event_repository: EventRepositoryDependency,
+    operations: OperationsDependency,
+) -> FrontendAlerts:
+    """Expose deterministic decisions and recorded operations delivery state."""
+    decisions = [
             FrontendPersistentDecision(
                 recommendationId=item.recommendation_id,
                 findingId=item.finding_id,
@@ -488,4 +759,72 @@ def frontend_alerts(event_repository: EventRepositoryDependency) -> FrontendAler
             )
             for item in event_repository.list_all_recommendations()
         ]
+    store = operations.store
+    findings = store.list_findings()
+    if not findings:
+        return FrontendAlerts(decisions=decisions)
+    deliveries = store.list_deliveries()
+    by_finding: dict[str, list[DeliveryRow]] = {}
+    for row in deliveries:
+        by_finding.setdefault(row.finding_key, []).append(row)
+    now_iso = datetime.now(UTC).isoformat()
+    jira_base_url = operations.settings.jira_base_url
+    # Inventory is always synthetic; "simulated" tracks delivery mode so live
+    # Slack/Jira runs are not labeled as demo banners.
+    simulated = operations.settings.operations_delivery != "live"
+    return FrontendAlerts(
+        alerts=[
+            _frontend_alert(
+                finding,
+                by_finding.get(finding.finding_key, []),
+                jira_base_url=jira_base_url,
+                now_iso=now_iso,
+                simulated=simulated,
+            )
+            for finding in findings
+        ],
+        decisions=decisions,
     )
+
+
+def _operations(request: Request) -> OperationsService:
+    return request.app.state.operations_service
+
+
+@router.get("/v1/operations/readiness", response_model=ReadinessResponse, tags=["operations-plan"])
+def operations_readiness(request: Request) -> ReadinessResponse:
+    return _operations(request).readiness()
+
+
+@router.get("/v1/operations/rankings", response_model=RankingsResponse, tags=["operations-plan"])
+def operations_rankings(request: Request) -> RankingsResponse:
+    return _operations(request).rankings()
+
+
+@router.get(
+    "/v1/operations/judge-script",
+    response_model=JudgeScriptReport,
+    tags=["operations-plan"],
+)
+def operations_judge_state(request: Request) -> JudgeScriptReport:
+    return _operations(request).state()
+
+
+@router.post(
+    "/v1/operations/judge-script",
+    response_model=JudgeScriptReport,
+    tags=["operations-plan"],
+)
+def operations_run_judge_script(body: JudgeScriptRequest, request: Request) -> JudgeScriptReport:
+    return _operations(request).run_judge_script(body.through)
+
+
+@router.post(
+    "/v1/operations/remediations/{cve_id}/pull-request",
+    response_model=JudgeScriptReport,
+    tags=["operations-plan"],
+)
+def operations_record_pull_request(
+    cve_id: str, body: PullRequestRecord, request: Request
+) -> JudgeScriptReport:
+    return _operations(request).record_pull_request(cve_id, body.pr_url, body.checks_passed)

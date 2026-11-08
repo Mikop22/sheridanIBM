@@ -45,29 +45,6 @@ export const vulnerabilitySchema = z.object({
   groundedExplanation: z.unknown().optional(),
 });
 
-export const baselineSchema = z.object({
-  method: z.string().min(1),
-  hitsAt500: z.number().int().nonnegative().nullable(),
-  note: z.string().nullable(),
-});
-
-export const historicalOutcomeSchema = z.object({
-  cveId: z.string().min(1),
-  status: z.enum(["confirmed-kev", "not-kev-by-cutoff", "unknown"]),
-  kevAddedAt: z.string().nullable(),
-  observedByCutoff: z.boolean(),
-});
-
-export const historicalReplaySchema = z.object({
-  month: z.string().regex(/^\d{4}-\d{2}$/),
-  predictionSnapshot: z.object({ capturedAt: z.string(), featureCutoff: z.string() }),
-  rankings: z.array(z.object({ rank: z.number().int().positive(), predictedRisk: riskLevelSchema, vulnerability: vulnerabilitySchema })),
-  baselines: z.array(baselineSchema),
-  evaluationCutoff: z.string(),
-  laterOutcomes: z.array(historicalOutcomeSchema),
-  source: dataSourceSchema,
-});
-
 export const assetSchema = z.object({
   assetId: z.string().min(1),
   name: z.string().min(1),
@@ -146,7 +123,14 @@ export const persistentDecisionSchema = z.object({
 });
 
 export const overviewResponseSchema = z.object({
-  summary: z.object({ totalVulnerabilities: z.number().int().nonnegative().nullable(), criticalPriority: z.number().int().nonnegative().nullable(), exposedAssets: z.number().int().nonnegative().nullable(), predictionHorizonDays: z.number().int().positive().nullable() }),
+  summary: z.object({
+    totalVulnerabilities: z.number().int().nonnegative().nullable(),
+    criticalPriority: z.number().int().nonnegative().nullable(),
+    exposedAssets: z.number().int().nonnegative().nullable(),
+    predictionHorizonDays: z.number().int().positive().nullable(),
+    inventoryMatches: z.number().int().nonnegative().nullable(),
+    topModelRank: z.number().int().positive().nullable(),
+  }),
   priorityVulnerabilities: z.array(vulnerabilitySchema),
   generatedAt: z.string(),
   source: dataSourceSchema,
@@ -160,7 +144,6 @@ export const apiErrorResponseSchema = z.object({ error: z.object({ code: z.strin
 export type DataSource = z.infer<typeof dataSourceSchema>;
 export type EvidenceIndicator = z.infer<typeof evidenceIndicatorSchema>;
 export type VulnerabilityContract = z.infer<typeof vulnerabilitySchema>;
-export type HistoricalReplay = z.infer<typeof historicalReplaySchema>;
 export type AssetContract = z.infer<typeof assetSchema>;
 export type AssetVulnerabilityMatchContract = z.infer<typeof assetVulnerabilityMatchSchema>;
 export type AlertContract = z.infer<typeof alertSchema>;

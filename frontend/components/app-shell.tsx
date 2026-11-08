@@ -8,7 +8,6 @@ import { isDemoMode } from "@/lib/api/config";
 
 const navItems = [
   { label: "Overview", href: "/" },
-  { label: "Time Machine", href: "/time-machine" },
   { label: "Hidden Threats", href: "/hidden-threats" },
   { label: "Company Assets", href: "/assets" },
   { label: "Alert Activity", href: "/alerts", badge: "8" },

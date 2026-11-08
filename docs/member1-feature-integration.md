@@ -73,7 +73,7 @@ with CVE ID, prediction month and cutoff, model score and declared scale/directi
 model version, split identity, historical EPSS and observation time, cutoff-valid
 CVSS with provenance and observation time, and KEV `dateAdded`.
 
-Historical evaluation remains internal. There is no user-facing `/api/replay` route.
+Historical evaluation remains internal library code. There is no Time Machine product surface.
 The backend rejects training rows, post-cutoff observations, CVEs already in KEV at
 the decision cutoff, and inconsistent score semantics. Test fixtures are explicitly
 synthetic and are never registered as live replay data.

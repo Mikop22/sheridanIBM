@@ -64,12 +64,14 @@ response model and routed inference provider; an identity mismatch uses local fa
   probabilities. Missing descriptions, CVSS, EPSS, feature contributions, and asset
   associations are returned as null or explicit missing-information entries.
 - `/api/assets` returns seven explicitly synthetic company assets plus synthetic-scenario
-  CVE mappings. `verified_for_demo` means internally consistent for the demonstration,
-  not externally verified product applicability.
-- `/api/alerts` preserves the legacy empty integration-alert collection and adds persisted
-  operational `decisions` for the Remediation page. No Slack or Jira delivery is claimed.
-- `/api/replay` was removed with the Time Machine page; historical evaluation remains
-  backend-only.
+  CVE mappings together with the synthetic operations inventory used by the judge script.
+  `verified_for_demo` means internally consistent for the demonstration, not externally
+  verified product applicability.
+- `/api/alerts` combines persisted deterministic event decisions with recorded operations
+  findings and mocked or configured delivery status. Recording mode never claims that Slack
+  or Jira delivery occurred.
+- There is no Time Machine / `/api/replay` product surface; historical evaluation remains
+  backend-only library code.
 
 The current frontend hidden-threat adapter treats a null `traditionalRank` as being
 outside the baseline top 500. Member 2 must require a non-null rank before applying

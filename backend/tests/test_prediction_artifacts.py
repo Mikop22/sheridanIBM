@@ -43,6 +43,9 @@ def test_loads_tracked_summary_top_25() -> None:
     assert artifact.source_kind == "summary_json"
     assert len(artifact.records) == 25
     assert artifact.records[0].prediction.vulnerability.vulnerability_id == "CVE-2026-2699"
+    assert artifact.records[0].description
+    assert "ShareFile" in artifact.records[0].description
+    assert all(item.description for item in artifact.records)
 
 
 @pytest.mark.parametrize(

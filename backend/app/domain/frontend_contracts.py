@@ -86,11 +86,13 @@ class FrontendOverviewSummary(ContractModel):
     criticalPriority: int | None = Field(default=None, ge=0)
     exposedAssets: int | None = Field(default=None, ge=0)
     predictionHorizonDays: int | None = Field(default=None, ge=1)
+    inventoryMatches: int | None = Field(default=None, ge=0)
+    topModelRank: int | None = Field(default=None, ge=1)
 
 
 class FrontendOverview(ContractModel):
     summary: FrontendOverviewSummary = Field(default_factory=FrontendOverviewSummary)
-    priorityVulnerabilities: list[dict] = Field(default_factory=list)
+    priorityVulnerabilities: list[FrontendVulnerability] = Field(default_factory=list)
     generatedAt: datetime
     source: Literal["live"] = "live"
 
@@ -110,8 +112,8 @@ class FrontendAsset(ContractModel):
     internetExposed: bool | None
     businessCriticality: Literal["Critical", "High", "Medium", "Low", "Unknown"]
     owner: str | None
-    repositoryIdentifier: str | None
-    componentPackage: str | None
+    repositoryIdentifier: str | None = None
+    componentPackage: str | None = None
     synthetic: Literal[True] = True
 
 
@@ -165,7 +167,45 @@ class FrontendPersistentDecision(ContractModel):
     activityHistory: list[FrontendDecisionActivity]
 
 
+class FrontendIntegrationDelivery(ContractModel):
+    provider: Literal["slack", "jira"]
+    status: Literal["not-attempted", "pending", "delivered", "failed", "simulated-not-sent"]
+    operation: Literal["created", "updated", "commented"] | None
+    attemptedAt: str | None
+    deliveredAt: str | None
+    externalId: str | None
+    externalUrl: str | None
+    errorCode: str | None
+    errorMessage: str | None
+
+
+class FrontendAlertHistoryEvent(ContractModel):
+    timestamp: str
+    label: str
+    detail: str
+    kind: Literal["detection", "delivery", "ticket", "status"]
+
+
+class FrontendAlert(ContractModel):
+    alertId: str
+    cveId: str
+    assetId: str
+    assetName: str | None
+    priority: Literal["Critical", "High", "Medium"]
+    triggerReason: str
+    createdAt: str
+    updatedAt: str
+    slackDelivery: FrontendIntegrationDelivery
+    jiraDelivery: FrontendIntegrationDelivery
+    lifecycle: Literal["Open", "Investigating", "Resolved", "Suppressed"]
+    occurrenceCount: int = Field(ge=1)
+    evidence: list[str]
+    history: list[FrontendAlertHistoryEvent]
+    dedupeKey: str
+    simulated: bool
+
+
 class FrontendAlerts(ContractModel):
-    alerts: list[dict] = Field(default_factory=list)
+    alerts: list[FrontendAlert] = Field(default_factory=list)
     decisions: list[FrontendPersistentDecision] = Field(default_factory=list)
     source: Literal["live"] = "live"

@@ -2,9 +2,10 @@ from __future__ import annotations
 
 from enum import StrEnum
 from pathlib import Path
+from typing import Literal
 from urllib.parse import urlsplit
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import AliasChoices, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
@@ -21,7 +22,7 @@ class ExplanationProvider(StrEnum):
 class Settings(BaseSettings):
     """Runtime configuration. Local mode has no external dependencies."""
 
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore", populate_by_name=True)
 
     explanation_provider: ExplanationProvider = ExplanationProvider.LOCAL
     provider_connect_timeout: float = Field(default=5.0, gt=0)
@@ -48,6 +49,27 @@ class Settings(BaseSettings):
     escalation_urgent_max_rank: int = Field(default=5, ge=1)
     escalation_action_max_rank: int = Field(default=15, ge=1)
     escalation_investigate_unknown_max_rank: int = Field(default=15, ge=1)
+
+    operations_database_path: Path = Path("operations.db")
+    operations_delivery: Literal["recording", "live"] = "recording"
+    slack_webhook_url: str = ""
+    slack_channel_id: str = ""
+    slack_app_id: str = ""
+    slack_team_id: str = ""
+    slack_cli_path: str = Field(
+        default="",
+        validation_alias=AliasChoices("SLACK_CLI_PATH", "SLACK_CMD"),
+    )
+    jira_base_url: str = ""
+    jira_email: str = ""
+    jira_api_token: str = ""
+    jira_project_key: str = ""
+    jira_issue_type: str = "Task"
+    entire_token: str = ""
+    github_token: str = Field(
+        default="",
+        validation_alias=AliasChoices("GITHUB_TOKEN", "GH_TOKEN"),
+    )
 
     prediction_artifact_path: Path = DEFAULT_PREDICTION_ARTIFACT
     prediction_artifact_min_snapshot_month: str | None = None

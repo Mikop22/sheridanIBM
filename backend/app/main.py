@@ -25,6 +25,8 @@ from app.domain.errors import (
     RecommendationNotFoundError,
 )
 from app.event_repository import SecurityEventRepository
+from app.operations.errors import OperationsRequestError
+from app.operations.service import OperationsService
 from app.repositories import InMemoryPredictionRepository, PredictionRepository
 from app.services.asset_correlation import AssetCorrelationService, load_asset_inventory
 from app.services.escalation import EscalationEvaluator, EscalationPolicy
@@ -104,6 +106,7 @@ def create_app(
             ),
         )
     )
+    app.state.operations_service = OperationsService(resolved_settings)
     app.state.event_processor = SecurityEventProcessor(
         app.state.prediction_repository,
         app.state.event_repository,
@@ -239,6 +242,17 @@ def create_app(
             status.HTTP_404_NOT_FOUND,
             "vulnerability_not_found",
             f"Vulnerability {exc.vulnerability_id!r} is not available.",
+        )
+
+    @app.exception_handler(OperationsRequestError)
+    async def operations_request_handler(
+        request: Request, exc: OperationsRequestError
+    ) -> JSONResponse:
+        return _error_response(
+            request,
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            "operations_request_invalid",
+            exc.message,
         )
 
     @app.exception_handler(StarletteHTTPException)

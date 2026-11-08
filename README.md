@@ -1,14 +1,16 @@
-# SignalZero
+# Vigilant
 
 SignalZero is a vulnerability-prioritization and security-workflow prototype built for the
 Sheridan Datathon 2026 IBM challenge. It combines a browser application, a contract-first
 FastAPI backend, deterministic historical-ranking utilities, evidence-grounded explanations,
 and a human approval workflow.
 
-The system is deliberately honest about its current boundary: Member 1's trained prediction
-model and real historical exports are not integrated on this branch. Live frontend routes
-therefore return empty or unavailable states instead of manufactured rankings, findings, or
-alerts. The backend prediction contract is the future model-adapter boundary.
+Live UI routes are wired to real backends rather than empty placeholders: overview totals and
+priority rows come from the Member 1 prediction artifact loaded at startup; assets come from
+the synthetic demo inventory used by operations planning; alerts come from operations findings
+after the judge-script runs. There is no Time Machine / historical-replay product surface.
+Member 1's training pipeline still runs offline; the backend loads generated rankings rather than
+executing the model at request time.
 
 ## 1. Project overview
 
@@ -29,11 +31,6 @@ SignalZero separates those concerns:
   recorded human decision;
 - local IBM Granite can help select relevant submitted evidence, but it never produces or changes
   the risk score.
-
-Currently functional are the integrated frontend, live browser-to-FastAPI communication, Zod and
-Pydantic validation, deterministic prediction and event workflows, SQLite event persistence,
-historical-evaluation services with synthetic tests, local Granite inference through Ollama, and
-deterministic explanation fallback.
 
 ## 2. Table of contents
 
@@ -87,8 +84,8 @@ selection, and exposes deterministic wording rather than untrusted model-authore
 The historical services accept a frozen `HistoricalSnapshot`, reject training rows and post-cutoff
 evidence, create model/CVSS/EPSS rankings over comparable populations, and calculate evaluation
 metrics. The Hidden Threat Detector finds candidates ranked inside a model budget but outside the
-same baseline budget. These services remain internal; the removed Time Machine presentation route
-is not part of the product API.
+same baseline budget. These services remain internal library code and are not part of the product
+API or UI.
 
 ### Security event and approval workflow
 
@@ -154,8 +151,6 @@ access or credentials.
 The frontend is isolated under [`frontend/`](frontend):
 
 - [`app/page.tsx`](frontend/app/page.tsx) renders the vulnerability overview.
-- [`app/time-machine/page.tsx`](frontend/app/time-machine/page.tsx) renders monthly replay and
-  handles unavailable history explicitly.
 - [`app/hidden-threats/page.tsx`](frontend/app/hidden-threats/page.tsx) renders comparable ranking
   disagreements.
 - [`app/assets/page.tsx`](frontend/app/assets/page.tsx) renders asset inventory and matches.
@@ -365,23 +360,31 @@ running.
 
 | Method | URL | Purpose | Current live behavior |
 |---|---|---|---|
-| `GET` | `/api/overview` | Dashboard totals and priority vulnerabilities | Nullable totals and an empty list |
+| `GET` | `/api/overview` | Dashboard totals and priority vulnerabilities | Derived from the startup-loaded Member 1 artifact |
 | `GET` | `/api/vulnerabilities` | Validated vulnerability collection | Startup-loaded Member 1 rankings |
 | `GET` | `/api/vulnerabilities/{vulnerability_id}` | One vulnerability | Real artifact row or `404 vulnerability_not_found` |
-| `GET` | `/api/assets` | Asset inventory and matches | Empty live collections |
-| `GET` | `/api/alerts` | Frontend alert activity | Empty live collection |
+| `GET` | `/api/assets` | Asset inventory and matches | Synthetic demo inventory used by operations planning |
+| `GET` | `/api/alerts` | Frontend alert activity | Operations findings after the judge-script runs |
 
-Example overview response:
+Example overview response (priority rows come from the Member 1 artifact; enrichment
+fields absent from that export remain `null`):
 
 ```json
 {
   "summary": {
-    "totalVulnerabilities": null,
+    "totalVulnerabilities": 25,
     "criticalPriority": null,
     "exposedAssets": null,
     "predictionHorizonDays": null
   },
-  "priorityVulnerabilities": [],
+  "priorityVulnerabilities": [
+    {
+      "cveId": "CVE-2026-2699",
+      "modelRank": 1,
+      "rankingScore": 0.317252,
+      "rankingScoreKind": "relative"
+    }
+  ],
   "generatedAt": "2026-11-08T01:00:00Z",
   "source": "live"
 }
@@ -589,6 +592,12 @@ an actual Granite inference.
 | `EVENT_THRESHOLD_HIGHER_IS_RISKIER` | Backend | With threshold | Required matching risk direction. |
 | `PREDICTION_ARTIFACT_PATH` | Backend | No | JSON summary or full CSV loaded once at startup. |
 | `PREDICTION_ARTIFACT_MIN_SNAPSHOT_MONTH` | Backend | No | Optional `YYYY-MM` freshness gate. |
+| `OPERATIONS_DELIVERY` | Backend | No | `recording` (default) stores payloads locally; `live` calls configured Slack/Jira channels. |
+| `OPERATIONS_DATABASE_PATH` | Backend | No | SQLite path for judge-script findings and delivery rows; defaults to `operations.db`. |
+| `SLACK_WEBHOOK_URL` / `SLACK_CHANNEL_ID` / `SLACK_APP_ID` / `SLACK_TEAM_ID` / `SLACK_CLI_PATH` | Backend | For live Slack | Webhook or CLI channel/app/team targeting when `OPERATIONS_DELIVERY=live`. |
+| `JIRA_BASE_URL` / `JIRA_EMAIL` / `JIRA_API_TOKEN` / `JIRA_PROJECT_KEY` / `JIRA_ISSUE_TYPE` | Backend | For live Jira | Jira Cloud issue create/update when delivery is live. |
+| `GITHUB_TOKEN` / `GH_TOKEN` | Backend | For remediation PRs | Alias pair for GitHub auth used with remediation helpers. |
+| `ENTIRE_TOKEN` | Backend | For remediation PRs | Entire.dev token paired with the GitHub token. |
 | `PROVIDER_CONNECT_TIMEOUT` | Backend | No | Provider connection timeout in seconds. |
 | `PROVIDER_READ_TIMEOUT` | Backend | No | Provider response timeout in seconds. |
 | `PROVIDER_MAX_OUTPUT_TOKENS` | Backend | No | Structured provider-output limit. |
@@ -659,8 +668,7 @@ not real vulnerability findings or model performance.
    two-page Threats/Remediation update.
 3. Request `GET /api/vulnerabilities` and confirm the response identifies the real artifact hash,
    model version, relative score semantics, and unavailable enrichment fields.
-4. Confirm `GET /api/replay` returns the standard `route_not_found` response.
-5. From a PowerShell window, submit the synthetic prediction:
+4. From a PowerShell window, submit the synthetic prediction:
 
 ```powershell
 cd backend
@@ -669,7 +677,7 @@ curl.exe -X POST http://127.0.0.1:8000/v1/predictions `
   --data-binary "@contracts/v1/examples/prediction-create.synthetic.json"
 ```
 
-6. Request one real local Granite explanation:
+5. Request one real local Granite explanation:
 
 ```powershell
 curl.exe -X POST `
@@ -680,7 +688,7 @@ Check `provider`, `generation_status`, and `provider_metadata`. With a healthy v
 model, `actual_provider` is `ollama` and `fallback_status` is `not_used`. Otherwise the response is
 the deterministic grounded explanation and truthfully reports fallback.
 
-7. Submit the matching synthetic event:
+6. Submit the matching synthetic event:
 
 ```powershell
 $outcome = curl.exe -X POST http://127.0.0.1:8000/v1/security-events `
@@ -700,7 +708,7 @@ $env:EVENT_DATABASE_PATH = "security_events.demo.$([DateTimeOffset]::UtcNow.ToUn
 python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
-8. Review and approve the recommendation:
+7. Review and approve the recommendation:
 
 ```powershell
 curl.exe http://127.0.0.1:8000/v1/predictions/synthetic-prediction-001/recommendations
@@ -713,26 +721,3 @@ curl.exe -X POST `
 ```
 
 Approval records workflow intent only. Nothing is patched or executed.
-
-## 18. Limitations and future integration
-
-- **Member 1 model:** the backend loads generated predictions but does not train or run the model.
-  The tracked summary contains only the top 25 until the full CSV is supplied.
-- **Historical evaluation:** evaluator and leakage controls remain internal; there is no replay API.
-- **Missing enrichment:** the current artifact lacks descriptions, CVSS, EPSS, feature
-  contributions, and asset matches, so the API reports those fields as unknown.
-- **Hidden threats:** the comparison logic exists, but the live page cannot claim findings without
-  comparable real model and baseline ranks.
-- **Prediction durability:** predictions are process-local and disappear on restart by design.
-- **Workflow scope:** SQLite persists minimal event and approval state only; there is no automatic
-  patching, remediation executor, authentication layer, Slack delivery, or Jira delivery service.
-- **Granite hardware:** local latency and availability depend on the presentation machine and its
-  Ollama runtime. Deterministic fallback remains functional without it.
-- **Provider output:** Granite contributes validated source selection, not new vulnerability facts,
-  remediation claims, or risk scores.
-- **Decision Lab:** optional what-if or decision-analysis features are deferred and are not part of
-  the current application.
-
-The next integration milestone should adapt Member 1's confirmed outputs to `Prediction` and
-`HistoricalSnapshot`, update schemas/fixtures/tests together, and preserve every declared score
-scale, cutoff, evidence reference, and uncertainty value.
