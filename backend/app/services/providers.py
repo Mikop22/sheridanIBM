@@ -5,6 +5,7 @@ import time
 from dataclasses import dataclass
 from threading import Lock
 from typing import Any, Protocol
+from urllib.parse import urlsplit
 
 import httpx
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
@@ -181,6 +182,112 @@ class HuggingFaceClient:
             return self._http_client.post(url, timeout=self._timeout, **kwargs)
         with httpx.Client() as client:
             return client.post(url, timeout=self._timeout, **kwargs)
+
+
+class OllamaGraniteClient:
+    """Calls a locally hosted Granite model through Ollama's chat API."""
+
+    def __init__(
+        self,
+        base_url: str,
+        model_id: str,
+        *,
+        timeout: httpx.Timeout,
+        max_output_tokens: int,
+        http_client: httpx.Client | None = None,
+    ) -> None:
+        self._base_url = base_url.strip().rstrip("/")
+        self._model_id = model_id.strip()
+        self._timeout = timeout
+        self._max_output_tokens = max_output_tokens
+        self._http_client = http_client
+
+    def generate(self, prediction: Prediction) -> ProviderResult:
+        if not self._model_id or not self._is_loopback_origin(self._base_url):
+            raise ProviderFailure("invalid_configuration")
+
+        # Verify Ollama is serving the requested IBM family before accepting output.
+        show_response = self._request("/api/show", {"model": self._model_id})
+        _raise_for_provider_status(show_response)
+        show_payload = _chat_response_payload(show_response)
+        if not self._is_granite_model(show_payload):
+            raise ProviderFailure("model_identity_mismatch")
+
+        payload = {
+            "model": self._model_id,
+            "messages": build_messages(prediction),
+            "stream": False,
+            "format": ProviderOutput.model_json_schema(),
+            "options": {
+                "temperature": 0,
+                "num_predict": self._max_output_tokens,
+            },
+        }
+        response = self._request("/api/chat", payload)
+        _raise_for_provider_status(response)
+        response_payload = _chat_response_payload(response)
+        if response_payload.get("model") != self._model_id:
+            raise ProviderFailure("model_identity_mismatch")
+        try:
+            content = response_payload["message"]["content"]
+        except (KeyError, TypeError) as exc:
+            raise ProviderFailure("invalid_output") from exc
+        output = _parse_output(content, prediction)
+        return ProviderResult(
+            output=output,
+            model_id=self._model_id,
+            requested_model_id=self._model_id,
+            inference_provider="ollama-local",
+        )
+
+    def _request(self, path: str, payload: dict[str, Any]) -> httpx.Response:
+        try:
+            return self._post(f"{self._base_url}{path}", json=payload)
+        except httpx.TimeoutException as exc:
+            raise ProviderFailure("timeout") from exc
+        except (httpx.NetworkError, httpx.ProtocolError) as exc:
+            raise ProviderFailure("provider_unavailable") from exc
+        except httpx.HTTPError as exc:
+            raise ProviderFailure("transport_error") from exc
+
+    def _post(self, url: str, **kwargs: Any) -> httpx.Response:
+        if self._http_client is not None:
+            return self._http_client.post(url, timeout=self._timeout, **kwargs)
+        # Ignore proxy environment variables so a local request cannot be routed externally.
+        with httpx.Client(trust_env=False) as client:
+            return client.post(url, timeout=self._timeout, **kwargs)
+
+    @staticmethod
+    def _is_loopback_origin(value: str) -> bool:
+        parsed = urlsplit(value)
+        return (
+            parsed.scheme == "http"
+            and parsed.hostname in {"127.0.0.1", "localhost", "::1"}
+            and parsed.username is None
+            and parsed.password is None
+            and parsed.query == ""
+            and parsed.fragment == ""
+            and parsed.path in {"", "/"}
+        )
+
+    @staticmethod
+    def _is_granite_model(payload: dict[str, Any]) -> bool:
+        details = payload.get("details")
+        model_info = payload.get("model_info")
+        families: list[str] = []
+        if isinstance(details, dict):
+            family = details.get("family")
+            if isinstance(family, str):
+                families.append(family)
+            if isinstance(details.get("families"), list):
+                families.extend(item for item in details["families"] if isinstance(item, str))
+        if isinstance(model_info, dict):
+            families.extend(
+                value
+                for key, value in model_info.items()
+                if key.endswith(".architecture") and isinstance(value, str)
+            )
+        return any("granite" in family.lower() for family in families)
 
 
 class WatsonxGraniteClient:

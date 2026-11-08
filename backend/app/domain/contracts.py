@@ -142,6 +142,7 @@ class Prediction(ContractModel):
 
 class ExplanationProvider(StrEnum):
     LOCAL = "local"
+    OLLAMA = "ollama"
     HUGGINGFACE = "huggingface"
     WATSONX = "watsonx"
 

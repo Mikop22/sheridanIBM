@@ -30,7 +30,7 @@ from app.services.explanations import (
     ExternalExplanationService,
     LocalExplanationService,
 )
-from app.services.providers import HuggingFaceClient, WatsonxGraniteClient
+from app.services.providers import HuggingFaceClient, OllamaGraniteClient, WatsonxGraniteClient
 
 
 def _error_response(
@@ -244,7 +244,14 @@ def _build_explanation_service(settings: Settings) -> ExplanationService:
         write=settings.provider_read_timeout,
         pool=settings.provider_connect_timeout,
     )
-    if settings.explanation_provider is ConfigExplanationProvider.HUGGINGFACE:
+    if settings.explanation_provider is ConfigExplanationProvider.OLLAMA:
+        client = OllamaGraniteClient(
+            settings.ollama_base_url,
+            settings.ollama_model,
+            timeout=timeout,
+            max_output_tokens=settings.provider_max_output_tokens,
+        )
+    elif settings.explanation_provider is ConfigExplanationProvider.HUGGINGFACE:
         client = HuggingFaceClient(
             settings.hf_token,
             settings.hf_model_id,

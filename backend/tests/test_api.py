@@ -3,7 +3,9 @@ from __future__ import annotations
 from copy import deepcopy
 from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
+from pydantic import ValidationError
 
 from app.config import ExplanationProvider as ConfigExplanationProvider
 from app.config import Settings
@@ -39,6 +41,24 @@ def test_health_returns_503_when_configured_provider_is_not_ready(tmp_path: Path
     assert response.status_code == 503
     assert response.json()["status"] == "not_ready"
     assert response.headers["X-Trace-ID"].startswith("request-")
+
+
+def test_ollama_configuration_is_ready_without_hosted_credentials(tmp_path: Path) -> None:
+    settings = Settings(
+        explanation_provider=ConfigExplanationProvider.OLLAMA,
+        event_database_path=tmp_path / "events.db",
+    )
+    with TestClient(create_app(settings)) as ollama_client:
+        response = ollama_client.get("/health")
+
+    assert response.status_code == 200
+    assert response.json()["explanation_provider"] == "ollama"
+    assert response.json()["provider_ready"] is True
+
+
+def test_ollama_configuration_rejects_remote_hosts() -> None:
+    with pytest.raises(ValidationError, match="loopback HTTP origin"):
+        Settings(ollama_base_url="https://hosted-ollama.example")
 
 
 def test_prediction_ingestion_and_retrieval(client: TestClient, prediction_payload: dict) -> None:

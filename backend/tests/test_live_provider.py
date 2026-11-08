@@ -13,12 +13,12 @@ from app.main import create_app
 @pytest.mark.live
 @pytest.mark.skipif(
     os.getenv("LIVE_PROVIDER_SMOKE") != "1",
-    reason="set LIVE_PROVIDER_SMOKE=1 to permit a paid external inference request",
+    reason="set LIVE_PROVIDER_SMOKE=1 to permit one configured inference request",
 )
 def test_configured_external_provider_live() -> None:
     settings = Settings(provider_max_output_tokens=220)
     if settings.explanation_provider is ExplanationProvider.LOCAL:
-        pytest.fail("select huggingface or watsonx before running the live smoke test")
+        pytest.fail("select ollama or another external provider before running the live smoke test")
 
     prediction = Prediction(
         prediction_id="synthetic-live-smoke",
@@ -37,11 +37,15 @@ def test_configured_external_provider_live() -> None:
         f"provider fell back to local: {explanation.provider_metadata}"
     )
     assert explanation.provider_metadata["fallback_status"] == "not_used"
-    assert explanation.provider_metadata["requested_model_id"] == settings.hf_model_id
-    accepted_response_models = {settings.hf_model_id.split(":", 1)[0]}
-    if settings.hf_response_model_id:
-        accepted_response_models.add(settings.hf_response_model_id)
-    assert explanation.provider_metadata["model_id"] in accepted_response_models
+    expected_model = (
+        settings.ollama_model
+        if settings.explanation_provider is ExplanationProvider.OLLAMA
+        else settings.hf_model_id
+    )
+    assert explanation.provider_metadata["requested_model_id"] == expected_model
+    if settings.explanation_provider is ExplanationProvider.OLLAMA:
+        assert explanation.provider_metadata["model_id"] == expected_model
+        assert explanation.provider_metadata["inference_provider"] == "ollama-local"
     assert explanation.interpretations
     assert all(
         "No additional model-authored factual claim was accepted." in item.text

@@ -1,9 +1,9 @@
 # Sheridan Datathon 2026 — Before the Breach
 
 Member 3's backend provides versioned prediction contracts and evidence-grounded
-explanations. The default deterministic provider runs entirely offline. Optional
-Hugging Face and IBM watsonx.ai providers share the same validated explanation
-contract and always fall back to the deterministic engine on failure.
+explanations. The default deterministic provider runs entirely offline. Local IBM
+Granite through Ollama shares the same validated explanation contract and always
+falls back to the deterministic engine on failure.
 
 ## Run locally
 
@@ -19,40 +19,22 @@ configuration is `EXPLANATION_PROVIDER=local`.
 ## Explanation providers
 
 Copy `.env.example` to `backend/.env` (a safe local-only file is already present
-in this checkout). Keep `EXPLANATION_PROVIDER=local` for offline operation.
-
-For temporary Hugging Face inference, set:
-
-```dotenv
-EXPLANATION_PROVIDER=huggingface
-HF_TOKEN=your-token
-HF_MODEL_ID=an-inference-provider-model-you-selected
-HF_RESPONSE_MODEL_ID=optional-documented-provider-response-alias
-```
-
-Requests use Hugging Face's OpenAI-compatible chat endpoint. The backend never
-selects or substitutes a model automatically. If the selected provider documents a
-different response-model alias, set `HF_RESPONSE_MODEL_ID`; responses matching no
-configured identity are rejected.
-
-For IBM Granite later, set:
+in this checkout). Keep `EXPLANATION_PROVIDER=local` for deterministic offline
+operation. To use the locally installed IBM Granite model, start Ollama and set:
 
 ```dotenv
-EXPLANATION_PROVIDER=watsonx
-WATSONX_API_KEY=your-ibm-cloud-api-key
-WATSONX_PROJECT_ID=your-project-id
-WATSONX_URL=https://your-region.ml.cloud.ibm.com
-WATSONX_MODEL_ID=a-supported-granite-model-you-selected
+EXPLANATION_PROVIDER=ollama
+OLLAMA_BASE_URL=http://127.0.0.1:11434
+OLLAMA_MODEL=granite4:3b
 ```
 
-watsonx.ai authentication uses reusable, expiring IBM IAM tokens. External output
-is accepted only as Pydantic-validated JSON with prediction-backed source
-references. Model-authored free text is not exposed: the API reports only the
-provider's validated source selection using deterministic wording. Confirmed facts
-remain deterministic. Hugging Face responses must identify the requested model and
-routed inference provider. Missing configuration, timeouts, authentication failures,
-unavailable models, rate limits, and invalid output all return the local explanation
-with truthful fallback metadata.
+The endpoint must be an HTTP loopback origin; hosted Ollama endpoints are rejected.
+The backend verifies that Ollama identifies the requested model as Granite before
+inference. Output is accepted only as Pydantic-validated JSON with prediction-backed
+source references. Model-authored free text is not exposed: the API reports only the
+validated source selection using deterministic wording. Missing models, timeouts,
+unavailable Ollama, identity mismatches, and invalid output all return the local
+explanation with truthful fallback metadata.
 
 For a browser frontend, configure an explicit comma-separated origin allowlist;
 wildcards are rejected:
@@ -78,7 +60,7 @@ EVENT_THRESHOLD_HIGHER_IS_RISKIER=true
 
 SQLite persists event idempotency, recommendations, approval state, and minimal
 audit history. It does not persist predictions, and all database files are
-Git-ignored. Event processing never calls Hugging Face or watsonx.ai.
+Git-ignored. Event processing never calls Granite or another explanation provider.
 
 ## Hashed text features
 
@@ -139,14 +121,15 @@ ruff check .
 ruff format --check .
 ```
 
-No automated test contacts an external service. After configuring exactly one
-external provider, explicitly opt into one live smoke test with:
+No ordinary automated test contacts an inference service. With Ollama running,
+explicitly opt into one local Granite smoke test with:
 
 ```powershell
+$env:EXPLANATION_PROVIDER="ollama"
 $env:LIVE_PROVIDER_SMOKE="1"
 python -m pytest tests/test_live_provider.py -q
 ```
 
-The live test fails if the request falls back to local. It can consume provider
-credits and is never run by default. See [AGENTS.md](AGENTS.md) for integration
-conventions.
+The live test fails if the request falls back to the deterministic provider and is
+never run by default. It does not require an account, API key, or paid inference.
+See [AGENTS.md](AGENTS.md) for integration conventions.

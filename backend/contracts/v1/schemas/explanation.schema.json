@@ -3,6 +3,7 @@
     "ExplanationProvider": {
       "enum": [
         "local",
+        "ollama",
         "huggingface",
         "watsonx"
       ],

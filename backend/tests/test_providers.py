@@ -12,7 +12,9 @@ from app.services.providers import (
     HF_CHAT_URL,
     IBM_IAM_URL,
     HuggingFaceClient,
+    OllamaGraniteClient,
     ProviderFailure,
+    ProviderOutput,
     WatsonxGraniteClient,
 )
 
@@ -48,6 +50,159 @@ def _chat_response(request: httpx.Request, content: str | None = None) -> httpx.
 
 def _client(handler: Callable[[httpx.Request], httpx.Response]) -> httpx.Client:
     return httpx.Client(transport=httpx.MockTransport(handler))
+
+
+def _ollama_show(request: httpx.Request, *, family: str = "granite") -> httpx.Response:
+    return httpx.Response(
+        200,
+        request=request,
+        json={"details": {"family": family, "families": [family]}},
+    )
+
+
+def _ollama_chat(request: httpx.Request, content: str | None = None) -> httpx.Response:
+    return httpx.Response(
+        200,
+        request=request,
+        json={"model": "granite4:3b", "message": {"content": content or _model_content()}},
+    )
+
+
+def test_ollama_request_is_local_structured_and_deterministic(prediction_payload: dict) -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        if request.url.path == "/api/show":
+            return _ollama_show(request)
+        return _ollama_chat(request)
+
+    result = OllamaGraniteClient(
+        "http://127.0.0.1:11434",
+        "granite4:3b",
+        timeout=TIMEOUT,
+        max_output_tokens=234,
+        http_client=_client(handler),
+    ).generate(Prediction.model_validate(prediction_payload))
+
+    assert [request.url.path for request in requests] == ["/api/show", "/api/chat"]
+    show_body, chat_body = [json.loads(request.content) for request in requests]
+    assert show_body == {"model": "granite4:3b"}
+    assert chat_body["model"] == "granite4:3b"
+    assert chat_body["stream"] is False
+    assert chat_body["format"] == ProviderOutput.model_json_schema()
+    assert chat_body["options"] == {"temperature": 0, "num_predict": 234}
+    assert result.model_id == "granite4:3b"
+    assert result.inference_provider == "ollama-local"
+
+
+@pytest.mark.parametrize(
+    "base_url",
+    [
+        "https://127.0.0.1:11434",
+        "http://ollama.example:11434",
+        "http://user@127.0.0.1:11434",
+        "http://127.0.0.1:11434/hosted",
+    ],
+)
+def test_ollama_rejects_non_loopback_origin(prediction_payload: dict, base_url: str) -> None:
+    client = OllamaGraniteClient(
+        base_url,
+        "granite4:3b",
+        timeout=TIMEOUT,
+        max_output_tokens=100,
+    )
+
+    with pytest.raises(ProviderFailure, match="invalid_configuration"):
+        client.generate(Prediction.model_validate(prediction_payload))
+
+
+def test_ollama_rejects_non_granite_identity(prediction_payload: dict) -> None:
+    client = OllamaGraniteClient(
+        "http://127.0.0.1:11434",
+        "granite4:3b",
+        timeout=TIMEOUT,
+        max_output_tokens=100,
+        http_client=_client(lambda request: _ollama_show(request, family="llama")),
+    )
+
+    with pytest.raises(ProviderFailure, match="model_identity_mismatch"):
+        client.generate(Prediction.model_validate(prediction_payload))
+
+
+@pytest.mark.parametrize(
+    "content",
+    ["not-json", _model_content("evidence:not-supplied")],
+)
+def test_ollama_rejects_malformed_or_unsupported_output(
+    prediction_payload: dict, content: str
+) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/api/show":
+            return _ollama_show(request)
+        return _ollama_chat(request, content)
+
+    client = OllamaGraniteClient(
+        "http://127.0.0.1:11434",
+        "granite4:3b",
+        timeout=TIMEOUT,
+        max_output_tokens=100,
+        http_client=_client(handler),
+    )
+
+    with pytest.raises(ProviderFailure, match="invalid_output"):
+        client.generate(Prediction.model_validate(prediction_payload))
+
+
+@pytest.mark.parametrize(
+    ("response", "status"),
+    [
+        (httpx.Response(404), "model_unavailable"),
+        (httpx.Response(503), "provider_unavailable"),
+    ],
+)
+def test_ollama_reports_unavailable_model_or_service(
+    prediction_payload: dict, response: httpx.Response, status: str
+) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        response.request = request
+        return response
+
+    client = OllamaGraniteClient(
+        "http://127.0.0.1:11434",
+        "granite4:3b",
+        timeout=TIMEOUT,
+        max_output_tokens=100,
+        http_client=_client(handler),
+    )
+
+    with pytest.raises(ProviderFailure, match=status):
+        client.generate(Prediction.model_validate(prediction_payload))
+
+
+def test_ollama_timeout_uses_truthful_local_fallback(prediction_payload: dict) -> None:
+    def timeout_handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ReadTimeout("timed out", request=request)
+
+    client = OllamaGraniteClient(
+        "http://127.0.0.1:11434",
+        "granite4:3b",
+        timeout=TIMEOUT,
+        max_output_tokens=100,
+        http_client=_client(timeout_handler),
+    )
+    prediction = Prediction.model_validate(prediction_payload)
+
+    explanation = ExternalExplanationService(ExplanationProvider.OLLAMA, client).explain(prediction)
+
+    assert explanation.provider is ExplanationProvider.LOCAL
+    assert explanation.provider_metadata == {
+        "engine": "deterministic-template-v1",
+        "requested_provider": "ollama",
+        "actual_provider": "local",
+        "requested_generation_status": "timeout",
+        "fallback_status": "used",
+    }
 
 
 def test_huggingface_request_auth_structure_and_untrusted_prompt(prediction_payload: dict) -> None:
