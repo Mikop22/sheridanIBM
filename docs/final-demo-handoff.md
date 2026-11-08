@@ -55,13 +55,12 @@ npm.cmd run dev -- --port 3000
 - `POST /v1/recommendations/{recommendation_id}/decision`
 - `GET /api/overview`
 - `GET /api/vulnerabilities` and `GET /api/vulnerabilities/{id}`
-- `GET /api/replay?month=YYYY-MM`
 - `GET /api/assets`
 - `GET /api/alerts`
 
-Without real integration data, frontend collections are valid empty live responses,
-overview totals are null, detail lookups return `404`, and replay returns
-`historical_data_unavailable`. These states are deliberate and Zod-compatible.
+The Threats collection uses the startup-loaded Member 1 artifact. Fields absent from
+that artifact remain null or explicitly unknown rather than being filled from demo
+fixtures. Historical replay remains internal and `/api/replay` is not exposed.
 
 ## Required real-data handoff
 

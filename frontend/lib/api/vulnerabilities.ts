@@ -7,7 +7,7 @@ function toPriority(value: string | null): Priority {
 }
 
 function toViewModel(item: Awaited<ReturnType<typeof getVulnerabilities>>["vulnerabilities"][number]): Vulnerability {
-  return { id: item.cveId, title: item.description, asset: item.affectedAsset?.name ?? null, service: item.affectedAsset?.service ?? null, cvss: item.cvss, epss: item.epss, priority: toPriority(item.predictedRisk), detected: item.detectedAt };
+  return { id: item.cveId, title: item.description ?? "Description unavailable", asset: item.affectedAsset?.name ?? null, service: item.affectedAsset?.service ?? null, cvss: item.cvss, epss: item.epss, priority: toPriority(item.predictedRisk), detected: item.detectedAt };
 }
 
 export async function fetchVulnerabilityOverview() {

@@ -6,6 +6,9 @@ from urllib.parse import urlsplit
 from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_PREDICTION_ARTIFACT = REPOSITORY_ROOT / "model" / "results" / "submission_v1_summary.json"
+
 
 class ExplanationProvider(StrEnum):
     LOCAL = "local"
@@ -64,6 +67,27 @@ class Settings(BaseSettings):
         default="",
         validation_alias=AliasChoices("GITHUB_TOKEN", "GH_TOKEN"),
     )
+
+    prediction_artifact_path: Path = DEFAULT_PREDICTION_ARTIFACT
+    prediction_artifact_min_snapshot_month: str | None = None
+
+    @field_validator("prediction_artifact_min_snapshot_month")
+    @classmethod
+    def validate_snapshot_month(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip()
+        if not normalized:
+            return None
+        if (
+            len(normalized) != 7
+            or normalized[4] != "-"
+            or not normalized[:4].isdigit()
+            or not normalized[5:].isdigit()
+            or not 1 <= int(normalized[5:]) <= 12
+        ):
+            raise ValueError("PREDICTION_ARTIFACT_MIN_SNAPSHOT_MONTH must use YYYY-MM")
+        return normalized
 
     @field_validator("cors_allowed_origins")
     @classmethod

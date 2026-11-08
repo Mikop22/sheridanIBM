@@ -5,12 +5,54 @@ from typing import Literal
 
 from pydantic import Field
 
-from app.domain.contracts import ContractModel
+from app.domain.contracts import ContractModel, Explanation, ScoreScale
+
+
+class FrontendArtifactProvenance(ContractModel):
+    artifactId: str
+    sourceKind: Literal["summary_json", "full_csv"]
+    recordCount: int = Field(ge=1)
+
+
+class FrontendEvidenceIndicator(ContractModel):
+    key: str
+    label: str
+    value: str | float | bool | None
+    status: Literal["present", "absent", "unknown"]
+    observedAt: datetime | None
+    source: str | None
+    explanation: str | None
+
+
+class FrontendVulnerability(ContractModel):
+    cveId: str
+    description: str | None = None
+    snapshotMonth: str
+    cvss: float | None = None
+    epss: float | None = None
+    modelRank: int = Field(ge=1)
+    rankingScore: float
+    rankingScoreKind: Literal["relative"] = "relative"
+    traditionalRank: int | None = None
+    predictedRisk: None = None
+    evidenceIndicators: list[FrontendEvidenceIndicator]
+    affectedAsset: None = None
+    detectedAt: datetime | None = None
+    modelVersion: str
+    scoreScale: ScoreScale
+    scoreInterpretation: str
+    componentScores: dict[str, float]
+    artifact: FrontendArtifactProvenance
+    missingInformation: list[str]
+    assetMatchStatus: Literal["unknown"] = "unknown"
+    investigationState: Literal["unreviewed"] = "unreviewed"
+    suggestedAction: None = None
+    groundedExplanation: Explanation
 
 
 class FrontendVulnerabilityList(ContractModel):
-    vulnerabilities: list[dict] = Field(default_factory=list)
-    generatedAt: datetime
+    vulnerabilities: list[FrontendVulnerability] = Field(default_factory=list)
+    generatedAt: datetime | None = None
     source: Literal["live"] = "live"
 
 
@@ -29,7 +71,7 @@ class FrontendOverview(ContractModel):
 
 
 class FrontendVulnerabilityDetail(ContractModel):
-    vulnerability: dict
+    vulnerability: FrontendVulnerability
     source: Literal["live"] = "live"
 
 
@@ -42,14 +84,4 @@ class FrontendAssets(ContractModel):
 
 class FrontendAlerts(ContractModel):
     alerts: list[dict] = Field(default_factory=list)
-    source: Literal["live"] = "live"
-
-
-class FrontendReplay(ContractModel):
-    month: str
-    predictionSnapshot: dict
-    rankings: list[dict]
-    baselines: list[dict]
-    evaluationCutoff: str
-    laterOutcomes: list[dict]
     source: Literal["live"] = "live"

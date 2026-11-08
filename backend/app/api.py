@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, Request, Response, status
+from fastapi import APIRouter, Depends, Request, Response, status
 
 from app.domain.contracts import (
     ErrorResponse,
@@ -17,14 +17,14 @@ from app.domain.contracts import (
 )
 from app.domain.errors import (
     FrontendVulnerabilityNotFoundError,
-    HistoricalDataUnavailableError,
-    UnsupportedHistoricalMonthError,
 )
 from app.domain.frontend_contracts import (
     FrontendAlerts,
+    FrontendArtifactProvenance,
     FrontendAssets,
+    FrontendEvidenceIndicator,
     FrontendOverview,
-    FrontendReplay,
+    FrontendVulnerability,
     FrontendVulnerabilityDetail,
     FrontendVulnerabilityList,
 )
@@ -38,11 +38,14 @@ from app.operations.models import (
 )
 from app.repositories import PredictionRepository
 from app.services.event_processing import SecurityEventProcessor
-from app.services.explanations import ExplanationService
+from app.services.explanations import ExplanationService, LocalExplanationService
+from app.services.prediction_artifacts import (
+    SCORE_INTERPRETATION,
+    PredictionArtifact,
+    PredictionArtifactRecord,
+)
 
 router = APIRouter()
-
-SUPPORTED_REPLAY_MONTHS = {f"{year}-{month:02d}" for year in (2024, 2025) for month in range(1, 13)}
 
 
 def get_repository(request: Request) -> PredictionRepository:
@@ -61,10 +64,15 @@ def get_event_repository(request: Request) -> SecurityEventRepository:
     return request.app.state.event_repository
 
 
+def get_prediction_artifact(request: Request) -> PredictionArtifact:
+    return request.app.state.prediction_artifact
+
+
 RepositoryDependency = Annotated[PredictionRepository, Depends(get_repository)]
 ExplanationDependency = Annotated[ExplanationService, Depends(get_explanation_service)]
 EventProcessorDependency = Annotated[SecurityEventProcessor, Depends(get_event_processor)]
 EventRepositoryDependency = Annotated[SecurityEventRepository, Depends(get_event_repository)]
+ArtifactDependency = Annotated[PredictionArtifact, Depends(get_prediction_artifact)]
 
 
 @router.get(
@@ -185,10 +193,77 @@ def decide_recommendation(
     return event_repository.decide(recommendation_id, decision)
 
 
+def _frontend_vulnerability(
+    record: PredictionArtifactRecord, artifact: PredictionArtifact
+) -> FrontendVulnerability:
+    prediction = record.prediction
+    explanation = LocalExplanationService().explain(prediction)
+    evidence_indicators = [
+        FrontendEvidenceIndicator(
+            key=name,
+            label=name,
+            value=value,
+            status="present",
+            observedAt=prediction.evidence[0].observed_at,
+            source=prediction.evidence[0].source,
+            explanation="Diagnostic model output; no causal contribution was supplied.",
+        )
+        for name, value in record.component_scores.items()
+    ]
+    evidence_indicators.extend(
+        [
+            FrontendEvidenceIndicator(
+                key="cvss",
+                label="CVSS",
+                value=None,
+                status="unknown",
+                observedAt=None,
+                source=None,
+                explanation="CVSS was not included in the prediction artifact.",
+            ),
+            FrontendEvidenceIndicator(
+                key="epss",
+                label="EPSS",
+                value=None,
+                status="unknown",
+                observedAt=None,
+                source=None,
+                explanation="EPSS was not included in the prediction artifact.",
+            ),
+        ]
+    )
+    return FrontendVulnerability(
+        cveId=prediction.vulnerability.vulnerability_id,
+        snapshotMonth=record.snapshot_month,
+        modelRank=prediction.rank,
+        rankingScore=prediction.score,
+        evidenceIndicators=evidence_indicators,
+        modelVersion=prediction.model_version,
+        scoreScale=prediction.score_scale,
+        scoreInterpretation=SCORE_INTERPRETATION,
+        componentScores=record.component_scores,
+        artifact=FrontendArtifactProvenance(
+            artifactId=artifact.artifact_id,
+            sourceKind=artifact.source_kind,
+            recordCount=len(artifact.records),
+        ),
+        missingInformation=[
+            "vulnerability description",
+            "CVSS score",
+            "EPSS score",
+            "feature contribution values",
+            "affected asset associations",
+        ],
+        groundedExplanation=explanation,
+    )
+
+
 @router.get("/api/vulnerabilities", response_model=FrontendVulnerabilityList, tags=["frontend"])
-def frontend_vulnerabilities() -> FrontendVulnerabilityList:
-    """Return an honest empty live collection until real predictions are loaded."""
-    return FrontendVulnerabilityList(generatedAt=datetime.now(UTC))
+def frontend_vulnerabilities(artifact: ArtifactDependency) -> FrontendVulnerabilityList:
+    """Return startup-loaded Member 1 predictions without request-time model execution."""
+    return FrontendVulnerabilityList(
+        vulnerabilities=[_frontend_vulnerability(record, artifact) for record in artifact.records]
+    )
 
 
 @router.get("/api/overview", response_model=FrontendOverview, tags=["frontend"])
@@ -203,9 +278,13 @@ def frontend_overview() -> FrontendOverview:
     responses={404: {"model": ErrorResponse}},
     tags=["frontend"],
 )
-def frontend_vulnerability_detail(vulnerability_id: str) -> FrontendVulnerabilityDetail:
-    """Report a truthful miss until a real prediction adapter is configured."""
-    raise FrontendVulnerabilityNotFoundError(vulnerability_id)
+def frontend_vulnerability_detail(
+    vulnerability_id: str, artifact: ArtifactDependency
+) -> FrontendVulnerabilityDetail:
+    record = artifact.find_cve(vulnerability_id)
+    if record is None:
+        raise FrontendVulnerabilityNotFoundError(vulnerability_id)
+    return FrontendVulnerabilityDetail(vulnerability=_frontend_vulnerability(record, artifact))
 
 
 @router.get("/api/assets", response_model=FrontendAssets, tags=["frontend"])
@@ -262,17 +341,3 @@ def operations_record_pull_request(
 ) -> JudgeScriptReport:
     return _operations(request).record_pull_request(cve_id, body.pr_url, body.checks_passed)
 
-
-@router.get(
-    "/api/replay",
-    response_model=FrontendReplay,
-    responses={404: {"model": ErrorResponse}, 503: {"model": ErrorResponse}},
-    tags=["frontend"],
-)
-def frontend_replay(
-    month: Annotated[str, Query(pattern=r"^\d{4}-(0[1-9]|1[0-2])$")],
-) -> FrontendReplay:
-    """Refuse to publish replay results until a month passes real-data validation."""
-    if month not in SUPPORTED_REPLAY_MONTHS:
-        raise UnsupportedHistoricalMonthError(month)
-    raise HistoricalDataUnavailableError(month)

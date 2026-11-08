@@ -61,6 +61,21 @@ def test_ollama_configuration_rejects_remote_hosts() -> None:
         Settings(ollama_base_url="https://hosted-ollama.example")
 
 
+def test_prediction_artifact_freshness_month_validation() -> None:
+    assert (
+        Settings(prediction_artifact_min_snapshot_month="").prediction_artifact_min_snapshot_month
+        is None
+    )
+    assert (
+        Settings(
+            prediction_artifact_min_snapshot_month="2026-09"
+        ).prediction_artifact_min_snapshot_month
+        == "2026-09"
+    )
+    with pytest.raises(ValidationError, match="must use YYYY-MM"):
+        Settings(prediction_artifact_min_snapshot_month="September 2026")
+
+
 def test_prediction_ingestion_and_retrieval(client: TestClient, prediction_payload: dict) -> None:
     created = client.post("/v1/predictions", json=prediction_payload)
     retrieved = client.get(f"/v1/predictions/{prediction_payload['prediction_id']}")

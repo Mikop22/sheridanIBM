@@ -15,7 +15,7 @@ export const evidenceIndicatorSchema = z.object({
 
 export const vulnerabilitySchema = z.object({
   cveId: z.string().min(1),
-  description: z.string().min(1),
+  description: z.string().min(1).nullable(),
   snapshotMonth: z.string().regex(/^\d{4}-\d{2}$/).nullable(),
   cvss: z.number().min(0).max(10).nullable(),
   epss: z.number().min(0).max(1).nullable(),
@@ -28,6 +28,16 @@ export const vulnerabilitySchema = z.object({
   evidenceIndicators: z.array(evidenceIndicatorSchema),
   affectedAsset: z.object({ id: z.string().nullable(), name: z.string(), service: z.string().nullable() }).nullable(),
   detectedAt: z.string().nullable(),
+  modelVersion: z.string().min(1).optional(),
+  scoreScale: z.object({ minimum: z.number(), maximum: z.number(), higher_is_riskier: z.boolean() }).optional(),
+  scoreInterpretation: z.string().min(1).optional(),
+  componentScores: z.record(z.string(), z.number()).optional(),
+  artifact: z.object({ artifactId: z.string().min(1), sourceKind: z.enum(["summary_json", "full_csv"]), recordCount: z.number().int().positive() }).optional(),
+  missingInformation: z.array(z.string()).optional(),
+  assetMatchStatus: z.literal("unknown").optional(),
+  investigationState: z.literal("unreviewed").optional(),
+  suggestedAction: z.null().optional(),
+  groundedExplanation: z.unknown().optional(),
 });
 
 export const baselineSchema = z.object({
@@ -111,7 +121,7 @@ export const overviewResponseSchema = z.object({
   generatedAt: z.string(),
   source: dataSourceSchema,
 });
-export const vulnerabilityListResponseSchema = z.object({ vulnerabilities: z.array(vulnerabilitySchema), generatedAt: z.string(), source: dataSourceSchema });
+export const vulnerabilityListResponseSchema = z.object({ vulnerabilities: z.array(vulnerabilitySchema), generatedAt: z.string().nullable(), source: dataSourceSchema });
 export const vulnerabilityDetailResponseSchema = z.object({ vulnerability: vulnerabilitySchema, source: dataSourceSchema });
 export const assetsResponseSchema = z.object({ assets: z.array(assetSchema), matches: z.array(assetVulnerabilityMatchSchema), organizationLabel: z.string().nullable(), source: dataSourceSchema });
 export const alertsResponseSchema = z.object({ alerts: z.array(alertSchema), source: dataSourceSchema });

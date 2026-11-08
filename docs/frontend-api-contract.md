@@ -1,6 +1,6 @@
 # SignalZero proposed backend contract
 
-Status: **implemented frontend adapter contract**. FastAPI exposes the routes below with truthful empty or unavailable live states until Member 1's prediction export is integrated. The versioned `/v1` prediction, explanation, and event workflows remain separate backend contracts.
+Status: **implemented Threats adapter contract**. FastAPI loads Member 1's prediction export once at startup. The tracked default exposes the genuine top 25 and a configured full CSV exposes the complete cohort. The versioned `/v1` prediction, explanation, and event workflows remain separate backend contracts.
 
 The frontend validates every successful response with Zod schemas in `frontend/lib/types/contracts.ts`. Unknown or malformed responses fail visibly in live mode; the frontend does not substitute demo data.
 
@@ -89,15 +89,15 @@ Returns the validated vulnerability collection used by Overview and Hidden Threa
   "vulnerabilities": [
     {
       "cveId": "CVE-2025-12345",
-      "description": "Example vulnerability",
-      "snapshotMonth": null,
+      "description": null,
+      "snapshotMonth": "2026-04",
       "cvss": null,
       "epss": 0.14,
-      "modelRank": 42,
-      "rankingScore": 7.18,
+      "modelRank": 1,
+      "rankingScore": 0.317252,
       "rankingScoreKind": "relative",
       "traditionalRank": 684,
-      "predictedRisk": "High",
+      "predictedRisk": null,
       "evidenceIndicators": [
         {
           "key": "exploit-chatter",
@@ -110,15 +110,25 @@ Returns the validated vulnerability collection used by Overview and Hidden Threa
         }
       ],
       "affectedAsset": null,
-      "detectedAt": null
+      "detectedAt": null,
+      "modelVersion": "member1-v1-locked-ensemble",
+      "scoreScale": {"minimum": 0.0, "maximum": 1.0, "higher_is_riskier": true},
+      "scoreInterpretation": "Relative ensemble ranking score; not a calibrated exploitation probability.",
+      "componentScores": {"score_v1_ensemble": 0.317252},
+      "artifact": {"artifactId": "sha256:...", "sourceKind": "summary_json", "recordCount": 25},
+      "missingInformation": ["vulnerability description", "CVSS score", "EPSS score", "affected asset associations"],
+      "assetMatchStatus": "unknown",
+      "investigationState": "unreviewed",
+      "suggestedAction": null,
+      "groundedExplanation": {"provider": "local", "generation_status": "complete"}
     }
   ],
-  "generatedAt": "2025-12-18T14:35:00Z",
+  "generatedAt": null,
   "source": "live"
 }
 ```
 
-`cvss`, `epss`, `modelRank`, `rankingScore`, `traditionalRank`, `predictedRisk`, `snapshotMonth`, `affectedAsset`, and `detectedAt` may be `null`. Indicator `value`, `observedAt`, `source`, and `explanation` may also be `null`.
+`description`, `cvss`, `epss`, `traditionalRank`, `predictedRisk`, `affectedAsset`, `detectedAt`, `generatedAt`, and `suggestedAction` may be `null`. The model rank and ranking score are present for validated artifact rows. Indicator `value`, `observedAt`, `source`, and `explanation` may also be `null`.
 
 ## GET /api/vulnerabilities/{id}
 
@@ -133,37 +143,11 @@ Returns one vulnerability using the same schema.
 
 Return `404` with the standard error object when the CVE is unknown.
 
-## GET /api/replay?month=YYYY-MM
+## Historical evaluation
 
-Returns rankings frozen at the prediction cutoff, comparison baselines, and outcomes observed only after prediction and no later than the evaluation cutoff.
-
-The current product-supported selector range is January 2024 through December 2025, defined independently of demo fixtures in `lib/config/replay.ts`. The backend should return the standard error object for a syntactically valid month it does not support.
-
-```json
-{
-  "month": "2024-02",
-  "predictionSnapshot": { "capturedAt": "2024-02-29", "featureCutoff": "2024-02-29" },
-  "rankings": [
-    {
-      "rank": 1,
-      "predictedRisk": "Critical",
-      "vulnerability": { "cveId": "CVE-2024-21412", "description": "Example historical vulnerability", "snapshotMonth": "2024-02", "cvss": 8.1, "epss": 0.71, "modelRank": 1, "rankingScore": null, "rankingScoreKind": "unknown", "traditionalRank": null, "predictedRisk": "Critical", "evidenceIndicators": [], "affectedAsset": null, "detectedAt": null }
-    }
-  ],
-  "baselines": [
-    { "method": "CVSS baseline", "hitsAt500": 251, "note": "Measured with the same cutoff." }
-  ],
-  "evaluationCutoff": "2024-05-31",
-  "laterOutcomes": [
-    { "cveId": "CVE-2024-21412", "status": "confirmed-kev", "kevAddedAt": "2024-03-01", "observedByCutoff": true }
-  ],
-  "source": "live"
-}
-```
-
-### Historical cutoff rule
-
-Predictive features must contain only information available on or before `featureCutoff`. `laterOutcomes` must never be included in the feature payload. An outcome may be returned only if it was known on or before `evaluationCutoff`; otherwise use `status: "unknown"`, `kevAddedAt: null`, and `observedByCutoff: false`.
+There is no user-facing replay route. Temporal evaluation, leakage validation, and
+Hits@K comparison remain internal backend/model capabilities and are not dashboard
+presentation contracts.
 
 ## GET /api/assets
 
@@ -221,7 +205,7 @@ Duplicate alert decisions remain backend-owned; use CVE + asset identity as the 
 - [x] `GET /api/overview`
 - [x] `GET /api/vulnerabilities`
 - [x] `GET /api/vulnerabilities/{id}`
-- [x] `GET /api/replay?month=YYYY-MM`
+- [x] `/api/replay` removed
 - [x] `GET /api/assets`
 - [x] `GET /api/alerts`
 - [x] Direct unauthenticated loopback access for the local milestone; no browser secret is required

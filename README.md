@@ -45,7 +45,7 @@ deterministic explanation fallback.
 6. [Backend architecture](#6-backend-architecture)
 7. [IBM Granite integration](#7-ibm-granite-integration)
 8. [Data flow and processing](#8-data-flow-and-processing)
-9. [Time Machine and historical evaluation](#9-time-machine-and-historical-evaluation)
+9. [Internal historical evaluation](#9-internal-historical-evaluation)
 10. [Hidden Threat Detector](#10-hidden-threat-detector)
 11. [API reference](#11-api-reference)
 12. [Data contracts](#12-data-contracts)
@@ -67,10 +67,9 @@ request the FastAPI `/api` routes. Every successful payload is parsed by the Zod
 responses, non-2xx responses, and schema mismatches are surfaced to the page; live mode never
 silently substitutes demo fixtures.
 
-Until a real prediction export is connected, the backend returns nullable dashboard totals and
-empty live collections. Replay requests for supported months return an explicit
-`historical_data_unavailable` error. The pages translate these results into empty or unavailable
-states without presenting simulated data as live output.
+At startup the backend validates and loads Member 1's prediction export. The tracked default is the
+genuine top-25 summary; `PREDICTION_ARTIFACT_PATH` can select the complete CSV. Missing CVSS, EPSS,
+descriptions, feature contributions, and asset associations remain null or explicitly unknown.
 
 ### Prediction and explanation workflow
 
@@ -88,9 +87,8 @@ selection, and exposes deterministic wording rather than untrusted model-authore
 The historical services accept a frozen `HistoricalSnapshot`, reject training rows and post-cutoff
 evidence, create model/CVSS/EPSS rankings over comparable populations, and calculate evaluation
 metrics. The Hidden Threat Detector finds candidates ranked inside a model budget but outside the
-same baseline budget. These services are implemented and tested with visibly synthetic fixtures;
-they are not connected to the live frontend because Member 1's real out-of-sample export is still
-pending.
+same baseline budget. These services remain internal; the removed Time Machine presentation route
+is not part of the product API.
 
 ### Security event and approval workflow
 
@@ -136,14 +134,14 @@ flowchart LR
         SQLite[(SQLite events, recommendations, decisions, audit)]
     end
 
-    FutureModel[Member 1 model export - not connected]
+    ModelArtifact[Member 1 v1 prediction artifact]
 
     Zod -->|HTTP /api| Routes
     Explain -->|validated request| Ollama
     Explain --> Fallback
     Events --> SQLite
-    FutureModel -. future Prediction adapter .-> Pydantic
-    FutureModel -. future historical snapshots .-> Historical
+    ModelArtifact -->|startup validation| Pydantic
+    ModelArtifact -. future historical snapshots .-> Historical
 ```
 
 The frontend and backend communicate directly on loopback during local development. CORS permits
@@ -278,11 +276,11 @@ sequenceDiagram
 2. Pydantic rejects out-of-scale scores, duplicate IDs, post-snapshot evidence, and dangling refs.
 3. The process-local repository rejects duplicate prediction IDs and stores a defensive copy.
 
-### Historical replay
+### Internal historical evaluation
 
 A validated snapshot freezes its candidate population and feature cutoff. Historical services rank
-the shared population and compute outcomes only through the evaluation cutoff. The live `/api/replay`
-adapter currently reports unavailable because no real Member 1 export has been connected.
+the shared population and compute outcomes only through the evaluation cutoff. These services do
+not expose a user-facing replay route.
 
 ### Event, recommendation, and decision processing
 
@@ -314,7 +312,7 @@ The threshold configuration must match the prediction's minimum, maximum, and
 `higher_is_riskier` direction exactly. A semantic mismatch is not guessed around; it produces an
 insufficient-information outcome.
 
-## 9. Time Machine and historical evaluation
+## 9. Internal historical evaluation
 
 The historical domain models a monthly decision snapshot rather than rebuilding the past using
 today's data. Each candidate declares that it is out of sample and includes the historical model
@@ -340,10 +338,8 @@ For a budget K:
 - **Coverage** reports total candidates, shared candidates, and available CVSS/EPSS comparison
   counts so missing baseline data remains visible.
 
-The service evaluates budgets 10, 25, 50, 100, and 500. The frontend selector recognizes months
-from January 2024 through December 2025. Syntactically valid months outside that range return
-`unsupported_month`; supported months return `historical_data_unavailable` until real prediction
-snapshots are integrated.
+The service evaluates budgets 10, 25, 50, 100, and 500. Historical snapshots are internal model
+inputs and are never reconstructed from current data for dashboard presentation.
 
 ## 10. Hidden Threat Detector
 
@@ -370,9 +366,8 @@ running.
 | Method | URL | Purpose | Current live behavior |
 |---|---|---|---|
 | `GET` | `/api/overview` | Dashboard totals and priority vulnerabilities | Nullable totals and an empty list |
-| `GET` | `/api/vulnerabilities` | Validated vulnerability collection | Empty live collection |
-| `GET` | `/api/vulnerabilities/{vulnerability_id}` | One vulnerability | `404 vulnerability_not_found` until an adapter exists |
-| `GET` | `/api/replay?month=YYYY-MM` | Historical ranking replay | `503 historical_data_unavailable` for supported months |
+| `GET` | `/api/vulnerabilities` | Validated vulnerability collection | Startup-loaded Member 1 rankings |
+| `GET` | `/api/vulnerabilities/{vulnerability_id}` | One vulnerability | Real artifact row or `404 vulnerability_not_found` |
 | `GET` | `/api/assets` | Asset inventory and matches | Empty live collections |
 | `GET` | `/api/alerts` | Frontend alert activity | Empty live collection |
 
@@ -592,6 +587,8 @@ an actual Granite inference.
 | `EVENT_THRESHOLD_SCALE_MINIMUM` | Backend | With threshold | Required matching scale minimum. |
 | `EVENT_THRESHOLD_SCALE_MAXIMUM` | Backend | With threshold | Required matching scale maximum. |
 | `EVENT_THRESHOLD_HIGHER_IS_RISKIER` | Backend | With threshold | Required matching risk direction. |
+| `PREDICTION_ARTIFACT_PATH` | Backend | No | JSON summary or full CSV loaded once at startup. |
+| `PREDICTION_ARTIFACT_MIN_SNAPSHOT_MONTH` | Backend | No | Optional `YYYY-MM` freshness gate. |
 | `PROVIDER_CONNECT_TIMEOUT` | Backend | No | Provider connection timeout in seconds. |
 | `PROVIDER_READ_TIMEOUT` | Backend | No | Provider response timeout in seconds. |
 | `PROVIDER_MAX_OUTPUT_TOKENS` | Backend | No | Structured provider-output limit. |
@@ -658,10 +655,11 @@ All records used below are explicitly synthetic. They demonstrate contracts and 
 not real vulnerability findings or model performance.
 
 1. Start Ollama, FastAPI, and the frontend using [Local development setup](#14-local-development-setup).
-2. Open `http://localhost:3000` and visit Overview, Time Machine, Hidden Threats, Company Assets,
-   and Alert Activity.
-3. Observe that live dashboard totals and collections are empty rather than replaced with fixtures.
-4. On Time Machine, select a supported month and observe the explicit historical-unavailable state.
+2. Open `http://localhost:3000` and inspect the checked-in frontend while Teammate 2 completes the
+   two-page Threats/Remediation update.
+3. Request `GET /api/vulnerabilities` and confirm the response identifies the real artifact hash,
+   model version, relative score semantics, and unavailable enrichment fields.
+4. Confirm `GET /api/replay` returns the standard `route_not_found` response.
 5. From a PowerShell window, submit the synthetic prediction:
 
 ```powershell
@@ -718,11 +716,11 @@ Approval records workflow intent only. Nothing is patched or executed.
 
 ## 18. Limitations and future integration
 
-- **Member 1 model:** not connected. The backend accepts prediction records but does not train or
-  run the model.
-- **Historical replay:** the evaluator and leakage controls exist, but live replay awaits genuine
-  out-of-sample prediction exports with historical CVSS, EPSS, and cutoff metadata.
-- **Live frontend findings:** intentionally empty until validated adapters supply real records.
+- **Member 1 model:** the backend loads generated predictions but does not train or run the model.
+  The tracked summary contains only the top 25 until the full CSV is supplied.
+- **Historical evaluation:** evaluator and leakage controls remain internal; there is no replay API.
+- **Missing enrichment:** the current artifact lacks descriptions, CVSS, EPSS, feature
+  contributions, and asset matches, so the API reports those fields as unknown.
 - **Hidden threats:** the comparison logic exists, but the live page cannot claim findings without
   comparable real model and baseline ranks.
 - **Prediction durability:** predictions are process-local and disappear on restart by design.

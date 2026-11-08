@@ -349,6 +349,33 @@ def test_event_api_is_offline_even_when_explanation_provider_is_unavailable(
     assert len(recommendations.json()) == 1
 
 
+def test_loaded_real_prediction_without_asset_match_is_insufficient(
+    client: TestClient,
+) -> None:
+    prediction_id = "member1-v1-2026-04-CVE-2026-2699"
+    retrieved = client.get(f"/v1/predictions/{prediction_id}")
+    assert retrieved.status_code == 200
+    assert retrieved.json()["score"] == 0.317252
+
+    response = client.post(
+        "/v1/security-events",
+        json={
+            "schema_version": "1.0",
+            "event_id": "synthetic-real-artifact-event",
+            "observed_at": "2026-04-30T23:59:59Z",
+            "source": "synthetic-test-fixture",
+            "prediction_id": prediction_id,
+            "vulnerability_id": "CVE-2026-2699",
+            "asset_id": "synthetic-unmatched-asset",
+            "evidence_refs": ["member1-artifact-row"],
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["processing_status"] == "insufficient_information"
+    assert response.json()["reason_code"] == "asset_not_matched"
+
+
 def test_malformed_event_and_invalid_transition_return_stable_errors(
     client: TestClient, prediction_payload: dict, event_payload: dict
 ) -> None:
