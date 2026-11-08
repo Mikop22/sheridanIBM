@@ -104,16 +104,16 @@ export default function Home() {
 
   const metrics = [
     {
-      label: "Actionable vulnerabilities & Prioritized findings",
+      label: "Model-ranked vulnerabilities",
       value: actionable,
-      detail: demo ? "Simulated snapshot" : "Member 1 ranked artifact",
+      detail: demo ? "Simulated snapshot" : "Top predictions from the ranking model",
       icon: ShieldAlert,
       tone: "text-[#0f62fe]",
     },
     {
       label: "Inventory-matched findings",
       value: matchedAssets,
-      detail: "Matched against asset inventory",
+      detail: "Present in the demo asset inventory",
       icon: Server,
       tone: "text-[#da1e28]",
     },
@@ -231,7 +231,7 @@ export default function Home() {
                           </p>
                         </td>
                         <td className="px-4 py-4 align-top">
-                          <p className="text-sm">{item.asset ?? "No inventory match"}</p>
+                          <p className="text-sm">{item.asset ?? "Not in inventory"}</p>
                           {item.service && (
                             <p className="mt-0.5 text-xs text-[#6f6f6f]">{item.service}</p>
                           )}
