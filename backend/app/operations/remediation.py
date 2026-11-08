@@ -9,6 +9,19 @@ CODE_BRANCH = "signalzero/cve-2026-22739-code"
 # Backwards-compatible alias used by older call sites.
 BRANCH = DEPENDENCY_BRANCH
 
+_PR_SECTIONS = (
+    "Use this pull request shape exactly. "
+    "Title: `[SignalZero] CVE-2026-22739: {short change} ({route})`. "
+    "Body sections in order: `## Proposed change`, `## Verify`, "
+    "`## Review notes`, `## Context`. "
+    "Optional `## Agent provenance` only when a real Entire checkpoint id exists; omit otherwise. "
+    "Put the ranking score and 'not an exploitation probability' only under `## Context`. "
+    "Put the checks-do-not-prove caveat once under `## Review notes`, with draft-only and "
+    "synthetic-inventory notes. "
+    "Do not invent Threat evidence / Code evidence / Agent reasoning sections, "
+    "files-inspected lists, or Entire boilerplate without a checkpoint id."
+)
+
 
 def agent_task(*, ranking_score: float, rank: int) -> str:
     return dependency_agent_task(ranking_score=ranking_score, rank=rank)
@@ -26,10 +39,15 @@ def dependency_agent_task(*, ranking_score: float, rank: int) -> str:
         "check_version.py must exit 0. "
         f"Commit on branch {DEPENDENCY_BRANCH}. "
         "Open a draft pull request. Do not merge. "
-        f"The v1 ensemble ranking score is {score}, rank {rank} of 72670. "
-        "Describe that number as a ranking score, not an exploitation probability. "
-        "State that a passing check does not prove the path traversal is closed. "
-        "If Entire is enabled, leave it enabled and include the checkpoint id in the pull request."
+        "Title example: "
+        "`[SignalZero] CVE-2026-22739: bump spring-cloud-config-server 4.3.1→4.3.2 (dependency)`. "
+        "Proposed change: bump the pin in pom.xml only and stay on the 4.3 line. "
+        "Verify with `python3 check_version.py` (expect exit 0). "
+        "Review notes must state that a passing check does not prove the path traversal is closed. "
+        f"Context: ranking score {score}, rank {rank} of 72670, snapshot 2026-03; "
+        "label it as a ranking score, not an exploitation probability; "
+        "advisory GHSA-3qwq-q9vm-5j42; asset Customer Portal (customer-portal); inventory synthetic. "
+        f"{_PR_SECTIONS}"
     )
 
 
@@ -47,10 +65,16 @@ def code_agent_task(*, ranking_score: float, rank: int) -> str:
         "Do not delete or weaken the tests. Do not change pom.xml in this pull request. "
         "python3 check_code_fix.py must exit 0. "
         f"Commit on branch {CODE_BRANCH}. Open a draft pull request. Do not merge. "
-        f"The v1 ensemble ranking score is {score}, rank {rank} of 72670. "
-        "Describe that number as a ranking score, not an exploitation probability. "
-        "State that passing tests do not prove a remote Spring server is patched. "
-        "If Entire is enabled, leave it enabled and include the checkpoint id in the pull request."
+        "Title example: "
+        "`[SignalZero] CVE-2026-22739: contain profile path resolution in portal/configs (code_patch)`. "
+        "Proposed change: rewrite resolve_config_path containment only; leave pom.xml alone. "
+        "Verify with `python3 check_code_fix.py` (expect exit 0). "
+        "Review notes must state that passing tests do not prove a remote Spring server is patched. "
+        f"Context: ranking score {score}, rank {rank} of 72670, snapshot 2026-03; "
+        "label it as a ranking score, not an exploitation probability; "
+        "local evidence advisory/LOCAL-PROFILE-TRAVERSAL.md; "
+        "asset Customer Portal config loader (customer-portal-config-loader); inventory synthetic. "
+        f"{_PR_SECTIONS}"
     )
 
 

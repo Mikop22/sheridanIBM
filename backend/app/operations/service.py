@@ -483,11 +483,12 @@ def _jira_body(step: str, ranking: RankingRow, asset: DemoAsset, urgent: bool) -
 def _urgent_text(ranking: RankingRow, asset: DemoAsset, issue_key: str) -> str:
     score = format_score(ranking.ranking_score)
     return (
-        f"Urgent: {ranking.cve_id} on {asset.asset_id} is in the CISA KEV catalog "
-        f"(added {KEV_ADDED_ON}). SignalZero ranked it {ranking.rank} of {SCOREBOARD_ROWS} "
-        f"in the {ranking.snapshot_month} snapshot, before that listing. "
-        f"Ranking score {score} is not an exploitation probability. "
-        f"Jira: {issue_key}. No code change is proposed; this asset is an appliance."
+        "*Urgent — no code change*\n"
+        f"CVE: {ranking.cve_id} · Asset: {asset.asset_id}\n"
+        f"KEV added: {KEV_ADDED_ON} (after snapshot {ranking.snapshot_month})\n"
+        f"Rank: {ranking.rank}/{SCOREBOARD_ROWS} · "
+        f"Ranking score {score} is not an exploitation probability\n"
+        f"Jira: {issue_key}"
     )
 
 
@@ -499,21 +500,22 @@ def _review_text(
     checks_passed: bool,
 ) -> str:
     if asset.route == "code_patch":
-        change = (
-            f"Draft PR rewrites {asset.product} so profile paths stay under portal/configs."
-        )
-        caveat = "Passing tests do not prove a remote Spring server is patched."
+        change = f"Contain profile path resolution under portal/configs ({asset.product})"
+        caveat = "Passing tests do not prove a remote Spring server is patched"
     else:
         change = (
-            f"Draft PR bumps {asset.product} {asset.installed_version} to {asset.fixed_version}."
+            f"Bump {asset.product} {asset.installed_version} → "
+            f"{asset.fixed_version} in pom.xml"
         )
-        caveat = "A passing check does not prove the vulnerability is closed."
+        caveat = "Passing check does not prove the vulnerability is closed"
+    checks = "pass" if checks_passed else "fail"
     return (
-        f"Fix ready for review: {ranking.cve_id} in {asset.name}. "
-        f"{change} "
-        f"Checks passed: {checks_passed}. "
-        f"{caveat} "
-        f"Jira: {issue_key}. PR: {pr_url}."
+        "*Draft fix for review*\n"
+        f"CVE: {ranking.cve_id} · Asset: {asset.name}\n"
+        f"Change: {change}\n"
+        f"Checks: {checks} · {caveat}\n"
+        f"Jira: {issue_key}\n"
+        f"PR: {pr_url} (draft — do not merge)"
     )
 
 

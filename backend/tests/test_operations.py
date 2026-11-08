@@ -91,9 +91,11 @@ def test_judge_script_records_side_effects_without_calling_the_network(
     assert all(
         item["mode"] == "recording" and item["delivered"] is False for item in report["deliveries"]
     )
-    assert report["deliveries"][2]["body"].startswith("Urgent: CVE-2026-8037")
-    assert "not an exploitation probability" in report["deliveries"][2]["body"]
-    assert "2026-08-07" in report["deliveries"][2]["body"]
+    urgent = report["deliveries"][2]["body"]
+    assert urgent.startswith("*Urgent — no code change*")
+    assert "CVE: CVE-2026-8037" in urgent
+    assert "not an exploitation probability" in urgent
+    assert "2026-08-07" in urgent
     july = next(step for step in report["steps"] if step["step"] == "july")
     assert july["actions"] == ["UPSERT_JIRA"]
     assert "NOTIFY_SLACK_URGENT" not in july["actions"]
@@ -114,11 +116,15 @@ def test_judge_script_records_side_effects_without_calling_the_network(
     assert "Do not upgrade to 5.0.2" in dependency_job["task"]
     assert "Do not merge" in dependency_job["task"]
     assert "does not prove the path traversal is closed" in dependency_job["task"]
+    assert "## Proposed change" in dependency_job["task"]
+    assert "[SignalZero] CVE-2026-22739:" in dependency_job["task"]
     code_job = jobs["CVE-2026-22739::customer-portal-config-loader"]
     assert code_job["branch"] == "signalzero/cve-2026-22739-code"
     assert "Rewrite resolve_config_path" in code_job["task"]
     assert "Do not change pom.xml" in code_job["task"]
     assert "check_code_fix.py" in code_job["task"]
+    assert "## Review notes" in code_job["task"]
+    assert "(code_patch)" in code_job["task"]
 
     replay = second.json()
     assert replay["deliveries"] == report["deliveries"]
@@ -156,7 +162,13 @@ def test_review_notice_waits_for_a_recorded_pull_request(tmp_path: Path) -> None
     assert recorded.status_code == 200
     reviews = [item for item in recorded.json()["deliveries"] if item["kind"] == "slack_review"]
     assert len(reviews) == 1
-    assert "does not prove the vulnerability is closed" in reviews[0]["body"]
+    review = reviews[0]["body"]
+    assert review.startswith("*Draft fix for review*")
+    assert "CVE: CVE-2026-22739" in review
+    assert "Checks: pass" in review
+    assert "does not prove the vulnerability is closed" in review
+    assert "draft — do not merge" in review
+    assert "https://github.com/Mikop22/securitydemo/pull/1" in review
     assert recorded.json()["jobs"][0]["pr_url"].endswith("/pull/1")
     assert repeated.status_code == 200
     assert sum(item["kind"] == "slack_review" for item in repeated.json()["deliveries"]) == 1
