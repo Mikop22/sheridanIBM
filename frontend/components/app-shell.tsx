@@ -3,12 +3,10 @@
 import { useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { Bell, Menu, X } from "lucide-react";
-import { isDemoMode } from "@/lib/api/config";
 
 const navItems = [
   { label: "Overview", href: "/" },
   { label: "Threat Intelligence", href: "/hidden-threats" },
-  { label: "Company Assets", href: "/assets" },
   { label: "Remediation Center", href: "/alerts" },
 ];
 
@@ -34,13 +32,9 @@ export function AppShell({ children }: AppShellProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const pathname = usePathname();
-  const demo = isDemoMode();
 
   return (
     <div className="min-h-screen bg-white text-[#161616] selection:bg-[#0f62fe] selection:text-white">
-      <div className="border-b border-[#e0e0e0] bg-[#f4f4f4] px-5 py-2 text-[11px] text-[#525252] sm:px-8 lg:px-12">
-        Independent IBM Before the Breach hackathon project · {demo ? "Simulated demo data" : "Live API mode"}
-      </div>
       <header className="sticky top-0 z-40 border-b border-[#e0e0e0] bg-white">
         <div className="flex h-16 items-stretch px-5 sm:px-8 lg:px-12">
           {/* Full-document anchors are intentional: Vinext RSC client navigation has failed in prior production builds. */}
