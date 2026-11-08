@@ -27,15 +27,24 @@ function providerStatus(status: DeliveryStatus | JiraStatus): WorkflowStatus {
 }
 
 function workflowFor(alert: VulnerabilityAlert) {
+  const hasPr = Boolean(alert.prUrl);
+  const testStatus: WorkflowStatus =
+    alert.checksPassed === true
+      ? "Succeeded"
+      : alert.checksPassed === false
+        ? "Failed"
+        : hasPr
+          ? "Succeeded"
+          : "Unavailable";
   return [
     { label: "Threat detected", status: "Succeeded" as WorkflowStatus, timestamp: alert.timestamp },
     { label: "Asset identified", status: (alert.assetName === "Unknown asset" ? "Unavailable" : "Succeeded") as WorkflowStatus, timestamp: alert.assetName === "Unknown asset" ? null : alert.timestamp },
     { label: "Slack notification", status: providerStatus(alert.slackStatus), timestamp: alert.slackDelivery?.deliveredAt ?? alert.slackDelivery?.attemptedAt ?? null },
     { label: "Jira issue created or updated", status: providerStatus(alert.jiraStatus), timestamp: alert.jiraDelivery?.deliveredAt ?? alert.jiraDelivery?.attemptedAt ?? null },
-    { label: "Coding agent investigation", status: "Unavailable" as WorkflowStatus, timestamp: null },
-    { label: "Draft GitHub PR", status: "Unavailable" as WorkflowStatus, timestamp: null },
-    { label: "Automated tests", status: "Unavailable" as WorkflowStatus, timestamp: null },
-    { label: "Awaiting human approval", status: "Unavailable" as WorkflowStatus, timestamp: null },
+    { label: "Coding agent investigation", status: (hasPr ? "Succeeded" : "Unavailable") as WorkflowStatus, timestamp: hasPr ? alert.timestamp : null },
+    { label: "Draft GitHub PR", status: (hasPr ? "Succeeded" : "Unavailable") as WorkflowStatus, timestamp: hasPr ? alert.timestamp : null },
+    { label: "Automated tests", status: testStatus, timestamp: hasPr ? alert.timestamp : null },
+    { label: "Awaiting human approval", status: (hasPr ? "Pending" : "Unavailable") as WorkflowStatus, timestamp: null },
   ];
 }
 
@@ -54,7 +63,8 @@ function AlertDrawer({ alert, onClose }: { alert: VulnerabilityAlert; onClose: (
       <h3 className="mt-8 text-sm font-medium">Remediation workflow</h3><ol className="mt-3 border-y border-[#e0e0e0]">{stages.map((stage, index) => <li key={stage.label} className="grid grid-cols-[28px_1fr_auto] items-center gap-3 border-b border-[#e0e0e0] py-3 last:border-b-0"><span className="text-xs text-[#6f6f6f]">{index + 1}</span><div><p className="text-sm font-medium">{stage.label}</p>{stage.timestamp && <p className="mt-1 text-xs text-[#6f6f6f]">{formatTimestamp(stage.timestamp)}</p>}</div><span className={`px-2 py-1 text-[10px] font-semibold uppercase ${workflowStyles[stage.status]}`}>{stage.status}</span></li>)}</ol>
       <div className="mt-6 grid grid-cols-2 gap-px bg-[#e0e0e0]"><div className="bg-[#f4f4f4] p-4"><p className="text-xs text-[#525252]">Slack provider result</p><div className="mt-2"><DeliveryBadge status={alert.slackStatus} /></div></div><div className="bg-[#f4f4f4] p-4"><p className="text-xs text-[#525252]">Jira provider result</p><p className="mt-2 text-sm">{alert.jiraStatus}</p>{jiraLink && <a href={jiraLink} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1 text-xs text-[#0f62fe]">{alert.jiraKey ?? "Open Jira"}<ExternalLink size={12} /></a>}{alert.jiraKey && !jiraLink && <p className="mt-2 text-xs text-[#6f6f6f]">{alert.jiraKey}{alert.simulated ? " · simulated reference" : ""}</p>}</div></div>
       {(alert.slackDelivery?.errorMessage || alert.jiraDelivery?.errorMessage) && <div className="mt-3 border-l-4 border-[#da1e28] bg-[#fff1f1] p-3 text-xs text-[#a2191f]">{alert.slackDelivery?.errorMessage && <p>Slack: {alert.slackDelivery.errorMessage}</p>}{alert.jiraDelivery?.errorMessage && <p>Jira: {alert.jiraDelivery.errorMessage}</p>}</div>}
-      <div className="mt-6 grid gap-px bg-[#e0e0e0] sm:grid-cols-2"><div className="bg-[#f4f4f4] p-4"><p className="text-xs text-[#525252]">Affected repository</p><p className="mt-2 text-sm">Unavailable</p></div><div className="bg-[#f4f4f4] p-4"><p className="text-xs text-[#525252]">Responsible team</p><p className="mt-2 text-sm">Unavailable</p></div></div>
+      <div className="mt-6 grid gap-px bg-[#e0e0e0] sm:grid-cols-2"><div className="bg-[#f4f4f4] p-4"><p className="text-xs text-[#525252]">Affected repository</p><p className="mt-2 font-mono text-sm">{alert.repository ?? "Unavailable"}</p></div><div className="bg-[#f4f4f4] p-4"><p className="text-xs text-[#525252]">Responsible team</p><p className="mt-2 text-sm">{alert.ownerTeam ?? "Unavailable"}</p></div></div>
+      {alert.prUrl && <div className="mt-4 border border-[#a6c8ff] bg-[#edf5ff] p-4"><p className="text-xs font-semibold uppercase tracking-[.08em] text-[#0043ce]">Draft GitHub pull request</p><p className="mt-1.5 text-sm text-[#161616]">{alert.prTitle ?? `${alert.repository ?? "Mikop22/securitydemo"} pull request`}</p><a href={alert.prUrl} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1.5 font-mono text-xs font-semibold text-[#0f62fe] hover:underline">{alert.repository ?? "Mikop22/securitydemo"}{alert.prNumber ? `#${alert.prNumber}` : ""} · Open draft PR on GitHub<ExternalLink size={12} /></a></div>}
       <h3 className="mt-8 text-sm font-medium">Evidence</h3>{alert.evidence.length > 0 ? <ul className="mt-3 divide-y divide-[#e0e0e0] border-y border-[#e0e0e0]">{alert.evidence.map((item) => <li key={item} className="py-3 text-sm leading-6 text-[#525252]">{item}</li>)}</ul> : <p className="mt-3 bg-[#f4f4f4] p-4 text-sm text-[#525252]">No evidence supplied.</p>}
       <h3 className="mt-8 text-sm font-medium">Activity history</h3><div className="relative mt-4 border-l border-[#c6c6c6] pl-5">{alert.history.map((event) => <div key={`${event.timestamp}-${event.label}`} className="relative pb-6 last:pb-0"><span className="absolute -left-[25px] top-1.5 h-2 w-2 bg-[#0f62fe]" /><div className="flex flex-wrap items-center justify-between gap-2"><p className="text-sm font-medium">{event.label}</p><p className="text-xs text-[#6f6f6f]">{formatTimestamp(event.timestamp)}</p></div><p className="mt-1 text-sm leading-6 text-[#525252]">{event.detail}</p></div>)}</div>
     </div>

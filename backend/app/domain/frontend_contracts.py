@@ -69,6 +69,7 @@ class FrontendOverviewSummary(ContractModel):
     predictionHorizonDays: int | None = Field(default=None, ge=1)
     inventoryMatches: int | None = Field(default=None, ge=0)
     topModelRank: int | None = Field(default=None, ge=1)
+    draftPullRequests: int | None = Field(default=None, ge=0)
 
 
 class FrontendOverview(ContractModel):
@@ -146,6 +147,13 @@ class FrontendAlert(ContractModel):
     history: list[FrontendAlertHistoryEvent]
     dedupeKey: str
     simulated: bool
+    repository: str | None = None
+    ownerTeam: str | None = None
+    prUrl: str | None = None
+    prNumber: int | None = None
+    prTitle: str | None = None
+    prBranch: str | None = None
+    checksPassed: bool | None = None
 
 
 class FrontendAlerts(ContractModel):

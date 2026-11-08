@@ -90,6 +90,13 @@ export const alertSchema = z.object({
   history: z.array(alertHistoryEventSchema),
   dedupeKey: z.string().min(1),
   simulated: z.boolean(),
+  repository: z.string().nullable().optional(),
+  ownerTeam: z.string().nullable().optional(),
+  prUrl: z.string().nullable().optional(),
+  prNumber: z.number().int().positive().nullable().optional(),
+  prTitle: z.string().nullable().optional(),
+  prBranch: z.string().nullable().optional(),
+  checksPassed: z.boolean().nullable().optional(),
 });
 
 export const overviewResponseSchema = z.object({
@@ -100,6 +107,7 @@ export const overviewResponseSchema = z.object({
     predictionHorizonDays: z.number().int().positive().nullable(),
     inventoryMatches: z.number().int().nonnegative().nullable(),
     topModelRank: z.number().int().positive().nullable(),
+    draftPullRequests: z.number().int().nonnegative().nullable().optional(),
   }),
   priorityVulnerabilities: z.array(vulnerabilitySchema),
   generatedAt: z.string(),

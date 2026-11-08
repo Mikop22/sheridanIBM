@@ -98,6 +98,9 @@ export default function Home() {
   const inProgress = noLiveAdapterData
     ? null
     : alerts.filter((alert) => alert.lifecycle === "Investigating" || alert.lifecycle === "Open").length;
+  const draftPrs = noLiveAdapterData
+    ? null
+    : (summary?.draftPullRequests ?? alerts.filter((alert) => Boolean(alert.prUrl)).length);
 
   const metrics = [
     {
@@ -123,10 +126,10 @@ export default function Home() {
     },
     {
       label: "Draft pull requests awaiting review",
-      value: null,
-      detail: "",
+      value: draftPrs,
+      detail: draftPrs !== null ? "Mikop22/securitydemo" : "",
       icon: GitPullRequest,
-      tone: "text-[#525252]",
+      tone: "text-[#0f62fe]",
     },
   ];
 
@@ -267,10 +270,19 @@ export default function Home() {
                       <p className="font-mono text-xs font-semibold text-[#0f62fe]">{alert.cveId}</p>
                       <p className="text-xs text-[#6f6f6f]">{formatTime(alert.timestamp)}</p>
                     </div>
-                    <p className="mt-2 text-sm font-medium">{alert.assetName}</p>
+                    <p className="mt-2 text-sm font-normal text-[#161616]">{alert.assetName}</p>
                     <p className="mt-1 text-xs text-[#525252]">
                       {alert.lifecycle} · Slack {alert.slackStatus} · Jira {alert.jiraStatus}
+                      {alert.prUrl
+                        ? ` · Draft PR ${alert.prNumber ? `#${alert.prNumber}` : "open"}`
+                        : ""}
                     </p>
+                    {alert.prUrl && (
+                      <p className="mt-1.5 font-mono text-[11px] text-[#0f62fe]">
+                        {alert.repository ?? "Mikop22/securitydemo"}
+                        {alert.prNumber ? `#${alert.prNumber}` : ""} awaiting review
+                      </p>
+                    )}
                     {alert.simulated && (
                       <p className="mt-2 text-[10px] font-semibold uppercase tracking-[.08em] text-[#6f6f6f]">
                         Simulated record
