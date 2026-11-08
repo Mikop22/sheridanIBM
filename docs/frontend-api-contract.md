@@ -1,19 +1,19 @@
 # SignalZero proposed backend contract
 
-Status: **proposed handoff contract**. This repository currently contains no application API routes and does not implement the ML or AI backend. All endpoints below still need to be implemented by the backend engineer unless their service already exposes an equivalent contract.
+Status: **implemented frontend adapter contract**. FastAPI exposes the routes below with truthful empty or unavailable live states until Member 1's prediction export is integrated. The versioned `/v1` prediction, explanation, and event workflows remain separate backend contracts.
 
-The frontend validates every successful response with Zod schemas in `lib/types/contracts.ts`. Unknown or malformed responses fail visibly in live mode; the frontend does not substitute demo data.
+The frontend validates every successful response with Zod schemas in `frontend/lib/types/contracts.ts`. Unknown or malformed responses fail visibly in live mode; the frontend does not substitute demo data.
 
 ## Runtime configuration
 
-Copy `.env.example` to `.env.local` for local development.
+Copy the root `.env.example` to `frontend/.env.local` for local development.
 
 ```env
-NEXT_PUBLIC_SIGNALZERO_API_MODE=demo
-NEXT_PUBLIC_SIGNALZERO_API_BASE_URL=http://localhost:8000
+NEXT_PUBLIC_SIGNALZERO_API_MODE=live
+NEXT_PUBLIC_SIGNALZERO_API_BASE_URL=http://127.0.0.1:8000
 ```
 
-- `demo` is the default and uses repository fixtures.
+- `demo` remains available and uses explicitly simulated repository fixtures.
 - `live` calls the configured base URL and displays configuration, network, HTTP, and validation errors.
 - The base URL is public browser configuration. Never place API keys, Slack secrets, Jira credentials, or service tokens in a `NEXT_PUBLIC_` variable.
 - If authenticated server-to-server access becomes necessary, add a server-side proxy owned by the backend architecture rather than exposing credentials to the browser.
@@ -218,14 +218,14 @@ Duplicate alert decisions remain backend-owned; use CVE + asset identity as the 
 
 ## Backend implementation checklist
 
-- [ ] `GET /api/overview`
-- [ ] `GET /api/vulnerabilities`
-- [ ] `GET /api/vulnerabilities/{id}`
-- [ ] `GET /api/replay?month=YYYY-MM`
-- [ ] `GET /api/assets`
-- [ ] `GET /api/alerts`
-- [ ] Authentication/server proxy decision, if the backend cannot be called safely from the browser
-- [ ] CORS configuration for the SignalZero frontend origin
+- [x] `GET /api/overview`
+- [x] `GET /api/vulnerabilities`
+- [x] `GET /api/vulnerabilities/{id}`
+- [x] `GET /api/replay?month=YYYY-MM`
+- [x] `GET /api/assets`
+- [x] `GET /api/alerts`
+- [x] Direct unauthenticated loopback access for the local milestone; no browser secret is required
+- [x] Explicit CORS configuration for `http://localhost:3000`
 - [ ] Production environment values and deployment documentation
 - [ ] Server-side Slack/Jira adapters, credentials, retry policy, and provider-confirmed delivery results
 

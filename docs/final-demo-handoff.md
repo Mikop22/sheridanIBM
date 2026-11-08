@@ -32,14 +32,15 @@ Configure Member 2's frontend and use its normal development command:
 
 ```dotenv
 NEXT_PUBLIC_SIGNALZERO_API_MODE=live
-NEXT_PUBLIC_SIGNALZERO_API_BASE_URL=http://localhost:8000
+NEXT_PUBLIC_SIGNALZERO_API_BASE_URL=http://127.0.0.1:8000
 ```
 
-From Member 2's frontend checkout with Node.js 22.13 or newer:
+From the integrated repository with Node.js 22.22 or newer:
 
 ```powershell
-npm install
-npm run dev
+cd frontend
+npm.cmd ci
+npm.cmd run dev -- --port 3000
 ```
 
 ## Available endpoints
