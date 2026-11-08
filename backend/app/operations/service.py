@@ -40,6 +40,14 @@ class OperationsService:
         self._rankings = rankings or RankingCatalog()
         self._store = OperationsStore(settings.operations_database_path)
 
+    @property
+    def settings(self) -> Settings:
+        return self._settings
+
+    @property
+    def store(self) -> OperationsStore:
+        return self._store
+
     def readiness(self) -> ReadinessResponse:
         slack_ready = bool(self._settings.slack_webhook_url.strip()) or all(
             value.strip()

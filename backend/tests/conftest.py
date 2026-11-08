@@ -30,6 +30,7 @@ def client(tmp_path) -> TestClient:
         Settings(
             explanation_provider=ExplanationProvider.LOCAL,
             event_database_path=tmp_path / "events.db",
+            operations_database_path=tmp_path / "operations.db",
             event_risk_threshold=0.75,
             event_threshold_scale_minimum=0.0,
             event_threshold_scale_maximum=1.0,
