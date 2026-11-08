@@ -5,10 +5,12 @@ Sheridan Datathon 2026 IBM challenge. It combines a browser application, a contr
 FastAPI backend, deterministic historical-ranking utilities, evidence-grounded explanations,
 and a human approval workflow.
 
-The system is deliberately honest about its current boundary: Member 1's trained prediction
-model and real historical exports are not integrated on this branch. Live frontend routes
-therefore return empty or unavailable states instead of manufactured rankings, findings, or
-alerts. The backend prediction contract is the future model-adapter boundary.
+Live UI routes are wired to real backends rather than empty placeholders: overview totals and
+priority rows come from the Member 1 prediction artifact loaded at startup; assets come from
+the synthetic demo inventory used by operations planning; alerts come from operations findings
+after the judge-script runs. Time Machine / historical replay is not exposed on the product API.
+Member 1's training pipeline still runs offline; the backend loads generated rankings rather than
+executing the model at request time.
 
 ## 1. Project overview
 
@@ -365,23 +367,31 @@ running.
 
 | Method | URL | Purpose | Current live behavior |
 |---|---|---|---|
-| `GET` | `/api/overview` | Dashboard totals and priority vulnerabilities | Nullable totals and an empty list |
+| `GET` | `/api/overview` | Dashboard totals and priority vulnerabilities | Derived from the startup-loaded Member 1 artifact |
 | `GET` | `/api/vulnerabilities` | Validated vulnerability collection | Startup-loaded Member 1 rankings |
 | `GET` | `/api/vulnerabilities/{vulnerability_id}` | One vulnerability | Real artifact row or `404 vulnerability_not_found` |
-| `GET` | `/api/assets` | Asset inventory and matches | Empty live collections |
-| `GET` | `/api/alerts` | Frontend alert activity | Empty live collection |
+| `GET` | `/api/assets` | Asset inventory and matches | Synthetic demo inventory used by operations planning |
+| `GET` | `/api/alerts` | Frontend alert activity | Operations findings after the judge-script runs |
 
-Example overview response:
+Example overview response (priority rows come from the Member 1 artifact; enrichment
+fields absent from that export remain `null`):
 
 ```json
 {
   "summary": {
-    "totalVulnerabilities": null,
+    "totalVulnerabilities": 25,
     "criticalPriority": null,
     "exposedAssets": null,
     "predictionHorizonDays": null
   },
-  "priorityVulnerabilities": [],
+  "priorityVulnerabilities": [
+    {
+      "cveId": "CVE-2026-2699",
+      "modelRank": 1,
+      "rankingScore": 0.317252,
+      "rankingScoreKind": "relative"
+    }
+  ],
   "generatedAt": "2026-11-08T01:00:00Z",
   "source": "live"
 }
@@ -589,6 +599,12 @@ an actual Granite inference.
 | `EVENT_THRESHOLD_HIGHER_IS_RISKIER` | Backend | With threshold | Required matching risk direction. |
 | `PREDICTION_ARTIFACT_PATH` | Backend | No | JSON summary or full CSV loaded once at startup. |
 | `PREDICTION_ARTIFACT_MIN_SNAPSHOT_MONTH` | Backend | No | Optional `YYYY-MM` freshness gate. |
+| `OPERATIONS_DELIVERY` | Backend | No | `recording` (default) stores payloads locally; `live` calls configured Slack/Jira channels. |
+| `OPERATIONS_DATABASE_PATH` | Backend | No | SQLite path for judge-script findings and delivery rows; defaults to `operations.db`. |
+| `SLACK_WEBHOOK_URL` / `SLACK_CHANNEL_ID` / `SLACK_APP_ID` / `SLACK_TEAM_ID` / `SLACK_CLI_PATH` | Backend | For live Slack | Webhook or CLI channel/app/team targeting when `OPERATIONS_DELIVERY=live`. |
+| `JIRA_BASE_URL` / `JIRA_EMAIL` / `JIRA_API_TOKEN` / `JIRA_PROJECT_KEY` / `JIRA_ISSUE_TYPE` | Backend | For live Jira | Jira Cloud issue create/update when delivery is live. |
+| `GITHUB_TOKEN` / `GH_TOKEN` | Backend | For remediation PRs | Alias pair for GitHub auth used with remediation helpers. |
+| `ENTIRE_TOKEN` | Backend | For remediation PRs | Entire.dev token paired with the GitHub token. |
 | `PROVIDER_CONNECT_TIMEOUT` | Backend | No | Provider connection timeout in seconds. |
 | `PROVIDER_READ_TIMEOUT` | Backend | No | Provider response timeout in seconds. |
 | `PROVIDER_MAX_OUTPUT_TOKENS` | Backend | No | Structured provider-output limit. |
