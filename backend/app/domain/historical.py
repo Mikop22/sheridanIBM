@@ -160,3 +160,22 @@ class HistoricalEvaluation(ContractModel):
     strategies: list[StrategyMetrics]
     model_improvement_over_cvss: dict[str, float | None]
     model_improvement_over_epss: dict[str, float | None]
+
+
+class HiddenThreatMode(StrEnum):
+    MODEL_VS_CVSS = "model_vs_cvss"
+    MODEL_VS_EPSS = "model_vs_epss"
+
+
+class HiddenThreatCandidate(ContractModel):
+    cve_id: NonEmptyString
+    mode: HiddenThreatMode
+    budget: int = Field(ge=1)
+    model_rank: int = Field(ge=1)
+    baseline_rank: int = Field(ge=1)
+    rank_difference: int
+    model_score: StrictFloat
+    baseline_score: StrictFloat
+    outcome: HistoricalOutcome
+    kev_date_added: date | None = None
+    evidence: list[HistoricalEvidence]

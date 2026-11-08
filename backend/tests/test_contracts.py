@@ -72,6 +72,13 @@ def test_duplicate_signal_names_are_rejected(prediction_payload: dict) -> None:
         Prediction.model_validate(duplicate)
 
 
+def test_post_snapshot_evidence_is_rejected(prediction_payload: dict) -> None:
+    prediction_payload["evidence"][0]["observed_at"] = "2026-01-16T00:00:00Z"
+
+    with pytest.raises(ValidationError, match="observed after the prediction snapshot"):
+        Prediction.model_validate(prediction_payload)
+
+
 @pytest.mark.parametrize(
     ("filename", "model"),
     [

@@ -108,6 +108,8 @@ class Prediction(ContractModel):
             raise ValueError("signal names must be unique")
 
         available_evidence = set(evidence_ids)
+        if any(item.observed_at.date() > self.snapshot_date for item in self.evidence):
+            raise ValueError("evidence observed after the prediction snapshot is not allowed")
         for signal in self.signals:
             self._reject_dangling_refs(
                 signal.evidence_refs, available_evidence, f"signal {signal.name!r}"
@@ -158,11 +160,28 @@ class GroundedStatement(ContractModel):
     source_refs: list[NonEmptyString] = Field(min_length=1)
 
 
+class ExplanationEvidenceMetadata(ContractModel):
+    evidence_id: NonEmptyString
+    source: NonEmptyString
+    observed_at: datetime
+
+
+class ExplanationContext(ContractModel):
+    prediction_snapshot: date
+    model_version: NonEmptyString
+    model_score: StrictFloat
+    score_scale: ScoreScale
+    score_meaning: NonEmptyString
+    evidence: list[ExplanationEvidenceMetadata]
+    missing_information: list[NonEmptyString]
+
+
 class Explanation(ContractModel):
     schema_version: Literal[SCHEMA_VERSION] = SCHEMA_VERSION
     prediction_id: NonEmptyString
     provider: ExplanationProvider
     generation_status: GenerationStatus
+    context: ExplanationContext
     observed_facts: list[GroundedStatement]
     interpretations: list[GroundedStatement]
     limitations: list[NonEmptyString]

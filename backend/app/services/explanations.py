@@ -6,6 +6,8 @@ from typing import Protocol
 
 from app.domain.contracts import (
     Explanation,
+    ExplanationContext,
+    ExplanationEvidenceMetadata,
     ExplanationProvider,
     GenerationStatus,
     GroundedStatement,
@@ -29,14 +31,51 @@ class LocalExplanationService:
             prediction_id=prediction.prediction_id,
             provider=ExplanationProvider.LOCAL,
             generation_status=GenerationStatus.COMPLETE,
+            context=self._context(prediction),
             observed_facts=facts,
             interpretations=interpretations,
             limitations=self._limitations(prediction),
             trace_id=self._trace_id(prediction),
-            provider_metadata={"engine": "deterministic-template-v1"},
+            provider_metadata={
+                "engine": "deterministic-template-v1",
+                "requested_provider": ExplanationProvider.LOCAL.value,
+                "actual_provider": ExplanationProvider.LOCAL.value,
+                "requested_generation_status": GenerationStatus.COMPLETE.value,
+                "fallback_status": "not_used",
+            },
         )
         explanation.validate_source_refs(prediction)
         return explanation
+
+    @staticmethod
+    def _context(prediction: Prediction) -> ExplanationContext:
+        direction = "higher" if prediction.score_scale.higher_is_riskier else "lower"
+        missing: list[str] = []
+        if not prediction.evidence:
+            missing.append("supporting evidence")
+        if not prediction.signals:
+            missing.append("explanatory model signals")
+        if not prediction.affected_assets:
+            missing.append("affected asset associations")
+        return ExplanationContext(
+            prediction_snapshot=prediction.snapshot_date,
+            model_version=prediction.model_version,
+            model_score=prediction.score,
+            score_scale=prediction.score_scale,
+            score_meaning=(
+                f"This is the submitted model score; {direction} values are declared riskier. "
+                "It is not treated as an exploitation probability."
+            ),
+            evidence=[
+                ExplanationEvidenceMetadata(
+                    evidence_id=item.evidence_id,
+                    source=item.source,
+                    observed_at=item.observed_at,
+                )
+                for item in prediction.evidence
+            ],
+            missing_information=missing,
+        )
 
     @staticmethod
     def _facts(prediction: Prediction) -> list[GroundedStatement]:
@@ -195,6 +234,7 @@ class ExternalExplanationService:
             prediction_id=prediction.prediction_id,
             provider=self._requested_provider,
             generation_status=GenerationStatus.COMPLETE,
+            context=baseline.context,
             observed_facts=baseline.observed_facts,
             interpretations=self._safe_interpretations(result.output),
             limitations=[

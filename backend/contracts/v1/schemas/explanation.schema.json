@@ -1,5 +1,85 @@
 {
   "$defs": {
+    "ExplanationContext": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence": {
+          "items": {
+            "$ref": "#/$defs/ExplanationEvidenceMetadata"
+          },
+          "title": "Evidence",
+          "type": "array"
+        },
+        "missing_information": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Missing Information",
+          "type": "array"
+        },
+        "model_score": {
+          "title": "Model Score",
+          "type": "number"
+        },
+        "model_version": {
+          "minLength": 1,
+          "title": "Model Version",
+          "type": "string"
+        },
+        "prediction_snapshot": {
+          "format": "date",
+          "title": "Prediction Snapshot",
+          "type": "string"
+        },
+        "score_meaning": {
+          "minLength": 1,
+          "title": "Score Meaning",
+          "type": "string"
+        },
+        "score_scale": {
+          "$ref": "#/$defs/ScoreScale"
+        }
+      },
+      "required": [
+        "prediction_snapshot",
+        "model_version",
+        "model_score",
+        "score_scale",
+        "score_meaning",
+        "evidence",
+        "missing_information"
+      ],
+      "title": "ExplanationContext",
+      "type": "object"
+    },
+    "ExplanationEvidenceMetadata": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence_id": {
+          "minLength": 1,
+          "title": "Evidence Id",
+          "type": "string"
+        },
+        "observed_at": {
+          "format": "date-time",
+          "title": "Observed At",
+          "type": "string"
+        },
+        "source": {
+          "minLength": 1,
+          "title": "Source",
+          "type": "string"
+        }
+      },
+      "required": [
+        "evidence_id",
+        "source",
+        "observed_at"
+      ],
+      "title": "ExplanationEvidenceMetadata",
+      "type": "object"
+    },
     "ExplanationProvider": {
       "enum": [
         "local",
@@ -43,10 +123,37 @@
       ],
       "title": "GroundedStatement",
       "type": "object"
+    },
+    "ScoreScale": {
+      "additionalProperties": false,
+      "properties": {
+        "higher_is_riskier": {
+          "title": "Higher Is Riskier",
+          "type": "boolean"
+        },
+        "maximum": {
+          "title": "Maximum",
+          "type": "number"
+        },
+        "minimum": {
+          "title": "Minimum",
+          "type": "number"
+        }
+      },
+      "required": [
+        "minimum",
+        "maximum",
+        "higher_is_riskier"
+      ],
+      "title": "ScoreScale",
+      "type": "object"
     }
   },
   "additionalProperties": false,
   "properties": {
+    "context": {
+      "$ref": "#/$defs/ExplanationContext"
+    },
     "generation_status": {
       "$ref": "#/$defs/GenerationStatus"
     },
@@ -111,6 +218,7 @@
     "prediction_id",
     "provider",
     "generation_status",
+    "context",
     "observed_facts",
     "interpretations",
     "limitations",

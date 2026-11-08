@@ -1,6 +1,7 @@
 # Member 2 API integration
 
-All public paths are under `/v1` except `/health`. Payloads reject unexpected
+Core backend paths are under `/v1`; the frontend compatibility paths use `/api`.
+Payloads reject unexpected
 fields, and errors use the stable envelope:
 
 ```json
@@ -31,11 +32,20 @@ local response includes:
   "prediction_id": "synthetic-prediction-001",
   "provider": "local",
   "generation_status": "complete",
+  "context": {
+    "prediction_snapshot": "2026-01-15",
+    "model_version": "synthetic-model-v1",
+    "model_score": 0.82,
+    "score_scale": {"minimum": 0.0, "maximum": 1.0, "higher_is_riskier": true},
+    "score_meaning": "This is the submitted model score; higher values are declared riskier. It is not treated as an exploitation probability.",
+    "evidence": [],
+    "missing_information": ["supporting evidence"]
+  },
   "observed_facts": [{"text": "...", "source_refs": ["prediction:score"]}],
   "interpretations": [],
   "limitations": ["This explanation is limited to the submitted prediction and evidence."],
   "trace_id": "local-...",
-  "provider_metadata": {"engine": "deterministic-template-v1"}
+  "provider_metadata": {"engine": "deterministic-template-v1", "actual_provider": "local", "fallback_status": "not_used"}
 }
 ```
 
@@ -43,6 +53,18 @@ External model-authored free text is never returned directly. On a successful
 external call, deterministic interpretation text reports only the model's validated
 selection of submitted `source_refs`. Hugging Face metadata also reports the
 response model and routed inference provider; an identity mismatch uses local fallback.
+
+## Frontend compatibility and missing data
+
+- `GET /api/vulnerabilities`, `/api/assets`, and `/api/alerts` return valid empty
+  live collections until real prediction, inventory, and alert adapters are configured.
+- `GET /api/replay?month=YYYY-MM` returns `historical_data_unavailable` until one
+  real out-of-sample month passes temporal validation. Synthetic evaluation fixtures
+  are never served through these routes.
+
+The current frontend hidden-threat adapter treats a null `traditionalRank` as being
+outside the baseline top 500. Member 2 must require a non-null rank before applying
+that label. Unknown rank means unevaluable, not a ranking disagreement.
 
 Browser clients require their exact origin in `CORS_ALLOWED_ORIGINS` (comma-separated).
 The default empty allowlist intentionally permits only same-origin access.

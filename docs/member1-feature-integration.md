@@ -64,3 +64,16 @@ Before production integration, confirm:
 
 Until the score information is confirmed, mismatched or incomplete event threshold
 semantics continue to return `insufficient_information`.
+
+## Historical evaluation handoff
+
+The backend evaluation and hidden-threat logic is implemented, but real replay
+results remain disabled. Member 1 must provide a row-level out-of-sample export
+with CVE ID, prediction month and cutoff, model score and declared scale/direction,
+model version, split identity, historical EPSS and observation time, cutoff-valid
+CVSS with provenance and observation time, and KEV `dateAdded`.
+
+One month must pass temporal validation before `/api/replay` can serve results.
+The backend rejects training rows, post-cutoff observations, CVEs already in KEV at
+the decision cutoff, and inconsistent score semantics. Test fixtures are explicitly
+synthetic and are never registered as live replay data.

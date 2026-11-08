@@ -3,6 +3,25 @@
   "prediction_id": "synthetic-prediction-001",
   "provider": "local",
   "generation_status": "complete",
+  "context": {
+    "prediction_snapshot": "2026-01-15",
+    "model_version": "synthetic-model-v1",
+    "model_score": 0.82,
+    "score_scale": {
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "higher_is_riskier": true
+    },
+    "score_meaning": "This is the submitted model score; higher values are declared riskier. It is not treated as an exploitation probability.",
+    "evidence": [
+      {
+        "evidence_id": "synthetic-evidence-001",
+        "source": "synthetic-test-fixture",
+        "observed_at": "2026-01-15T12:00:00Z"
+      }
+    ],
+    "missing_information": []
+  },
   "observed_facts": [
     {
       "text": "The submitted model assigned score 0.82 on the declared scale 0.0 to 1.0; higher values represent greater risk.",
@@ -48,6 +67,10 @@
   ],
   "trace_id": "local-db86babfde561b58f15a",
   "provider_metadata": {
-    "engine": "deterministic-template-v1"
+    "engine": "deterministic-template-v1",
+    "requested_provider": "local",
+    "actual_provider": "local",
+    "requested_generation_status": "complete",
+    "fallback_status": "not_used"
   }
 }

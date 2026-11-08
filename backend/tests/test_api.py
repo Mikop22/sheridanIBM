@@ -189,6 +189,9 @@ def test_explanation_is_deterministic_and_grounded(
     explanation = first.json()
     assert explanation["provider"] == "local"
     assert explanation["generation_status"] == "complete"
+    assert explanation["context"]["model_score"] == prediction_payload["score"]
+    assert explanation["context"]["evidence"][0]["source"] == "synthetic-test-fixture"
+    assert explanation["provider_metadata"]["fallback_status"] == "not_used"
     assert explanation["trace_id"].startswith("local-")
     assert all(item["source_refs"] for item in explanation["observed_facts"])
     assert all(item["source_refs"] for item in explanation["interpretations"])
