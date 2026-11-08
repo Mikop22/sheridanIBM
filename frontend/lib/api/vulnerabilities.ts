@@ -18,6 +18,8 @@ function toViewModel(
     rankingScore: item.rankingScore,
     rankingScoreKind: item.rankingScoreKind,
     snapshotMonth: item.snapshotMonth,
+    cvss: item.cvss,
+    epss: item.epss,
     priority: toPriority(item.predictedRisk),
   };
 }
