@@ -6,10 +6,13 @@ export interface HiddenThreat {
   cvss: number | null;
   epss: number | null;
   modelRank: number | null;
+  rankingScore: number | null;
   traditionalRank: number | null;
   predictedRisk: HiddenThreatRisk;
   affectedProduct: string | null;
-  signals: Array<{ label: string; value: string; explanation: string }>;
+  affectedAssetId: string | null;
+  affectedService: string | null;
+  signals: Array<{ label: string; value: string; explanation: string; source: string | null; status: "present" | "absent" | "unknown"; observedAt: string | null }>;
 }
 
 export interface HiddenThreatResponse {

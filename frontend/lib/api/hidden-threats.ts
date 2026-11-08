@@ -5,7 +5,26 @@ function toRisk(value: string | null): HiddenThreatRisk { return value === "Crit
 
 export async function fetchHiddenThreats(): Promise<HiddenThreatResponse> {
   const response = await getVulnerabilities();
-  // A missing baseline rank is unknown, not evidence that the CVE fell outside its top 500.
-  const threats: HiddenThreat[] = response.vulnerabilities.filter((item) => item.modelRank !== null && item.traditionalRank !== null && item.traditionalRank > 500).map((item) => ({ id: item.cveId, description: item.description, cvss: item.cvss, epss: item.epss, modelRank: item.modelRank, traditionalRank: item.traditionalRank, predictedRisk: toRisk(item.predictedRisk), affectedProduct: item.affectedAsset?.name ?? null, signals: item.evidenceIndicators.map((signal) => ({ label: signal.label, value: String(signal.value ?? "Unknown"), explanation: signal.explanation ?? "No explanation supplied." })) }));
+  const threats: HiddenThreat[] = response.vulnerabilities.map((item) => ({
+    id: item.cveId,
+    description: item.description,
+    cvss: item.cvss,
+    epss: item.epss,
+    modelRank: item.modelRank,
+    rankingScore: item.rankingScore,
+    traditionalRank: item.traditionalRank,
+    predictedRisk: toRisk(item.predictedRisk),
+    affectedProduct: item.affectedAsset?.name ?? null,
+    affectedAssetId: item.affectedAsset?.id ?? null,
+    affectedService: item.affectedAsset?.service ?? null,
+    signals: item.evidenceIndicators.map((signal) => ({
+      label: signal.label,
+      value: String(signal.value ?? "Unknown"),
+      explanation: signal.explanation ?? "No explanation supplied.",
+      source: signal.source,
+      status: signal.status,
+      observedAt: signal.observedAt,
+    })),
+  }));
   return { threats, generatedAt: response.generatedAt, source: response.source === "demo" ? "simulated" : "api" };
 }

@@ -12,7 +12,7 @@ function overviewMockToContract(item: (typeof mockVulnerabilities)[number]): Vul
 }
 
 function hiddenMockToContract(item: (typeof mockHiddenThreats)[number]): VulnerabilityContract {
-  return { cveId: item.id, description: item.description, snapshotMonth: null, cvss: item.cvss, epss: item.epss, modelRank: item.modelRank, rankingScore: null, rankingScoreKind: "relative", traditionalRank: item.traditionalRank, predictedRisk: item.predictedRisk === "Unknown" ? null : item.predictedRisk, evidenceIndicators: item.signals.map((signal, index) => ({ key: `signal-${index + 1}`, label: signal.label, value: signal.value, status: "present", observedAt: null, source: "simulated", explanation: signal.explanation })), affectedAsset: { id: null, name: item.affectedProduct ?? "Unknown product", service: null }, detectedAt: null };
+  return { cveId: item.id, description: item.description, snapshotMonth: null, cvss: item.cvss, epss: item.epss, modelRank: item.modelRank, rankingScore: null, rankingScoreKind: "relative", traditionalRank: item.traditionalRank, predictedRisk: item.predictedRisk, evidenceIndicators: item.signals.map((signal, index) => ({ key: `signal-${index + 1}`, label: signal.label, value: signal.value, status: "present", observedAt: null, source: "simulated", explanation: signal.explanation })), affectedAsset: { id: null, name: item.affectedProduct ?? "Unknown product", service: null }, detectedAt: null };
 }
 
 function delivery(provider: "slack" | "jira", status: string, timestamp: string, externalId: string | null, externalUrl: string | null): IntegrationDeliveryResultContract {
