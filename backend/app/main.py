@@ -18,12 +18,10 @@ from app.domain.errors import (
     EventNotFoundError,
     EventStoreUnavailableError,
     FrontendVulnerabilityNotFoundError,
-    HistoricalDataUnavailableError,
     InvalidRecommendationTransitionError,
     PredictionAlreadyExistsError,
     PredictionNotFoundError,
     RecommendationNotFoundError,
-    UnsupportedHistoricalMonthError,
 )
 from app.event_repository import SecurityEventRepository
 from app.repositories import InMemoryPredictionRepository, PredictionRepository
@@ -33,6 +31,7 @@ from app.services.explanations import (
     ExternalExplanationService,
     LocalExplanationService,
 )
+from app.services.prediction_artifacts import PredictionArtifact, load_prediction_artifact
 from app.services.providers import HuggingFaceClient, OllamaGraniteClient, WatsonxGraniteClient
 
 
@@ -63,6 +62,7 @@ def create_app(
     repository: PredictionRepository | None = None,
     explanation_service: ExplanationService | None = None,
     event_repository: SecurityEventRepository | None = None,
+    prediction_artifact: PredictionArtifact | None = None,
 ) -> FastAPI:
     resolved_settings = settings or get_settings()
     app = FastAPI(
@@ -74,7 +74,15 @@ def create_app(
         ),
     )
     app.state.settings = resolved_settings
+    resolved_artifact = prediction_artifact or load_prediction_artifact(
+        resolved_settings.prediction_artifact_path,
+        minimum_snapshot_month=resolved_settings.prediction_artifact_min_snapshot_month,
+    )
+    app.state.prediction_artifact = resolved_artifact
     app.state.prediction_repository = repository or InMemoryPredictionRepository()
+    if repository is None:
+        for record in resolved_artifact.records:
+            app.state.prediction_repository.create(record.prediction)
     app.state.event_repository = event_repository or SecurityEventRepository(
         resolved_settings.event_database_path
     )
@@ -206,28 +214,6 @@ def create_app(
             "event_store_unavailable",
             "The event workflow store is temporarily unavailable.",
             headers={"Retry-After": "1"},
-        )
-
-    @app.exception_handler(HistoricalDataUnavailableError)
-    async def historical_unavailable_handler(
-        request: Request, exc: HistoricalDataUnavailableError
-    ) -> JSONResponse:
-        return _error_response(
-            request,
-            status.HTTP_503_SERVICE_UNAVAILABLE,
-            "historical_data_unavailable",
-            f"No validated historical prediction data is available for {exc.month}.",
-        )
-
-    @app.exception_handler(UnsupportedHistoricalMonthError)
-    async def unsupported_month_handler(
-        request: Request, exc: UnsupportedHistoricalMonthError
-    ) -> JSONResponse:
-        return _error_response(
-            request,
-            status.HTTP_404_NOT_FOUND,
-            "unsupported_month",
-            f"Historical month {exc.month} is not supported.",
         )
 
     @app.exception_handler(FrontendVulnerabilityNotFoundError)

@@ -54,13 +54,17 @@ external call, deterministic interpretation text reports only the model's valida
 selection of submitted `source_refs`. Hugging Face metadata also reports the
 response model and routed inference provider; an identity mismatch uses local fallback.
 
-## Frontend compatibility and missing data
+## Threats API and missing data
 
-- `GET /api/vulnerabilities`, `/api/assets`, and `/api/alerts` return valid empty
-  live collections until real prediction, inventory, and alert adapters are configured.
-- `GET /api/replay?month=YYYY-MM` returns `historical_data_unavailable` until one
-  real out-of-sample month passes temporal validation. Synthetic evaluation fixtures
-  are never served through these routes.
+- `GET /api/vulnerabilities` returns the startup-loaded Member 1 prediction artifact.
+  The tracked default contains the genuine top 25; configure
+  `PREDICTION_ARTIFACT_PATH` for the complete CSV export.
+- `GET /api/vulnerabilities/{cve}` performs a case-insensitive CVE lookup.
+- Ranking scores remain relative model outputs and are not labelled as exploitation
+  probabilities. Missing descriptions, CVSS, EPSS, feature contributions, and asset
+  associations are returned as null or explicit missing-information entries.
+- `/api/assets` and `/api/alerts` remain empty compatibility collections. `/api/replay`
+  was removed with the Time Machine page; historical evaluation remains backend-only.
 
 The current frontend hidden-threat adapter treats a null `traditionalRank` as being
 outside the baseline top 500. Member 2 must require a non-null rank before applying
