@@ -97,6 +97,9 @@ export const alertSchema = z.object({
   prTitle: z.string().nullable().optional(),
   prBranch: z.string().nullable().optional(),
   checksPassed: z.boolean().nullable().optional(),
+  commitSha: z.string().nullable().optional(),
+  commitUrl: z.string().nullable().optional(),
+  verificationCommand: z.string().nullable().optional(),
 });
 
 export const overviewResponseSchema = z.object({

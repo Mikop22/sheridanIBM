@@ -275,6 +275,7 @@ export default function HiddenThreatsPage() {
   const [threats, setThreats] = useState<HiddenThreat[]>([]);
   const [alerts, setAlerts] = useState<VulnerabilityAlert[]>([]);
   const [query, setQuery] = useState("");
+  const [estateOnly, setEstateOnly] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>("modelRank");
   const [direction, setDirection] = useState<SortDirection>("asc");
   const [selected, setSelected] = useState<HiddenThreat | null>(null);
@@ -310,6 +311,7 @@ export default function HiddenThreatsPage() {
   const filtered = useMemo(
     () =>
       threats
+        .filter((item) => !estateOnly || item.affectedProduct !== null)
         .filter((item) =>
           `${item.id} ${item.description} ${item.affectedProduct ?? ""}`
             .toLowerCase()
@@ -320,7 +322,7 @@ export default function HiddenThreatsPage() {
           const bValue = b[sortKey] ?? Number.MAX_SAFE_INTEGER;
           return direction === "asc" ? aValue - bValue : bValue - aValue;
         }),
-    [threats, query, sortKey, direction],
+    [threats, estateOnly, query, sortKey, direction],
   );
   const alertByCve = useMemo(() => new Map(alerts.map((alert) => [alert.cveId, alert])), [alerts]);
   const inventoryMatches = threats.filter((item) => item.affectedProduct !== null).length;
@@ -360,8 +362,8 @@ export default function HiddenThreatsPage() {
         </div>
       </section>
       <section className="mt-8 border border-[#e0e0e0]">
-        <div className="border-b border-[#e0e0e0] p-5">
-          <label className="relative block max-w-xl">
+        <div className="flex flex-col gap-3 border-b border-[#e0e0e0] p-5 sm:flex-row sm:items-center sm:justify-between">
+          <label className="relative block w-full max-w-xl">
             <span className="sr-only">Search vulnerabilities</span>
             <Search size={17} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#525252]" />
             <input
@@ -371,6 +373,18 @@ export default function HiddenThreatsPage() {
               className="h-12 w-full border-b-2 border-[#8d8d8d] bg-[#f4f4f4] pl-10 pr-3 text-sm outline-none focus:border-[#0f62fe]"
             />
           </label>
+          <button
+            type="button"
+            onClick={() => setEstateOnly((current) => !current)}
+            aria-pressed={estateOnly}
+            className={`inline-flex h-10 shrink-0 items-center gap-2 border px-3.5 text-xs font-medium transition-colors ${
+              estateOnly
+                ? "border-[#0f62fe] bg-[#0f62fe] text-white"
+                : "border-[#c6c6c6] bg-[#f4f4f4] text-[#161616] hover:border-[#0f62fe] hover:text-[#0f62fe]"
+            }`}
+          >
+            Estate match only ({inventoryMatches})
+          </button>
         </div>
         {loading && (
           <div className="grid min-h-[320px] place-items-center">

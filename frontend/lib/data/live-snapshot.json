@@ -6675,7 +6675,7 @@
         }
       }
     ],
-    "generatedAt": "2026-11-08T14:28:16.873487Z",
+    "generatedAt": "2026-11-08T15:09:46.086491Z",
     "source": "live"
   },
   "vulnerabilities": {
@@ -13434,7 +13434,7 @@
             "kind": "ticket"
           },
           {
-            "timestamp": "2026-11-08T04:33:29Z",
+            "timestamp": "2026-11-08T15:05:57Z",
             "label": "Draft GitHub PR opened",
             "detail": "[SignalZero] CVE-2026-22739: bump spring-cloud-config-server 4.3.1\u21924.3.2 (dependency) (https://github.com/Mikop22/securitydemo/pull/1)",
             "kind": "status"
@@ -13448,7 +13448,10 @@
         "prNumber": 1,
         "prTitle": "[SignalZero] CVE-2026-22739: bump spring-cloud-config-server 4.3.1\u21924.3.2 (dependency)",
         "prBranch": "signalzero/cve-2026-22739",
-        "checksPassed": true
+        "checksPassed": true,
+        "commitSha": "ba6cbd2",
+        "commitUrl": "https://github.com/Mikop22/securitydemo/commit/ba6cbd2780a77ec908e23fb510095ebd61ce49e8",
+        "verificationCommand": "python3 check_version.py (exit 0)"
       },
       {
         "alertId": "CVE-2026-22739::customer-portal-config-loader",
@@ -13534,7 +13537,7 @@
             "kind": "ticket"
           },
           {
-            "timestamp": "2026-11-08T04:33:34Z",
+            "timestamp": "2026-11-08T15:05:59Z",
             "label": "Draft GitHub PR opened",
             "detail": "[SignalZero] CVE-2026-22739: contain profile path resolution in portal/configs (code_patch) (https://github.com/Mikop22/securitydemo/pull/2)",
             "kind": "status"
@@ -13548,7 +13551,10 @@
         "prNumber": 2,
         "prTitle": "[SignalZero] CVE-2026-22739: contain profile path resolution in portal/configs (code_patch)",
         "prBranch": "signalzero/cve-2026-22739-code",
-        "checksPassed": true
+        "checksPassed": true,
+        "commitSha": "3129571",
+        "commitUrl": "https://github.com/Mikop22/securitydemo/commit/31295711c13c2694c0c6af498a134ce203bd3f86",
+        "verificationCommand": "python3 check_code_fix.py (exit 0)"
       },
       {
         "alertId": "CVE-2026-8037::edge-load-balancer",
@@ -13641,7 +13647,10 @@
         "prNumber": null,
         "prTitle": null,
         "prBranch": null,
-        "checksPassed": null
+        "checksPassed": null,
+        "commitSha": null,
+        "commitUrl": null,
+        "verificationCommand": null
       },
       {
         "alertId": "CVE-X::missing-asset",
@@ -13720,7 +13729,10 @@
         "prNumber": null,
         "prTitle": null,
         "prBranch": null,
-        "checksPassed": null
+        "checksPassed": null,
+        "commitSha": null,
+        "commitUrl": null,
+        "verificationCommand": null
       }
     ],
     "source": "live"

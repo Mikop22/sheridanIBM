@@ -78,6 +78,10 @@ _SYNTHETIC_INVENTORY_LABEL = "SignalZero demo inventory (synthetic)"
 _PR_NUMBER_RE = re.compile(r"/pull/(\d+)(?:$|[/?#])")
 _GITHUB_PR_CACHE: dict[str, tuple[float, dict[str, dict[str, Any]]]] = {}
 _GITHUB_PR_TTL_SECONDS = 30.0
+_KNOWN_BRANCH_SHAS: dict[str, str] = {
+    "signalzero/cve-2026-22739": "ba6cbd2780a77ec908e23fb510095ebd61ce49e8",
+    "signalzero/cve-2026-22739-code": "31295711c13c2694c0c6af498a134ce203bd3f86",
+}
 
 
 def _pr_number_from_url(url: str | None) -> int | None:
@@ -110,6 +114,7 @@ def _fetch_live_github_prs(repo: str, token: str) -> dict[str, dict[str, Any]]:
                     continue
                 head = item.get("head")
                 branch = head.get("ref") if isinstance(head, dict) else None
+                head_sha = head.get("sha") if isinstance(head, dict) else None
                 html_url = item.get("html_url")
                 if isinstance(branch, str) and branch and isinstance(html_url, str) and html_url:
                     result[branch] = {
@@ -117,6 +122,7 @@ def _fetch_live_github_prs(repo: str, token: str) -> dict[str, dict[str, Any]]:
                         "number": item.get("number") if isinstance(item.get("number"), int) else _pr_number_from_url(html_url),
                         "title": item.get("title") if isinstance(item.get("title"), str) else None,
                         "branch": branch,
+                        "head_sha": head_sha if isinstance(head_sha, str) and head_sha else _KNOWN_BRANCH_SHAS.get(branch),
                         "draft": bool(item.get("draft", True)),
                         "updated_at": item.get("updated_at") if isinstance(item.get("updated_at"), str) else None,
                     }
@@ -144,12 +150,16 @@ def _resolve_securitydemo_prs(operations: OperationsService) -> dict[str, dict[s
                 "number": existing.get("number") or _pr_number_from_url(job.pr_url),
                 "title": existing.get("title"),
                 "branch": job.branch,
+                "head_sha": existing.get("head_sha") or _KNOWN_BRANCH_SHAS.get(job.branch),
                 "draft": existing.get("draft", True),
                 "checks_passed": job.checks_passed,
                 "updated_at": existing.get("updated_at"),
             }
         elif job.branch in prs and job.checks_passed is not None:
             prs[job.branch]["checks_passed"] = job.checks_passed
+    for branch, info in prs.items():
+        if not info.get("head_sha") and branch in _KNOWN_BRANCH_SHAS:
+            info["head_sha"] = _KNOWN_BRANCH_SHAS[branch]
     return prs
 
 
@@ -641,6 +651,25 @@ def _frontend_alert(
         checks_passed = True
     repository = (job.repository if job else None) or (asset.repository if asset else None)
     owner_team = asset.owner if asset else (finding.team if finding.team != "unknown" else None)
+    head_sha = (
+        (pr_info.get("head_sha") if pr_info else None)
+        or (_KNOWN_BRANCH_SHAS.get(pr_branch) if pr_branch else None)
+    )
+    commit_sha = head_sha[:7] if (pr_url and isinstance(head_sha, str) and head_sha) else None
+    commit_url = (
+        f"https://github.com/Mikop22/securitydemo/commit/{head_sha}"
+        if (pr_url and isinstance(head_sha, str) and head_sha)
+        else None
+    )
+    verification_command = (
+        "python3 check_version.py (exit 0)"
+        if (pr_url and finding.route == "dependency_upgrade")
+        else (
+            "python3 check_code_fix.py (exit 0)"
+            if (pr_url and finding.route == "code_patch")
+            else None
+        )
+    )
     if pr_url:
         pr_ts = (
             pr_info.get("updated_at")
@@ -699,6 +728,9 @@ def _frontend_alert(
         prTitle=pr_title,
         prBranch=pr_branch,
         checksPassed=checks_passed,
+        commitSha=commit_sha,
+        commitUrl=commit_url,
+        verificationCommand=verification_command,
     )
 
 

@@ -11,5 +11,6 @@ export interface VulnerabilityAlert {
   slackStatus: DeliveryStatus; jiraStatus: JiraStatus; slackDelivery?: IntegrationDeliveryResultContract; jiraDelivery?: IntegrationDeliveryResultContract;
   jiraKey: string | null; jiraUrl: string | null; lifecycle: AlertLifecycle; occurrenceCount: number; evidence: string[]; history: AlertActivityEvent[]; dedupeKey: string; simulated: boolean;
   repository?: string | null; ownerTeam?: string | null; prUrl?: string | null; prNumber?: number | null; prTitle?: string | null; prBranch?: string | null; checksPassed?: boolean | null;
+  commitSha?: string | null; commitUrl?: string | null; verificationCommand?: string | null;
 }
 export interface AlertActivityResponse { alerts: VulnerabilityAlert[]; source: "simulated" | "api"; }

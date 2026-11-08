@@ -154,6 +154,9 @@ class FrontendAlert(ContractModel):
     prTitle: str | None = None
     prBranch: str | None = None
     checksPassed: bool | None = None
+    commitSha: str | None = None
+    commitUrl: str | None = None
+    verificationCommand: str | None = None
 
 
 class FrontendAlerts(ContractModel):

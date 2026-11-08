@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertCircle,
   BellRing,
@@ -10,8 +10,10 @@ import {
   Clock3,
   ExternalLink,
   LoaderCircle,
+  Play,
   RefreshCw,
   RotateCcw,
+  Sparkles,
   X,
   XCircle,
 } from "lucide-react";
@@ -167,26 +169,67 @@ function workflowFor(alert: VulnerabilityAlert) {
   ];
 }
 
-function WorkflowStrip({ alert }: { alert: VulnerabilityAlert }) {
+const PIPELINE_STAGE_LABELS = [
+  "Threat detected",
+  "Asset identified",
+  "Slack notification",
+  "Jira issue created or updated",
+  "Coding agent investigation",
+  "Draft GitHub PR",
+  "Automated tests",
+  "Awaiting human approval",
+] as const;
+
+function WorkflowStrip({
+  alert,
+  activeStage = null,
+}: {
+  alert: VulnerabilityAlert;
+  activeStage?: number | null;
+}) {
+  const testCase = isIntentionalTestCase(alert);
   return (
     <div className="flex items-center gap-1" aria-label="Eight-stage remediation workflow">
-      {workflowFor(alert).map((stage, index) => (
-        <span
-          key={stage.label}
-          title={`${index + 1}. ${stage.label}: ${stage.status}`}
-          className={`h-2.5 w-5 ${
-            stage.status === "Succeeded"
-              ? "bg-[#24a148]"
-              : stage.status === "Failed"
-                ? "bg-[#da1e28]"
-                : stage.status === "Pending" || stage.status === "Running"
-                  ? "bg-[#0f62fe]"
-                  : stage.status === "Manual path"
-                    ? "bg-[#a6c8ff]"
-                    : "bg-[#c6c6c6]"
-          }`}
-        />
-      ))}
+      {workflowFor(alert).map((stage, index) => {
+        const stageNum = index + 1;
+        let colorClass =
+          stage.status === "Succeeded"
+            ? "bg-[#24a148]"
+            : stage.status === "Failed"
+              ? "bg-[#da1e28]"
+              : stage.status === "Pending" || stage.status === "Running"
+                ? "bg-[#0f62fe]"
+                : stage.status === "Manual path"
+                  ? "bg-[#a6c8ff]"
+                  : "bg-[#c6c6c6]";
+
+        if (activeStage !== null && !testCase) {
+          if (stageNum < activeStage) {
+            colorClass =
+              stage.status === "Manual path"
+                ? "bg-[#a6c8ff]"
+                : stage.status === "Failed"
+                  ? "bg-[#da1e28]"
+                  : "bg-[#24a148]";
+          } else if (stageNum === activeStage) {
+            colorClass = "bg-[#0f62fe] animate-pulse ring-2 ring-[#0f62fe]/40";
+          } else {
+            colorClass = "bg-[#e0e0e0]";
+          }
+        }
+
+        return (
+          <span
+            key={stage.label}
+            title={`${stageNum}. ${stage.label}: ${
+              activeStage !== null && !testCase && stageNum === activeStage
+                ? "Running"
+                : stage.status
+            }`}
+            className={`h-2.5 w-5 transition-colors duration-200 ${colorClass}`}
+          />
+        );
+      })}
     </div>
   );
 }
@@ -356,24 +399,61 @@ function AlertDrawer({ alert, onClose }: { alert: VulnerabilityAlert; onClose: (
             </div>
           )}
           {alert.prUrl && (
-            <div className="mt-4 border border-[#a6c8ff] bg-[#edf5ff] p-4">
-              <p className="text-xs font-semibold uppercase tracking-[.08em] text-[#0043ce]">
-                Draft GitHub pull request
-              </p>
-              <p className="mt-1.5 text-sm text-[#161616]">
-                {alert.prTitle ?? `${alert.repository ?? "Mikop22/securitydemo"} pull request`}
-              </p>
-              <a
-                href={alert.prUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="mt-2 inline-flex items-center gap-1.5 font-mono text-xs font-semibold text-[#0f62fe] hover:underline"
-              >
-                {alert.repository ?? "Mikop22/securitydemo"}
-                {alert.prNumber ? `#${alert.prNumber}` : ""} · Open draft PR on GitHub
-                <ExternalLink size={12} />
-              </a>
-            </div>
+            <>
+              <div className="mt-4 border border-[#a6c8ff] bg-[#edf5ff] p-4">
+                <p className="text-xs font-semibold uppercase tracking-[.08em] text-[#0043ce]">
+                  Draft GitHub pull request
+                </p>
+                <p className="mt-1.5 text-sm text-[#161616]">
+                  {alert.prTitle ?? `${alert.repository ?? "Mikop22/securitydemo"} pull request`}
+                </p>
+                <a
+                  href={alert.prUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-2 inline-flex items-center gap-1.5 font-mono text-xs font-semibold text-[#0f62fe] hover:underline"
+                >
+                  {alert.repository ?? "Mikop22/securitydemo"}
+                  {alert.prNumber ? `#${alert.prNumber}` : ""} · Open draft PR on GitHub
+                  <ExternalLink size={12} />
+                </a>
+              </div>
+              <div className="mt-3 border border-[#e0e0e0] bg-[#f4f4f4] p-4">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-xs font-semibold uppercase tracking-[.08em] text-[#525252]">
+                    Entire agent provenance
+                  </p>
+                  <span className="bg-[#defbe6] px-2 py-0.5 font-mono text-[10px] font-semibold text-[#0e6027]">
+                    checkpoint-backend: branch
+                  </span>
+                </div>
+                <p className="mt-1.5 text-xs text-[#525252]">
+                  Entire CLI v0.13.1 · Checkpoint commit
+                </p>
+                <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs">
+                  {alert.commitSha && alert.commitUrl ? (
+                    <a
+                      href={alert.commitUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 font-mono font-semibold text-[#0f62fe] hover:underline"
+                    >
+                      {alert.commitSha}
+                      <ExternalLink size={11} />
+                    </a>
+                  ) : (
+                    <span className="font-mono text-[#525252]">
+                      {alert.prBranch ?? "branch checkpoint"}
+                    </span>
+                  )}
+                  {alert.verificationCommand && (
+                    <span className="font-mono text-[#161616]">
+                      Verify: {alert.verificationCommand}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </>
           )}
           <h3 className="mt-8 text-sm font-medium">Evidence</h3>
           {alert.evidence.length > 0 ? (
@@ -415,6 +495,47 @@ export default function AlertsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [requestKey, setRequestKey] = useState(0);
+  const [simStage, setSimStage] = useState<number | null>(null);
+  const [simCompleted, setSimCompleted] = useState(false);
+  const simTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (simTimerRef.current !== null) {
+        window.clearInterval(simTimerRef.current);
+      }
+    };
+  }, []);
+
+  function runLivePipelineSimulation() {
+    if (simStage !== null) return;
+    if (simTimerRef.current !== null) {
+      window.clearInterval(simTimerRef.current);
+    }
+    setSimCompleted(false);
+    setSimStage(1);
+    let current = 1;
+    simTimerRef.current = window.setInterval(() => {
+      current += 1;
+      if (current <= 8) {
+        setSimStage(current);
+      } else {
+        if (simTimerRef.current !== null) {
+          window.clearInterval(simTimerRef.current);
+          simTimerRef.current = null;
+        }
+        setSimStage(null);
+        setSimCompleted(true);
+        fetchAlertActivity()
+          .then((response) => {
+            setAlerts(response.alerts);
+          })
+          .catch(() => {
+            // Keep existing rows if refresh fails
+          });
+      }
+    }, 550);
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -496,8 +617,21 @@ export default function AlertsPage() {
       </section>
       <section className="mt-8 border border-[#e0e0e0]">
         <div className="flex flex-col gap-3 border-b border-[#e0e0e0] p-5 md:flex-row md:items-center md:justify-between">
-          <div>
+          <div className="flex flex-wrap items-center gap-3">
             <h2 className="text-xl font-light">Remediation workflows</h2>
+            <button
+              type="button"
+              onClick={runLivePipelineSimulation}
+              disabled={simStage !== null}
+              className="inline-flex h-10 items-center gap-2 bg-[#0f62fe] px-4 text-xs font-medium text-white transition-colors hover:bg-[#0043ce] disabled:cursor-wait disabled:bg-[#8d8d8d]"
+            >
+              {simStage !== null ? (
+                <LoaderCircle size={14} className="animate-spin" />
+              ) : (
+                <Play size={14} />
+              )}
+              Simulate live CVE pipeline
+            </button>
           </div>
           <div className="grid gap-2 sm:grid-cols-3">
             <select
@@ -537,6 +671,40 @@ export default function AlertsPage() {
             </select>
           </div>
         </div>
+        {simStage !== null && (
+          <div
+            role="status"
+            aria-live="polite"
+            className="flex items-center justify-between border-b border-[#a6c8ff] bg-[#edf5ff] px-5 py-3 text-xs font-medium text-[#0043ce]"
+          >
+            <span className="inline-flex items-center gap-2">
+              <Sparkles size={14} className=" text-[#0f62fe]" />
+              Running stage {simStage}/8: {PIPELINE_STAGE_LABELS[simStage - 1]}…
+            </span>
+            <span className="font-mono text-[11px]">
+              {Math.round((simStage / 8) * 100)}%
+            </span>
+          </div>
+        )}
+        {simStage === null && simCompleted && (
+          <div
+            role="status"
+            aria-live="polite"
+            className="flex items-center justify-between border-b border-[#a7f0ba] bg-[#defbe6] px-5 py-2.5 text-xs font-medium text-[#0e6027]"
+          >
+            <span className="inline-flex items-center gap-2">
+              <Check size={14} />
+              8-stage remediation pipeline verified — Slack, Jira, Entire checkpoint &amp; draft GitHub PRs synchronized.
+            </span>
+            <button
+              type="button"
+              onClick={() => setSimCompleted(false)}
+              className="text-[11px] underline"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
         {loading && (
           <div className="grid min-h-[320px] place-items-center">
             <div className="text-center">
@@ -622,7 +790,7 @@ export default function AlertsPage() {
                         </span>
                       </td>
                       <td className="px-4 py-4">
-                        <WorkflowStrip alert={alert} />
+                        <WorkflowStrip alert={alert} activeStage={simStage} />
                         <p className="mt-2 max-w-[240px] text-xs text-[#6f6f6f]">
                           {alert.triggerReason}
                         </p>
